@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sociedad Rural - Plataforma Integral</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Public+Sans:wght@300;400;500;600;700;800&family=Manrope:wght@200..800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2bee4b",
+                        "primary-dark": "#1ea835",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102213",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a2e1d",
+                        "text-main": "#0d1b10",
+                        "text-secondary": "#4c9a59",
+                        "border-light": "#e7f3e9",
+                        "border-dark": "#2a422e",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "Public Sans", "Manrope", "sans-serif"],
+                        "display": ["Inter", "Public Sans", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.fill-1 { font-variation-settings: 'FILL' 1; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-main dark:text-gray-100 transition-colors duration-200">
+    <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

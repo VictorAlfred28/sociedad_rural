@@ -1,0 +1,7 @@
+{
+  "name": "Sociedad Rural - Plataforma Integral",
+  "description": "Una plataforma administrativa y para socios de la Sociedad Rural, con carnet digital, gestión de pagos, foro, y asistente inteligente integrado con Google Gemini.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
