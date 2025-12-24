@@ -15,6 +15,9 @@ export default function PartnerManagement() {
         description: '',
         category: 'Insumos',
         discount_details: '',
+        address: '',
+        city: 'Rafaela',
+        province: 'Santa Fe'
     });
 
     useEffect(() => {
@@ -44,7 +47,15 @@ export default function PartnerManagement() {
             if (error) throw error;
 
             setShowAddMerchant(false);
-            setNewMerchant({ name: '', description: '', category: 'Insumos', discount_details: '' });
+            setNewMerchant({
+                name: '',
+                description: '',
+                category: 'Insumos',
+                discount_details: '',
+                address: '',
+                city: 'Rafaela',
+                province: 'Santa Fe'
+            });
             fetchData(); // Refresh list
             alert('Comercio agregado exitosamente');
         } catch (error: any) {
@@ -161,14 +172,26 @@ export default function PartnerManagement() {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {merchants.map((merchant) => (
                                     <div key={merchant.id} className="bg-white dark:bg-surface-dark p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex gap-4">
-                                        <div className="size-12 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl">
-                                            🏪
+                                        <div className="size-12 bg-primary/10 dark:bg-primary/5 rounded-lg flex items-center justify-center text-2xl">
+                                            🏢
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-lg dark:text-white">{merchant.name}</h3>
-                                            <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300 font-medium">{merchant.category}</span>
-                                            <p className="text-sm text-gray-500 mt-2 line-clamp-2">{merchant.description}</p>
-                                            <p className="text-primary font-bold mt-2">{merchant.discount_details}</p>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-start">
+                                                <h3 className="font-bold text-lg dark:text-white">{merchant.name}</h3>
+                                                <span className="text-[10px] bg-primary/20 text-primary-dark dark:text-primary px-2 py-0.5 rounded font-bold uppercase">{merchant.category}</span>
+                                            </div>
+                                            <p className="text-sm text-gray-500 mt-1 line-clamp-1">{merchant.description}</p>
+
+                                            <div className="mt-3 space-y-1">
+                                                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                                                    <span className="material-symbols-outlined text-sm">location_on</span>
+                                                    {merchant.address}, {merchant.city}
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                                                    <span className="material-symbols-outlined text-sm">local_offer</span>
+                                                    {merchant.discount_details}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -212,6 +235,36 @@ export default function PartnerManagement() {
                                     className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-xl p-3"
                                     value={newMerchant.description}
                                     onChange={e => setNewMerchant({ ...newMerchant, description: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold mb-1 dark:text-white">Domicilio</label>
+                                    <input
+                                        className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-xl p-3"
+                                        placeholder="Calle 123"
+                                        value={newMerchant.address}
+                                        onChange={e => setNewMerchant({ ...newMerchant, address: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-1 dark:text-white">Ciudad</label>
+                                    <input
+                                        className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-xl p-3"
+                                        value={newMerchant.city}
+                                        onChange={e => setNewMerchant({ ...newMerchant, city: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1 dark:text-white">Provincia</label>
+                                <input
+                                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-gray-700 rounded-xl p-3"
+                                    value={newMerchant.province}
+                                    onChange={e => setNewMerchant({ ...newMerchant, province: e.target.value })}
                                     required
                                 />
                             </div>

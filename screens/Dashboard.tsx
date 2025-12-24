@@ -7,9 +7,10 @@ import { supabase } from '../services/supabaseClient';
 const Dashboard: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [merchantCount, setMerchantCount] = useState(0);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data } = await supabase
@@ -20,9 +21,16 @@ const Dashboard: React.FC = () => {
 
         setProfile(data || { email: user.email });
       }
+
+      // Fetch merchant count
+      const { count } = await supabase
+        .from('merchants')
+        .select('*', { count: 'exact', head: true });
+
+      setMerchantCount(count || 0);
       setLoading(false);
     };
-    fetchProfile();
+    fetchData();
   }, []);
 
   const userName = profile?.full_name || profile?.email || 'Socio';
@@ -92,7 +100,7 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Eventos", val: "3", icon: "event" },
-          { label: "Beneficios", val: "12", icon: "local_offer" },
+          { label: "Beneficios", val: merchantCount.toString(), icon: "local_offer" },
           { label: "Consultas", val: "0", icon: "support_agent" },
           { label: "Documentos", val: "5", icon: "folder" }
         ].map((item, i) => (

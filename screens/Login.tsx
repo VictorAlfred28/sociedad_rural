@@ -43,7 +43,12 @@ const Login: React.FC = () => {
             // Check role
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+                console.log('Login successful for:', user.email);
+                const { data, error: roleError } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+
+                if (roleError) console.error('Error fetching role:', roleError);
+                console.log('Fetched role:', data?.role);
+
                 if (data?.role === 'admin') {
                     navigate('/admin');
                 } else {

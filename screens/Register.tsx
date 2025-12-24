@@ -27,21 +27,22 @@ const Register: React.FC = () => {
             if (signUpError) throw signUpError;
 
             if (user) {
-                // 2. Update profile with additional details
-                // The trigger has likely already created the row, so we update it.
-                // We'll give it a slight delay or just try update.
+                // 2. Create or update profile with additional details
+                // Using upsert ensures the profile is created even if the trigger hasn't finished
                 const { error: profileError } = await supabase
                     .from('profiles')
-                    .update({
+                    .upsert({
+                        id: user.id,
+                        email: email,
                         full_name: fullName,
                         dni: dni,
                         role: 'socio'
-                    })
-                    .eq('id', user.id);
+                    });
 
                 if (profileError) {
-                    console.error('Error update profile:', profileError);
-                    // Don't block registration success if profile update fails, but warn.
+                    console.error('Error creating profile:', profileError);
+                    setError('Tu cuenta fue creada pero hubo un problema con tu perfil. Por favor intenta iniciar sesión.');
+                    return;
                 }
 
                 navigate('/');
