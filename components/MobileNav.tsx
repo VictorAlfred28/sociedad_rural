@@ -7,7 +7,7 @@ interface MobileNavProps {
 }
 
 export const MobileNav = ({ role }: MobileNavProps) => {
-  const isAdmin = role === 'admin' || role === 'superadmin' || role === 'admin_camara';
+  const isAdmin = ['admin', 'superadmin', 'admin_camara'].includes(role?.toLowerCase() || '');
 
   const adminLinks = [
     { to: "/", icon: LayoutDashboard, label: "Inicio" },
@@ -31,10 +31,9 @@ export const MobileNav = ({ role }: MobileNavProps) => {
             key={item.label}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center w-full h-full space-y-1 ${
-                isActive 
-                  ? "text-rural-green font-bold" 
-                  : "text-gray-400 hover:text-gray-600"
+              `flex flex-col items-center justify-center w-full h-full space-y-1 ${isActive
+                ? "text-rural-green font-bold"
+                : "text-gray-400 hover:text-gray-600"
               }`
             }
           >

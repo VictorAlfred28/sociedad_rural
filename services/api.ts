@@ -299,6 +299,18 @@ export const ApiService = {
         async () => ({ success: true }),
         'Update FCM Token'
       );
+    },
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      const res = await fetch(`${API_BASE_URL}/user/change-password`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Error al cambiar contraseña");
+      }
+      return res.json();
     }
   },
 

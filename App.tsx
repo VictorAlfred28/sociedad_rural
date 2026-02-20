@@ -128,7 +128,7 @@ const App = () => {
     );
   }
 
-  const isAdmin = userRole === 'admin' || userRole === 'superadmin' || userRole === 'admin_camara';
+  const isAdmin = ['admin', 'superadmin', 'admin_camara'].includes(userRole?.toLowerCase() || '');
 
   // Si es SOCIO
   if (!isAdmin) {

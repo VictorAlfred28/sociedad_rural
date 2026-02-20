@@ -160,10 +160,11 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
         const isActivo = status === 'activo' && !isMoroso;
         let label = status || 'Pendiente';
         if (isMoroso) label = 'Deuda Pendiente';
+        const isAdmin = ['admin', 'superadmin', 'admin_camara'].includes(profile?.rol?.toLowerCase() || '');
 
         return (
-            <div className={`flex items - center gap - 2 px - 3 py - 1 rounded - full text - xs font - bold uppercase tracking - wider border ${isActivo ? 'bg-green-100/20 text-green-300 border-green-400' : 'bg-red-100/20 text-red-300 border-red-400'} `}>
-                <div className={`w - 2 h - 2 rounded - full ${isActivo ? 'bg-green-400 animate-pulse' : 'bg-red-400'} `}></div>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${isActivo ? 'bg-green-100/20 text-green-300 border-green-400' : 'bg-red-100/20 text-red-300 border-red-400'}`}>
+                <div className={`w-2 h-2 rounded-full ${isActivo ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
                 {label}
             </div>
         );
@@ -261,13 +262,13 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                     <div className="flex bg-gray-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-4">
                         <button
                             onClick={() => setActiveTab('socio')}
-                            className={`flex - 1 flex items - center justify - center gap - 2 py - 3 rounded - xl font - bold text - sm transition - all ${activeTab === 'socio' ? 'bg-white dark:bg-slate-700 text-rural-green dark:text-rural-gold shadow-md' : 'text-gray-500 hover:text-gray-700'} `}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'socio' ? 'bg-white dark:bg-slate-700 text-rural-green dark:text-rural-gold shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             <User className="w-4 h-4" /> Mi Carnet
                         </button>
                         <button
                             onClick={() => setActiveTab('negocio')}
-                            className={`flex - 1 flex items - center justify - center gap - 2 py - 3 rounded - xl font - bold text - sm transition - all ${activeTab === 'negocio' ? 'bg-white dark:bg-slate-700 text-rural-green dark:text-rural-gold shadow-md' : 'text-gray-500 hover:text-gray-700'} `}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'negocio' ? 'bg-white dark:bg-slate-700 text-rural-green dark:text-rural-gold shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             <Store className="w-4 h-4" /> Mi Negocio
                         </button>
@@ -283,7 +284,7 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                             <div className="relative group perspective-1000 w-full max-w-md mx-auto">
                                 <div
                                     ref={cardRef}
-                                    className={`relative w - full aspect - [1.586 / 1] rounded - 2xl overflow - hidden shadow - 2xl transition - transform duration - 500 transform bg - gradient - to - br from - [#1B4332] via - [#0f291e] to - [#081f16] border border - rural - gold / 30 ${isRestricted ? 'grayscale-[0.5]' : ''} `}
+                                    className={`relative w-full aspect-[1.586/1] min-h-[220px] rounded-2xl overflow-hidden shadow-2xl transition-transform duration-500 transform bg-gradient-to-br from-[#1B4332] via-[#0f291e] to-[#081f16] border border-rural-gold/30 ${isRestricted ? 'grayscale-[0.5]' : ''}`}
                                 >
                                     {/* Textura de Fondo (Ruido/Patrón) */}
                                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/leather.png')]"></div>
@@ -368,10 +369,10 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                                                         </div>
                                                     )
                                                 }
-                                            </div >
-                                        </div >
-                                    </div >
-                                </div >
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 {isRestricted && (
                                     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 bg-red-600/90 text-white text-[10px] sm:text-xs font-bold px-4 py-1.5 rounded-full shadow-xl flex items-center gap-2 border border-white/20">
