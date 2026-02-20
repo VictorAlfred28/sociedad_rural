@@ -302,24 +302,41 @@ export const ApiService = {
     }
   },
 
-  comercioPanel: {
-    getMyPromotions: async () => {
-      const res = await fetch(`${API_BASE_URL}/my-promotions`, { headers: getHeaders() });
-      if (!res.ok) throw new Error("Error al obtener promociones");
+  commerceSelf: {
+    getProfile: async () => {
+      const res = await fetch(`${API_BASE_URL}/my-commerce`, { headers: getHeaders() });
+      if (!res.ok) throw new Error("Error al obtener perfil comercial");
       return res.json();
     },
-    getMyStats: async () => {
-      const res = await fetch(`${API_BASE_URL}/my-stats`, { headers: getHeaders() });
-      if (!res.ok) throw new Error("Error al obtener estadísticas");
-      return res.json();
-    },
-    validateCoupon: async (couponData: any) => {
-      const res = await fetch(`${API_BASE_URL}/validate-coupon`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(couponData)
+    updateProfile: async (data: any) => {
+      const res = await fetch(`${API_BASE_URL}/my-commerce`, {
+        method: 'PATCH', headers: getHeaders(), body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error("Error al validar cupón");
+      if (!res.ok) throw new Error("Error al actualizar perfil comercial");
+      return res.json();
+    },
+    getPromos: async () => {
+      const res = await fetch(`${API_BASE_URL}/my-commerce/promos`, { headers: getHeaders() });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    createPromo: async (data: any) => {
+      const res = await fetch(`${API_BASE_URL}/my-commerce/promos`, {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error("Error al crear promoción");
+      return res.json();
+    },
+    deletePromo: async (id: string) => {
+      const res = await fetch(`${API_BASE_URL}/my-commerce/promos/${id}`, {
+        method: 'DELETE', headers: getHeaders()
+      });
+      if (!res.ok) throw new Error("Error al eliminar promoción");
+      return res.json();
+    },
+    validateMember: async (dniOrId: string) => {
+      const res = await fetch(`${API_BASE_URL}/my-commerce/validate-member/${dniOrId}`, { headers: getHeaders() });
+      if (!res.ok) throw new Error("No se pudo validar el socio");
       return res.json();
     }
   }

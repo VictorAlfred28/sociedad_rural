@@ -248,6 +248,14 @@ class ComercioUpdate(BaseModel):
     direccion: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[str] = None
+
+class PromocionCreate(BaseModel):
+    titulo: str
+    descripcion: str
+    imagen_url: Optional[str] = ""
+    fecha_desde: Optional[str] = None
+    fecha_hasta: Optional[str] = None
+    estado: str = "activo"
     descuento_base: Optional[int] = None
     municipio_id: Optional[str] = None
     tipo_plan: Optional[str] = None
@@ -914,7 +922,105 @@ async def update_fcm_token(data: dict, user: TokenData = Depends(get_current_use
         logger.error(f"Error updating FCM token: {e}")
         raise HTTPException(500, "Error al guardar token de notificaciones")
 
-# --- 6. PAGOS MERCADO PAGO ---
+# --- 6. AUTOGESTIÓN COMERCIAL ---
+
+@app.get("/api/v1/my-commerce")
+async def get_my_commerce(user: TokenData = Depends(get_current_user)):
+    # Obtener comercio_id del perfil del usuario
+    prof = supabase.table("profiles").select("comercio_id").eq("id", user.uid).execute()
+    if not prof.data or not prof.data[0].get("comercio_id"):
+        raise HTTPException(404, "Este usuario no tiene un comercio vinculado")
+    
+    comercio_id = prof.data[0]["comercio_id"]
+    res = supabase.table("comercios").select("*, municipios(nombre), camaras(nombre)").eq("id", comercio_id).execute()
+    if not res.data:
+        raise HTTPException(404, "Comercio no encontrado")
+    return res.data[0]
+
+@app.patch("/api/v1/my-commerce")
+async def update_my_commerce(comercio_data: dict, user: TokenData = Depends(get_current_user)):
+    prof = supabase.table("profiles").select("comercio_id").eq("id", user.uid).execute()
+    comercio_id = prof.data[0].get("comercio_id")
+    if not comercio_id:
+        raise HTTPException(403, "No tiene un comercio vinculado")
+    
+    # Solo permitir editar ciertos campos
+    allowed_fields = ["nombre", "direccion", "telefono", "email", "descuento_base", "rubro"]
+    payload = {k: v for k, v in comercio_data.items() if k in allowed_fields}
+    
+    try:
+        res = supabase.table("comercios").update(payload).eq("id", comercio_id).execute()
+        return res.data[0]
+    except Exception as e:
+        logger.error(f"Error self-updating commerce: {e}")
+        raise HTTPException(400, "Error al actualizar los datos de su comercio")
+
+@app.get("/api/v1/my-commerce/promos")
+async def get_my_promos(user: TokenData = Depends(get_current_user)):
+    prof = supabase.table("profiles").select("comercio_id").eq("id", user.uid).execute()
+    comercio_id = prof.data[0].get("comercio_id")
+    if not comercio_id: return []
+    
+    res = supabase.table("promociones").select("*").eq("comercio_id", comercio_id).execute()
+    return res.data or []
+
+@app.post("/api/v1/my-commerce/promos")
+async def create_my_promo(promo: PromocionCreate, user: TokenData = Depends(get_current_user)):
+    prof = supabase.table("profiles").select("comercio_id").eq("id", user.uid).execute()
+    comercio_id = prof.data[0].get("comercio_id")
+    if not comercio_id:
+        raise HTTPException(403, "No tiene un comercio vinculado")
+    
+    payload = promo.model_dump()
+    payload["comercio_id"] = comercio_id
+    
+    try:
+        res = supabase.table("promociones").insert(payload).execute()
+        return res.data[0]
+    except Exception as e:
+        logger.error(f"Error creating commerce promo: {e}")
+        raise HTTPException(400, "Error al crear la promoción")
+
+@app.delete("/api/v1/my-commerce/promos/{promo_id}")
+async def delete_my_promo(promo_id: str, user: TokenData = Depends(get_current_user)):
+    prof = supabase.table("profiles").select("comercio_id").eq("id", user.uid).execute()
+    comercio_id = prof.data[0].get("comercio_id")
+    if not comercio_id:
+        raise HTTPException(403, "No tiene permiso")
+    
+    # Verificar que la promo sea suya
+    check = supabase.table("promociones").select("id").eq("id", promo_id).eq("comercio_id", comercio_id).execute()
+    if not check.data:
+        raise HTTPException(404, "Promoción no encontrada o no pertenece a su comercio")
+    
+    supabase.table("promociones").delete().eq("id", promo_id).execute()
+    return {"success": True}
+
+@app.get("/api/v1/my-commerce/validate-member/{dni_or_id}")
+async def validate_member_for_commerce(dni_or_id: str, user: TokenData = Depends(get_current_user)):
+    # Verificar que el usuario sea comercial
+    if user.role not in ["comercial", "admin", "superadmin", "admin_camara"]:
+        raise HTTPException(403, "No tiene permiso para validar socios")
+    
+    query = supabase.table("profiles").select("*")
+    if dni_or_id.isdigit():
+        query = query.eq("dni", dni_or_id)
+    else:
+        query = query.eq("id", dni_or_id)
+    
+    res = query.execute()
+    if not res.data:
+        raise HTTPException(404, "Socio no encontrado")
+        
+    socio = res.data[0]
+    return {
+        "is_active": socio.get("estado") == "activo",
+        "is_moroso": socio.get("is_moroso", False),
+        "nombre": f"{socio.get('nombre')} {socio.get('apellido')}",
+        "dni": socio.get("dni")
+    }
+
+# --- 7. PAGOS MERCADO PAGO ---
 
 
 @app.post("/api/v1/payments/preference")
