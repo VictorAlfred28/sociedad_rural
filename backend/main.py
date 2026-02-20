@@ -919,7 +919,7 @@ async def update_fcm_token(payload: dict, user: TokenData = Depends(get_current_
     return {"status": "ok"}
 
 @app.post("/api/v1/user/change-password")
-@limiter.limit("3/hour")
+@limiter.limit("10/hour")
 async def change_password(data: PasswordChange, request: Request, user: TokenData = Depends(get_current_user)):
     # 1. Validar contraseña actual (re-autenticando)
     try:
