@@ -294,6 +294,10 @@ class EventoUpdate(BaseModel):
     lugar: Optional[str] = None
     estado: Optional[str] = None
 
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
 class PaymentPreferenceRequest(BaseModel):
 
     title: str = "Cuota Social Mensual"
@@ -908,19 +912,35 @@ async def test_notification(data: dict, user: TokenData = Depends(get_current_us
     return {"success": success}
 
 @app.post("/api/v1/user/fcm-token")
-async def update_fcm_token(data: dict, user: TokenData = Depends(get_current_user)):
-    fcm_token = data.get("fcm_token")
-    if not fcm_token:
-        raise HTTPException(400, "fcm_token es requerido")
-    
+async def update_fcm_token(payload: dict, user: TokenData = Depends(get_current_user)):
+    token = payload.get("token")
+    if not token: raise HTTPException(400, "Token requerido")
+    supabase.table("profiles").update({"fcm_token": token}).eq("id", user.uid).execute()
+    return {"status": "ok"}
+
+@app.post("/api/v1/user/change-password")
+@limiter.limit("3/hour")
+async def change_password(data: PasswordChange, request: Request, user: TokenData = Depends(get_current_user)):
+    # 1. Validar contraseña actual (re-autenticando)
     try:
-        supabase.table("profiles").update({
-            "fcm_token": fcm_token
-        }).eq("id", user.uid).execute()
-        return {"success": True}
+        supabase_anon.auth.sign_in_with_password({
+            "email": user.username,
+            "password": data.current_password
+        })
+    except Exception:
+        raise HTTPException(401, "La contraseña actual es incorrecta")
+
+    # 2. Actualizar a la nueva contraseña usando Admin API
+    try:
+        supabase.auth.admin.update_user_by_id(
+            user.uid,
+            attributes={"password": data.new_password}
+        )
+        logger.info(f"Contraseña actualizada para usuario: {user.uid}")
+        return {"message": "Contraseña actualizada exitosamente"}
     except Exception as e:
-        logger.error(f"Error updating FCM token: {e}")
-        raise HTTPException(500, "Error al guardar token de notificaciones")
+        logger.error(f"Error actualizando contraseña: {e}")
+        raise HTTPException(400, "No se pudo actualizar la contraseña. Verifique los requisitos de seguridad.")
 
 # --- 6. AUTOGESTIÓN COMERCIAL ---
 
