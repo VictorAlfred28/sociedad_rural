@@ -279,13 +279,26 @@ export const ApiService = {
 
   user: {
     updateLocation: async (lat: number, lng: number) => {
-      const res = await fetch(`${API_BASE_URL}/user/location-update`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ lat, lng })
-      });
-      if (!res.ok) throw new Error("Error al actualizar ubicación");
-      return res.json();
+      return tryFetchOrFallback(
+        () => fetch(`${API_BASE_URL}/user/location-update`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ latitude: lat, longitude: lng }),
+        }),
+        async () => ({ success: true }),
+        'Update Location'
+      );
+    },
+    updateFCMToken: async (token: string) => {
+      return tryFetchOrFallback(
+        () => fetch(`${API_BASE_URL}/user/fcm-token`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ fcm_token: token }),
+        }),
+        async () => ({ success: true }),
+        'Update FCM Token'
+      );
     }
   },
 

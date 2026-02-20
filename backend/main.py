@@ -18,6 +18,8 @@ from passlib.context import CryptContext
 import mercadopago
 from supabase import create_client, Client
 from supabase.client import ClientOptions
+import firebase_admin
+from firebase_admin import credentials, messaging
 
 # --- SECURITY: RATE LIMITING ---
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -80,6 +82,35 @@ except Exception as e:
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/token")
+
+# --- FIREBASE CONFIG ---
+firebase_app = None
+fcm_creds_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+if fcm_creds_path and os.path.exists(fcm_creds_path):
+    try:
+        cred = credentials.Certificate(fcm_creds_path)
+        firebase_app = firebase_admin.initialize_app(cred)
+        logger.info("✅ Firebase Admin inicializado correctamente")
+    except Exception as e:
+        logger.error(f"❌ Error inicializando Firebase: {e}")
+else:
+    logger.warning("⚠️ Firebase no configurado (FIREBASE_SERVICE_ACCOUNT_PATH falta o no existe). Modo simulación activado.")
+
+async def send_push_notification(token: str, title: str, body: str, data: dict = None):
+    if not firebase_app:
+        logger.info(f"🔔 [NOTIF - SIMULADA] To: {token} | {title}: {body}")
+        return True
+    try:
+        message = messaging.Message(
+            notification=messaging.Notification(title=title, body=body),
+            data=data or {},
+            token=token
+        )
+        messaging.send(message)
+        return True
+    except Exception as e:
+        logger.error(f"Error enviando push: {e}")
+        return False
 
 # --- INICIALIZACIÓN APP ---
 limiter = Limiter(key_func=get_remote_address)
@@ -848,6 +879,40 @@ async def update_location(location_data: dict, user: TokenData = Depends(get_cur
     except Exception as e:
         logger.error(f"Error updating location: {e}")
         raise HTTPException(500, "Error al actualizar ubicación")
+
+@app.post("/api/v1/user/test-notification")
+async def test_notification(data: dict, user: TokenData = Depends(get_current_user)):
+    # Obtener token FCM del perfil si no viene en el body
+    fcm_token = data.get("fcm_token")
+    if not fcm_token:
+        prof = supabase.table("profiles").select("fcm_token").eq("id", user.uid).execute()
+        if prof.data:
+            fcm_token = prof.data[0].get("fcm_token")
+    
+    if not fcm_token:
+        raise HTTPException(400, "No se encontró un token FCM para este usuario")
+    
+    success = await send_push_notification(
+        token=fcm_token,
+        title="Prueba de Notificación",
+        body="Si recibes esto, Firebase está funcionando correctamente."
+    )
+    return {"success": success}
+
+@app.post("/api/v1/user/fcm-token")
+async def update_fcm_token(data: dict, user: TokenData = Depends(get_current_user)):
+    fcm_token = data.get("fcm_token")
+    if not fcm_token:
+        raise HTTPException(400, "fcm_token es requerido")
+    
+    try:
+        supabase.table("profiles").update({
+            "fcm_token": fcm_token
+        }).eq("id", user.uid).execute()
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error updating FCM token: {e}")
+        raise HTTPException(500, "Error al guardar token de notificaciones")
 
 # --- 6. PAGOS MERCADO PAGO ---
 

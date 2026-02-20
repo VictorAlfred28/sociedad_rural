@@ -34,6 +34,14 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                         .catch(err => console.error("Error updating location:", err));
                 });
             }
+
+            // Registrar Token FCM (Notificaciones)
+            // En una app real, aquí se obtendría el token del SDK de Firebase
+            const storedFCM = localStorage.getItem('fcm_token');
+            if (storedFCM) {
+                ApiService.user.updateFCMToken(storedFCM)
+                    .catch(err => console.error("Error updating FCM token:", err));
+            }
         }
 
         // Cargar contenido dinámico

@@ -10,3 +10,4 @@ python-dotenv==1.0.0
 # Production & Security
 gunicorn==21.2.0
 slowapi==0.1.9
+firebase-admin==6.2.0
