@@ -774,7 +774,7 @@ async def update_socio(socio_id: str, data: SocioUpdate, user: TokenData = Depen
         raise HTTPException(status_code=400, detail="Error al actualizar datos del socio")
 
 # --- 5.1 PROMOCIONES ---
-@app.get("/api/v1/promociones", dependencies=[Depends(get_active_user)])
+@app.get("/api/v1/promociones", dependencies=[Depends(get_current_user)])
 async def get_promociones(limit: int = 100, offset: int = 0):
     try:
         # Safe Get: Sin filtro de estado por si la columna no existe aún
@@ -811,7 +811,7 @@ async def delete_promocion(id: str):
     return {"message": "Promoción eliminada"}
 
 # --- 5.2 EVENTOS ---
-@app.get("/api/v1/eventos", dependencies=[Depends(get_active_user)])
+@app.get("/api/v1/eventos", dependencies=[Depends(get_current_user)])
 async def get_eventos(limit: int = 100, offset: int = 0):
     try:
         # Safe Get: Sin filtro de estado por si la columna no existe aún
