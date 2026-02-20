@@ -696,6 +696,8 @@ async def create_socio(socio: SocioCreate, user: TokenData = Depends(get_admin_u
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 @app.post("/api/v1/socios/{socio_id}/aprobar", dependencies=[Depends(get_admin_user)])
+async def aprobar_socio(socio_id: str):
+    supabase.table("profiles").update({"estado": "activo"}).eq("id", socio_id).execute()
     return {"message": "Socio aprobado"}
 
 @app.put("/api/v1/socios/{socio_id}", dependencies=[Depends(get_admin_user)])
@@ -721,9 +723,9 @@ async def update_socio(socio_id: str, data: SocioUpdate, user: TokenData = Depen
 # --- 5.1 PROMOCIONES ---
 @app.get("/api/v1/promociones", dependencies=[Depends(get_active_user)])
 async def get_promociones(limit: int = 100, offset: int = 0):
+    # Safe Get: Sin filtro de estado por si la columna no existe aún
     res = supabase.table("promociones")\
         .select("*, comercios(nombre)")\
-        .eq("estado", "activo")\
         .range(offset, offset + limit - 1)\
         .execute()
     
@@ -752,9 +754,9 @@ async def delete_promocion(id: str):
 # --- 5.2 EVENTOS ---
 @app.get("/api/v1/eventos", dependencies=[Depends(get_active_user)])
 async def get_eventos(limit: int = 100, offset: int = 0):
+    # Safe Get: Sin filtro de estado por si la columna no existe aún
     res = supabase.table("eventos")\
         .select("*")\
-        .eq("estado", "activo")\
         .order("fecha", desc=True)\
         .range(offset, offset + limit - 1)\
         .execute()
