@@ -82,29 +82,37 @@ export const ApiService = {
 
   auth: {
     login: async (credentials: any) => {
-      // Login siempre contra Backend Python para validar roles complejos
-      const res = await fetch(`${API_BASE_URL}/auth/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(credentials),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Error de autenticación");
+      try {
+        // Login siempre contra Backend Python para validar roles complejos
+        const res = await fetch(`${API_BASE_URL}/auth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams(credentials),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Error de autenticación");
+        }
+        return res.json();
+      } catch (error) {
+        return handleNetworkError(error, "Auth Login");
       }
-      return res.json();
     },
     register: async (data: any) => {
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Error en registro");
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Error en el registro");
+        }
+        return res.json();
+      } catch (error) {
+        return handleNetworkError(error, "Auth Register");
       }
-      return res.json();
     },
     logout: async () => {
       localStorage.clear();

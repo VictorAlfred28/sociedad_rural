@@ -533,15 +533,20 @@ async def get_comercios(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0)
 ):
-    # Query optimizada con paginación
-    query = supabase.table("comercios").select("*, municipios(nombre), camaras(nombre)")
-    if user.role == "admin_camara" and user.camara_id:
-        query = query.eq("camara_id", user.camara_id)
-    
-    # Aplicar paginación
-    query = query.range(offset, offset + limit - 1)
-    
-    return query.execute().data
+    try:
+        # Query optimizada con paginación
+        query = supabase.table("comercios").select("*, municipios(nombre), camaras(nombre)")
+        if user.role == "admin_camara" and user.camara_id:
+            query = query.eq("camara_id", user.camara_id)
+        
+        # Aplicar paginación
+        query = query.range(offset, offset + limit - 1)
+        
+        res = query.execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error fetching comercios: {e}")
+        return []
 
 @app.post("/api/v1/comercios", dependencies=[Depends(get_admin_user)])
 async def create_comercio(comercio: ComercioCreate, user: TokenData = Depends(get_current_user)):
@@ -627,14 +632,19 @@ async def get_socios(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0)
 ):
-    query = supabase.table("profiles").select("*").order("apellido")
-    if user.role == "admin_camara" and user.camara_id:
-        query = query.eq("camara_id", user.camara_id)
-    
-    # Paginación
-    query = query.range(offset, offset + limit - 1)
-    
-    return query.execute().data
+    try:
+        query = supabase.table("profiles").select("*").order("apellido")
+        if user.role == "admin_camara" and user.camara_id:
+            query = query.eq("camara_id", user.camara_id)
+        
+        # Paginación
+        query = query.range(offset, offset + limit - 1)
+        
+        res = query.execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error fetching socios: {e}")
+        return []
 
 @app.post("/api/v1/socios", dependencies=[Depends(get_admin_user)])
 async def create_socio(socio: SocioCreate, user: TokenData = Depends(get_admin_user)):
@@ -723,18 +733,24 @@ async def update_socio(socio_id: str, data: SocioUpdate, user: TokenData = Depen
 # --- 5.1 PROMOCIONES ---
 @app.get("/api/v1/promociones", dependencies=[Depends(get_active_user)])
 async def get_promociones(limit: int = 100, offset: int = 0):
-    # Safe Get: Sin filtro de estado por si la columna no existe aún
-    res = supabase.table("promociones")\
-        .select("*, comercios(nombre)")\
-        .range(offset, offset + limit - 1)\
-        .execute()
-    
-    # Formatear para el frontend
-    flat_data = []
-    for p in res.data:
-        p['comercio_nombre'] = p.get('comercios', {}).get('nombre')
-        flat_data.append(p)
-    return flat_data
+    try:
+        # Safe Get: Sin filtro de estado por si la columna no existe aún
+        res = supabase.table("promociones")\
+            .select("*, comercios(nombre)")\
+            .range(offset, offset + limit - 1)\
+            .execute()
+        
+        # Formatear para el frontend
+        flat_data = []
+        for p in (res.data or []):
+            # Safe access to nested join
+            comercio = p.get('comercios')
+            p['comercio_nombre'] = comercio.get('nombre') if comercio else "Comercio Desconocido"
+            flat_data.append(p)
+        return flat_data
+    except Exception as e:
+        logger.error(f"Error fetching promociones: {e}")
+        return []
 
 @app.post("/api/v1/promociones", dependencies=[Depends(get_admin_user)])
 async def create_promocion(promo: PromocionCreate):
@@ -754,13 +770,17 @@ async def delete_promocion(id: str):
 # --- 5.2 EVENTOS ---
 @app.get("/api/v1/eventos", dependencies=[Depends(get_active_user)])
 async def get_eventos(limit: int = 100, offset: int = 0):
-    # Safe Get: Sin filtro de estado por si la columna no existe aún
-    res = supabase.table("eventos")\
-        .select("*")\
-        .order("fecha", desc=True)\
-        .range(offset, offset + limit - 1)\
-        .execute()
-    return res.data
+    try:
+        # Safe Get: Sin filtro de estado por si la columna no existe aún
+        res = supabase.table("eventos")\
+            .select("*")\
+            .order("fecha", desc=True)\
+            .range(offset, offset + limit - 1)\
+            .execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error fetching eventos: {e}")
+        return []
 
 @app.post("/api/v1/eventos", dependencies=[Depends(get_admin_user)])
 async def create_evento(evento: EventoCreate):
@@ -781,14 +801,20 @@ async def delete_evento(id: str):
 
 @app.get("/api/v1/my-promotions")
 async def get_my_promotions(user: TokenData = Depends(get_current_user)):
-    # Obtener el comercio_id del perfil del usuario
-    prof_res = supabase.table("profiles").select("comercio_id").eq("id", user.uid).execute()
-    if not prof_res.data or not prof_res.data[0]['comercio_id']:
-        raise HTTPException(403, "El usuario no tiene un comercio asociado")
-    
-    comercio_id = prof_res.data[0]['comercio_id']
-    res = supabase.table("promociones").select("*").eq("comercio_id", comercio_id).execute()
-    return res.data
+    try:
+        # Obtener el comercio_id del perfil del usuario
+        prof_res = supabase.table("profiles").select("comercio_id").eq("id", user.uid).execute()
+        if not prof_res.data or not prof_res.data[0].get('comercio_id'):
+            raise HTTPException(403, "El usuario no tiene un comercio asociado")
+        
+        comercio_id = prof_res.data[0]['comercio_id']
+        res = supabase.table("promociones").select("*").eq("comercio_id", comercio_id).execute()
+        return res.data or []
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching my promotions: {e}")
+        return []
 
 @app.get("/api/v1/my-stats")
 async def get_my_stats(user: TokenData = Depends(get_current_user)):
