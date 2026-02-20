@@ -45,7 +45,6 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
             }
 
             // Registrar Token FCM (Notificaciones)
-            // En una app real, aquí se obtendría el token del SDK de Firebase
             const storedFCM = localStorage.getItem('fcm_token');
             if (storedFCM) {
                 ApiService.user.updateFCMToken(storedFCM)
@@ -67,9 +66,9 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                 setEvents(evts);
 
                 // Si es comercial, cargar sus datos específicos
-                const stored = localStorage.getItem('user_data');
-                if (stored) {
-                    const p = JSON.parse(stored);
+                const userData = localStorage.getItem('user_data');
+                if (userData) {
+                    const p = JSON.parse(userData);
                     if (p.rol === 'comercial') {
                         const [cData, pData] = await Promise.all([
                             ApiService.commerceSelf.getProfile(),
@@ -167,6 +166,30 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
         );
     };
 
+    // Manejadores Comercio
+    const handleValidateMember = async () => {
+        if (!validatorDni) return;
+        setIsValidating(true);
+        try {
+            const res = await ApiService.commerceSelf.validateMember(validatorDni);
+            setValidationResult(res);
+        } catch (err) {
+            alert("No se encontró el socio o hubo un error.");
+        } finally {
+            setIsValidating(false);
+        }
+    };
+
+    const handleDeletePromo = async (id: string) => {
+        if (!confirm("¿Eliminar esta promoción?")) return;
+        try {
+            await ApiService.commerceSelf.deletePromo(id);
+            setMyPromos(prev => prev.filter(p => p.id !== id));
+        } catch (err) {
+            alert("Error al eliminar.");
+        }
+    };
+
     // --- SKELETON COMPONENTS ---
     const SkeletonOffer = () => (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-pulse">
@@ -195,30 +218,6 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
 
     const isRestricted = profile?.estado !== 'activo' || profile?.is_moroso;
     const isComercio = profile?.rol === 'comercial';
-
-    // Manejadores Comercio
-    const handleValidateMember = async () => {
-        if (!validatorDni) return;
-        setIsValidating(true);
-        try {
-            const res = await ApiService.commerceSelf.validateMember(validatorDni);
-            setValidationResult(res);
-        } catch (err) {
-            alert("No se encontró el socio o hubo un error.");
-        } finally {
-            setIsValidating(false);
-        }
-    };
-
-    const handleDeletePromo = async (id: string) => {
-        if (!confirm("¿Eliminar esta promoción?")) return;
-        try {
-            await ApiService.commerceSelf.deletePromo(id);
-            setMyPromos(prev => prev.filter(p => p.id !== id));
-        } catch (err) {
-            alert("Error al eliminar.");
-        }
-    };
 
     return (
         <div className="min-h-screen font-sans pb-20 transition-colors duration-300">
@@ -273,7 +272,6 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
 
                 {activeTab === 'socio' ? (
                     <>
-
                         {/* --- CARNET DIGITAL PREMIUM --- */}
                         <div className="flex flex-col items-center gap-6">
 
@@ -416,25 +414,20 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
 
                         {/* --- DATOS Y PAGOS GRID --- */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                            {/* Estado de Cuenta */}
                             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 relative overflow-hidden transition-all hover:shadow-md">
                                 <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-50 dark:bg-blue-900/10 rounded-full opacity-50 pointer-events-none"></div>
-
                                 <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2 relative z-10">
                                     <CreditCard className="w-5 h-5 text-blue-500" /> Estado de Cuenta
                                 </h3>
-
                                 <div className="flex flex-col items-center justify-center py-2 relative z-10 text-center">
                                     <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Cuota Mensual</p>
                                     <div className="flex items-baseline gap-1 my-2">
                                         <span className="text-4xl font-serif font-bold text-gray-900 dark:text-white">$5.000</span>
                                         <span className="text-gray-500 text-xs font-bold">ARS</span>
                                     </div>
-
                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold mb-6 ${!profile?.is_moroso ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
                                         {!profile?.is_moroso ? <><CheckCircle className="w-3 h-3 mr-1.5" /> Al día</> : <><AlertTriangle className="w-3 h-3 mr-1.5" /> Pago Pendiente</>}
                                     </span>
-
                                     <button
                                         onClick={handlePayment}
                                         disabled={paymentLoading}
@@ -446,246 +439,201 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                                             <>Pagar con Mercado Pago <ExternalLink className="w-4 h-4" /></>
                                         )}
                                     </button>
-                                    <p className="text-[10px] text-gray-400 mt-4 max-w-[200px]">
-                                        Transacción procesada de forma segura por Mercado Pago.
-                                    </p>
                                 </div>
                             </div>
 
-                            {/* Datos Personales */}
                             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col transition-all hover:shadow-md">
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                                         <User className="w-5 h-5 text-rural-green" /> Mis Datos
                                     </h3>
-                                    <button className="text-rural-green dark:text-green-400 text-xs font-bold hover:underline">Gestionar</button>
                                 </div>
-
                                 <div className="space-y-4 flex-1">
                                     <div className="flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-slate-700/50">
                                         <MapPin className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                                         <div>
                                             <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">Localidad</p>
-                                            <span className="text-gray-700 dark:text-gray-200 text-sm font-bold leading-tight block mt-0.5">
-                                                {profile?.ciudad || 'Paso de los Libres'}, Corrientes
-                                            </span>
+                                            <span className="text-gray-700 dark:text-gray-200 text-sm font-bold block mt-0.5">{profile?.ciudad || 'Paso de los Libres'}, Corrientes</span>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-slate-700/50">
                                         <Phone className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                                         <div>
-                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">Teléfono de contacto</p>
-                                            <span className="text-gray-700 dark:text-gray-200 text-sm font-bold block mt-0.5">{profile?.telefono || '+54 3772 42XXXX'}</span>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">Teléfono</p>
+                                            <span className="text-gray-700 dark:text-gray-200 text-sm font-bold">{profile?.telefono || '+54 3772 42XXXX'}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* --- SECCIONES DINÁMICAS (BLOQUEADAS SI MOROSO) --- */}
+                        {/* --- SECCIONES DINÁMICAS --- */}
                         <div className={`space-y-12 transition-all duration-500 ${isRestricted ? 'opacity-40 pointer-events-none select-none blur-[2px]' : ''}`}>
-
-                            {/* SECCIÓN A: OFERTAS (COMERCIOS) */}
-                            <section>
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3">
-                                        <span className="bg-rural-gold text-rural-green w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm">A</span>
-                                        Beneficios en Comercio
-                                    </h3>
-                                    <button className="text-xs font-bold text-rural-green dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-full hover:bg-green-100 transition-colors">Explorar todo</button>
-                                </div>
-
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                                    {loadingContent ? (
-                                        [1, 2, 3, 4].map(i => <SkeletonOffer key={i} />)
-                                    ) : offers.length > 0 ? (
-                                        offers.slice(0, 4).map(offer => (
-                                            <div key={offer.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden group hover:shadow-lg transition-all hover:-translate-y-1">
-                                                <div className="h-28 bg-gray-100 relative overflow-hidden">
-                                                    <img
-                                                        src={offer.logo_url || `https://picsum.photos/seed/shop-${offer.id}/300/200`}
-                                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                                        alt=""
-                                                    />
-                                                    <div className="absolute top-2 right-2 bg-rural-green/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg border border-white/20">
-                                                        {offer.descuento_base}% CLUB
-                                                    </div>
-                                                </div>
-                                                <div className="p-4">
-                                                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{offer.nombre}</p>
-                                                    <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 truncate mb-3">{offer.rubro}</p>
-                                                    <button className="w-full py-2 bg-gray-50 dark:bg-slate-700/50 rounded-xl text-[10px] font-bold text-rural-green dark:text-green-400 hover:bg-rural-green hover:text-white transition-all border border-transparent hover:border-rural-green active:scale-95">
-                                                        Obtener Descuento
-                                                    </button>
-                                                </div>
+                            <section className="mt-8">
+                                <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3 mb-6">
+                                    <span className="bg-rural-gold text-rural-green w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm">A</span>
+                                    Beneficios en Comercio
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                    {loadingContent ? [1, 2, 3, 4].map(i => <SkeletonOffer key={i} />) : offers.map(offer => (
+                                        <div key={offer.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                            <img src={offer.logo_url || `https://picsum.photos/seed/shop-${offer.id}/300/200`} className="w-full h-24 object-cover" alt="" />
+                                            <div className="p-3">
+                                                <p className="text-xs font-bold truncate">{offer.nombre}</p>
+                                                <p className="text-[10px] text-gray-500">{offer.descuento_base}% Off</p>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <p className="col-span-full text-center text-gray-400 py-6 text-sm italic">Cargando beneficios cercanos...</p>
-                                    )}
+                                        </div>
+                                    ))}
                                 </div>
                             </section>
 
-                            {/* SECCIÓN B: PROMOCIONES (CARDS CON IMAGEN) */}
                             <section>
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3">
-                                        <span className="bg-amber-700 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm">B</span>
-                                        Promociones de Temporada
-                                    </h3>
-                                </div>
-
+                                <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3 mb-6">
+                                    <span className="bg-amber-700 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm">B</span>
+                                    Promociones
+                                </h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    {loadingContent ? (
-                                        [1, 2].map(i => <SkeletonPromo key={i} />)
-                                    ) : promotions.length > 0 ? (
-                                        promotions.map(promo => (
-                                            <div key={promo.id} className="relative rounded-2xl overflow-hidden shadow-xl h-48 group cursor-pointer border border-white/10">
-                                                <img src={promo.imagen_url || `https://picsum.photos/seed/promo-${promo.id}/800/400`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt="" />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
-                                                <div className="absolute top-4 right-4 sm:hidden">
-                                                    <div className="bg-white/20 backdrop-blur-md p-2 rounded-full border border-white/30">
-                                                        <Download className="w-4 h-4 text-white" />
-                                                    </div>
-                                                </div>
-                                                <div className="absolute bottom-0 left-0 p-6 text-white w-full">
-                                                    <p className="text-[10px] font-bold text-rural-gold uppercase tracking-[0.3em] mb-1.5 drop-shadow-lg">{promo.comercio_nombre || 'COMERCIO ALIADO'}</p>
-                                                    <h4 className="text-lg sm:text-xl font-bold leading-tight mb-3 group-hover:text-rural-gold transition-colors">{promo.titulo}</h4>
-                                                    <div className="flex items-center justify-between">
-                                                        <button className="bg-rural-gold text-rural-green px-5 py-2 rounded-full text-xs font-bold hover:bg-white hover:scale-105 transition-all shadow-lg active:scale-95">
-                                                            Ver Promoción
-                                                        </button>
-                                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-300 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-md">
-                                                            Validez: {promo.fecha_hasta ? new Date(promo.fecha_hasta).toLocaleDateString() : 'Limitada'}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                    {loadingContent ? [1, 2].map(i => <SkeletonPromo key={i} />) : promotions.map(promo => (
+                                        <div key={promo.id} className="relative rounded-2xl overflow-hidden shadow-lg h-40">
+                                            <img src={promo.imagen_url || `https://picsum.photos/seed/promo-${promo.id}/600/300`} className="w-full h-full object-cover" alt="" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex flex-col justify-end">
+                                                <h4 className="text-white font-bold">{promo.titulo}</h4>
+                                                <p className="text-white/70 text-xs">{promo.descripcion}</p>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="col-span-full p-8 text-center bg-gray-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-gray-100 dark:border-gray-800">
-                                            <p className="text-gray-400 text-sm">No hay promociones especiales esta semana.</p>
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
                             </section>
-
-                            {/* SECCIÓN C: EVENTOS */}
-                            <section>
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3">
-                                        <span className="bg-green-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm">C</span>
-                                        Agenda Rural
-                                    </h3>
-                                    <button className="text-xs font-bold text-rural-green dark:text-green-400 group flex items-center gap-1">Ver Calendario <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></button>
-                                </div>
-
-                                <div className="space-y-4">
-                                    {loadingContent ? (
-                                        [1, 2].map(i => <SkeletonEvent key={i} />)
-                                    ) : events.length > 0 ? (
-                                        events.map(evt => (
-                                            <div key={evt.id} className="flex gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all group cursor-pointer hover:border-rural-green/30">
-                                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 dark:bg-green-950/20 rounded-2xl flex flex-col items-center justify-center shrink-0 border border-gray-100 dark:border-green-900/30 group-hover:bg-rural-green group-hover:text-white transition-colors duration-500">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider group-hover:text-rural-gold">{new Date(evt.fecha).toLocaleDateString('es-AR', { month: 'short' })}</span>
-                                                    <span className="text-2xl sm:text-3xl font-serif font-bold">{new Date(evt.fecha).getDate()}</span>
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="font-bold text-gray-900 dark:text-white truncate group-hover:text-rural-green transition-colors">{evt.titulo}</h4>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1 leading-relaxed">{evt.descripcion}</p>
-                                                    <div className="flex items-center justify-between mt-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="flex items-center gap-1 text-[10px] font-medium text-gray-400 bg-gray-50 dark:bg-slate-700 px-2 py-0.5 rounded">
-                                                                <MapPin className="w-3 h-3" /> {evt.lugar || 'Sede Rural'}
-                                                            </span>
-                                                            <span className="flex items-center gap-1 text-[10px] font-medium text-gray-400 bg-gray-50 dark:bg-slate-700 px-2 py-0.5 rounded">
-                                                                <User className="w-3 h-3" /> Abierto
-                                                            </span>
-                                                        </div>
-                                                        <button className="text-[10px] font-bold text-rural-green dark:text-green-400 hover:scale-105 transition-transform bg-green-50 dark:bg-green-900/40 px-3 py-1.5 rounded-lg active:scale-95">
-                                                            Agendar →
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-10 bg-gray-50 dark:bg-slate-900/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
-                                            <AlertTriangle className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-                                            <p className="text-gray-400 text-sm font-medium">No se encontraron eventos próximos en tu zona.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-
                         </div>
-
-                        {/* --- CANALES DE CONTACTO --- */}
-                        <div className="pt-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-md">
-                                <div className="bg-gray-50/50 dark:bg-slate-700/30 px-6 py-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                                    <h3 className="font-serif font-bold text-gray-800 dark:text-gray-100 text-lg">Asistencia y Canales Oficiales</h3>
-                                    <span className="bg-green-500 w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
-                                </div>
-
-                                <div className="p-4 sm:p-6 grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <ContactButton
-                                        href="https://wa.me/"
-                                        icon={MessageCircle}
-                                        label="WhatsApp"
-                                        sub="Secretaría Rural"
-                                        colorClass="bg-[#25D366]"
-                                        bgClass="bg-green-50 dark:bg-green-900/20"
-                                        borderClass="border-green-100 dark:border-green-900/30"
-                                    />
-                                    <ContactButton
-                                        href="tel:+543794000000"
-                                        icon={PhoneCall}
-                                        label="Sede Central"
-                                        sub="0800-RURAL-OFF"
-                                        colorClass="bg-rural-brown"
-                                        bgClass="bg-orange-50 dark:bg-orange-900/20"
-                                        borderClass="border-orange-100 dark:border-orange-900/30"
-                                    />
-                                    <ContactButton
-                                        href="https://instagram.com"
-                                        icon={Instagram}
-                                        label="Instagram"
-                                        sub="Nuestra Comunidad"
-                                        colorClass="bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]"
-                                        bgClass="bg-pink-50 dark:bg-pink-900/20"
-                                        borderClass="border-pink-100 dark:border-pink-900/30"
-                                    />
-                                    <ContactButton
-                                        href="https://facebook.com"
-                                        icon={Facebook}
-                                        label="Facebook"
-                                        sub="Prensa Rural"
-                                        colorClass="bg-[#1877F2]"
-                                        bgClass="bg-blue-50 dark:bg-blue-900/20"
-                                        borderClass="border-blue-100 dark:border-blue-900/30"
-                                    />
-                                </div>
-                                <div className="p-4 bg-gray-50/30 dark:bg-slate-900/10 text-center text-[10px] text-gray-400 font-medium">
-                                    Sociedad Rural Corrientes • Versión 8.0 CTO Build • © {new Date().getFullYear()}
+                    </>
+                ) : (
+                    // --- PANEL DE COMERCIO ---
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8 pb-10">
+                        {/* Header Negocio */}
+                        <div className="bg-gradient-to-br from-rural-green to-[#0f291e] rounded-3xl p-6 text-white shadow-xl relative overflow-hidden border-2 border-rural-gold/20">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-rural-gold/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+                            <div className="relative z-10">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-rural-gold opacity-80">Perfil Comercial</span>
+                                <h3 className="text-2xl font-serif font-bold mt-1">{myCommerce?.nombre || 'Mi Comercio'}</h3>
+                                <div className="flex flex-wrap gap-3 mt-4">
+                                    <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
+                                        <MapPin className="w-3 h-3 text-rural-gold" /> {myCommerce?.direccion}
+                                    </span>
+                                    <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
+                                        <Megaphone className="w-3 h-3 text-rural-gold" /> {myCommerce?.rubro}
+                                    </span>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${myCommerce?.tipo_plan === 'premium' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>
+                                        PLAN {myCommerce?.tipo_plan?.toUpperCase()}
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
-                    </main>
+                        {/* Validador de Socios */}
+                        <section className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                            <h4 className="font-serif font-bold text-gray-800 dark:text-gray-100 text-lg mb-4 flex items-center gap-2">
+                                <UserCheck className="w-5 h-5 text-rural-green" /> Validador de Socios
+                            </h4>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Ingrese DNI o escanee código"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rural-green transition-all"
+                                        value={validatorDni}
+                                        onChange={(e) => setValidatorDni(e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleValidateMember}
+                                    disabled={isValidating}
+                                    className="bg-rural-green text-white px-6 py-3 rounded-xl font-bold hover:bg-[#143225] disabled:opacity-50 transition-all flex items-center gap-2"
+                                >
+                                    {isValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                                    Validar
+                                </button>
+                            </div>
+
+                            {validationResult && (
+                                <div className={`mt-6 p-5 rounded-2xl border-2 animate-in zoom-in duration-300 ${validationResult.is_active && !validationResult.is_moroso ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h5 className="text-xl font-bold text-gray-900 mt-1">{validationResult.nombre}</h5>
+                                            <p className="text-sm font-medium text-gray-500">DNI: {validationResult.dni}</p>
+                                        </div>
+                                        <div className={`p-3 rounded-full ${validationResult.is_active && !validationResult.is_moroso ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                            {validationResult.is_active && !validationResult.is_moroso ? <CheckCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                                        </div>
+                                    </div>
+                                    <p className={`font-bold text-lg mt-4 ${validationResult.is_active && !validationResult.is_moroso ? 'text-green-700' : 'text-red-700'}`}>
+                                        {validationResult.is_active && !validationResult.is_moroso ? '¡ACCESO Y BENEFICIO DISPONIBLE!' : 'NO APLICAR BENEFICIO - SOCIO IRREGULAR'}
+                                    </p>
+                                </div>
+                            )}
+                        </section>
+
+                        {/* Gestión de Promociones */}
+                        <section>
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                    <Megaphone className="w-5 h-5 text-amber-600" /> Mis Promociones
+                                </h3>
+                                <button className="bg-rural-gold text-rural-green px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
+                                    <Plus className="w-4 h-4" /> Crear Promo
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {myPromos.length > 0 ? myPromos.map(promo => (
+                                    <div key={promo.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-gray-100 flex gap-4 shadow-sm">
+                                        <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                                            <img src={promo.imagen_url || `https://picsum.photos/seed/${promo.id}/200`} className="w-full h-full object-cover" alt="" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h5 className="font-bold text-gray-900 dark:text-white truncate">{promo.titulo}</h5>
+                                            <div className="mt-2 flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">ACTIVA</span>
+                                                <button onClick={() => handleDeletePromo(promo.id)} className="text-red-500 hover:text-red-700">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <div className="col-span-full py-10 text-center border-2 border-dashed border-gray-100 rounded-3xl text-gray-400 italic">No hay promociones.</div>
+                                )}
+                            </div>
+                        </section>
+                    </div>
+                )}
+
+                {/* --- CANALES DE CONTACTO --- */}
+                <div className="pt-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div className="bg-gray-50/50 dark:bg-slate-700/30 px-6 py-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                            <h3 className="font-serif font-bold text-gray-800 dark:text-gray-100 text-lg">Contacto Oficial</h3>
+                            <span className="bg-green-500 w-2 h-2 rounded-full animate-pulse"></span>
+                        </div>
+                        <div className="p-4 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <ContactButton href="https://wa.me/" icon={MessageCircle} label="WhatsApp" sub="Secretaría" colorClass="bg-green-500" />
+                            <ContactButton href="tel:+" icon={PhoneCall} label="Llamar" sub="Sede Central" colorClass="bg-rural-brown" />
+                            <ContactButton href="https://instagram.com" icon={Instagram} label="Instagram" sub="Comunidad" colorClass="bg-pink-500" />
+                            <ContactButton href="https://facebook.com" icon={Facebook} label="Facebook" sub="Prensa" colorClass="bg-blue-600" />
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     );
 };
 
-
-const ContactButton = ({ href, icon: Icon, label, sub, colorClass, bgClass, borderClass }: any) => (
-    <a href={href} target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-4 rounded-xl border ${borderClass} ${bgClass} hover:brightness-95 transition-all group`}>
-        <div className={`${colorClass} text-white p-2.5 rounded-full shadow-lg group-hover:scale-110 transition-transform`}>
-            <Icon className="w-5 h-5" />
-        </div>
-        <div>
-            <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">{label}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{sub}</p>
+const ContactButton = ({ href, icon: Icon, label, sub, colorClass }: any) => (
+    <a href={href} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-all">
+        <div className={`${colorClass} text-white p-2 rounded-full shadow-sm`}><Icon className="w-4 h-4" /></div>
+        <div className="min-w-0">
+            <p className="font-bold text-gray-800 dark:text-gray-100 text-xs truncate">{label}</p>
+            <p className="text-[10px] text-gray-500 truncate">{sub}</p>
         </div>
     </a>
 );
