@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sociedad Rural Norte de Corrientes - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            rural: {
+              green: '#1B4332', // Verde Monte Profundo
+              brown: '#8B4513', // Cuero Tabaco
+              gold: '#D4AF37',  // Dorado Trigo
+              white: '#F8F9FA', // Blanco Hueso
+              red: '#c0392b',
+            }
+          },
+          fontFamily: {
+            serif: ['Merriweather', 'serif'],
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@300;400;700&display=swap"
+    rel="stylesheet">
+  <script type="module" src="/index.tsx"></script>
+
+</head>
+
+<body class="bg-rural-white text-gray-800 font-sans antialiased">
+  <div id="root"></div>
+</body>
+
+</html>

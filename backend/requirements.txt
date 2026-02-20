@@ -1,0 +1,12 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.2
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+mercadopago==2.2.0
+supabase==2.0.3
+python-dotenv==1.0.0
+# Production & Security
+gunicorn==21.2.0
+slowapi==0.1.9
