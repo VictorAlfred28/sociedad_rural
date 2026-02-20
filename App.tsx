@@ -9,13 +9,15 @@ import { Audit } from './pages/Audit';
 import { Login } from './pages/Login';
 import { PublicRegister } from './pages/PublicRegister';
 import { Portal } from './pages/Portal';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, Shield } from 'lucide-react';
 import { ApiService } from './services/api';
 import { Chatbot } from './components/Chatbot';
 import { ThemeToggle } from './components/ThemeToggle';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 
 // Layout del Administrador
 const AdminLayout = ({ children, onLogout, role }: { children?: React.ReactNode, onLogout: () => void, role: string }) => {
+  const [showPassModal, setShowPassModal] = useState(false);
   return (
     <div className="flex min-h-screen bg-[#F8F9FA] dark:bg-slate-900 pb-16 md:pb-0 transition-colors duration-300">
       <Sidebar onLogout={onLogout} />
@@ -29,6 +31,13 @@ const AdminLayout = ({ children, onLogout, role }: { children?: React.ReactNode,
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
+            <button
+              onClick={() => setShowPassModal(true)}
+              className="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700 rounded-full transition-colors"
+              title="Cambiar Contraseña"
+            >
+              <Shield className="w-5 h-5" />
+            </button>
             <button className="relative p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700 rounded-full transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
@@ -49,6 +58,7 @@ const AdminLayout = ({ children, onLogout, role }: { children?: React.ReactNode,
         </main>
       </div>
       <MobileNav role={role} />
+      <ChangePasswordModal isOpen={showPassModal} onClose={() => setShowPassModal(false)} />
     </div>
   );
 };
