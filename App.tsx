@@ -27,7 +27,7 @@ const AdminLayout = ({ children, onLogout, role }: { children?: React.ReactNode,
           <div className="flex items-center gap-4">
             {/* Mobile Logo */}
             <div className="md:hidden w-8 h-8 bg-rural-green rounded-full flex items-center justify-center text-rural-gold font-bold text-xs">SR</div>
-            <h2 className="text-lg md:text-xl font-serif text-gray-800 dark:text-gray-100 truncate">Panel Administración</h2>
+            <h2 className="text-lg md:text-xl font-serif text-gray-800 dark:text-gray-100 truncate">Panel Administración Rural</h2>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
