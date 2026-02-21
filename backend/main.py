@@ -281,6 +281,7 @@ class ComercioUpdate(BaseModel):
     email: Optional[str] = None
     descuento_base: Optional[int] = None
     rubro: Optional[str] = None
+    estado: Optional[str] = None
 
 class PromocionCreate(BaseModel):
     comercio_id: Optional[str] = None
@@ -912,11 +913,17 @@ async def update_comercio(id: str, comercio: ComercioUpdate, user: TokenData = D
         payload = comercio.model_dump(exclude_unset=True)
         res = supabase.table("comercios").update(payload).eq("id", id).execute()
         
-        # Sincronizar nombre en profiles si cambia en comercios
-        if "nombre" in payload:
+        # Sincronizar nombre y estado en profiles si cambian en comercios
+        if "nombre" in payload or "estado" in payload:
             com_res = supabase.table("comercios").select("user_id").eq("id", id).execute()
             if com_res.data:
-                supabase.table("profiles").update({"nombre": payload["nombre"]}).eq("id", com_res.data[0]["user_id"]).execute()
+                user_id = com_res.data[0]["user_id"]
+                profile_update = {}
+                if "nombre" in payload: profile_update["nombre"] = payload["nombre"]
+                if "estado" in payload: profile_update["estado"] = payload["estado"]
+                
+                if profile_update:
+                    supabase.table("profiles").update(profile_update).eq("id", user_id).execute()
 
         if not res.data: raise HTTPException(404, "Comercio no encontrado")
         return res.data[0]
