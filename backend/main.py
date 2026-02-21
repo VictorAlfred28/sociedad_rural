@@ -53,6 +53,11 @@ key: str = os.getenv("SUPABASE_KEY", "")
 service_role_key: str = os.getenv("SUPABASE_SERVICE_KEY", key)
 
 # Cliente Privilegiado (Para operaciones de base de datos protegidas)
+if service_role_key == key:
+    logger.warning("⚠️ SUPABASE_SERVICE_KEY no detectada o igual a ANON_KEY. La creación de usuarios fallará.")
+else:
+    logger.info("✅ SUPABASE_SERVICE_KEY detectada y cargada.")
+
 try:
     supabase: Client = create_client(
         url, 
@@ -149,7 +154,10 @@ async def add_security_and_cache_headers(request: Request, call_next):
     
     # 2. Smart Caching Strategy
     # Solo cachear GETs exitosos que no sean autenticación o datos sensibles personales directos
-    if request.method == "GET" and response.status_code == 200:
+    # DESHABILITAR CACHÉ si hay encabezado de Authorization (Admin/User logueado)
+    has_auth = request.headers.get("Authorization")
+    
+    if request.method == "GET" and response.status_code == 200 and not has_auth:
         path = request.url.path
         # Datos estáticos (Cámaras, Municipios): Cache largo (1 hora)
         if "camaras" in path or "municipios" in path:
@@ -160,6 +168,9 @@ async def add_security_and_cache_headers(request: Request, call_next):
         # Datos volátiles (Validación QR, Stats): No cache
         elif "qr/validate" in path or "stats" in path:
             response.headers["Cache-Control"] = "no-store"
+    else:
+        # Asegurar que no se cachee nada autenticado o no-GET
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
             
     return response
 
@@ -701,18 +712,30 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
         email = f"comercio_{comercio.cuit}@sociedad-rural.com"
         
         # 1. Crear en Auth
-        auth_res = supabase.auth.admin.create_user({
-            "email": email,
-            "password": comercio.temp_password,
-            "user_metadata": {
-                "nombre": comercio.nombre,
-                "cuit": comercio.cuit,
-                "rol": "COMERCIO"
-            },
-            "email_confirm": True
-        })
-        
-        new_user_id = auth_res.user.id
+        try:
+            auth_res = supabase.auth.admin.create_user({
+                "email": email,
+                "password": comercio.temp_password,
+                "user_metadata": {
+                    "nombre": comercio.nombre,
+                    "cuit": comercio.cuit,
+                    "rol": "COMERCIO"
+                },
+                "email_confirm": True
+            })
+            
+            if not auth_res.user:
+                logger.error(f"Supabase Auth Error: {auth_res}")
+                raise HTTPException(status_code=400, detail="Error de Supabase Auth: No se pudo crear el usuario")
+            
+            new_user_id = auth_res.user.id
+        except Exception as auth_err:
+            logger.error(f"Excepción en Supabase Auth: {auth_err}")
+            if "User not allowed" in str(auth_err):
+                detail = "Error de Permisos: La SERVICE_KEY no tiene permisos suficientes para crear usuarios o el email ya existe."
+            else:
+                detail = f"Error al crear usuario en Auth: {str(auth_err)}"
+            raise HTTPException(status_code=400, detail=detail)
         
         # 2. Crear Perfil
         profile_data = {
@@ -762,19 +785,27 @@ async def approve_comercio(id: str):
     """Aprueba un comercio (tanto en perfiles como en tabla comercios)"""
     try:
         # 1. Obtener el comercio para saber el user_id
-        com_res = supabase.table("comercios").select("user_id").eq("id", id).execute()
-        if not com_res.data: raise HTTPException(404, "Comercio no encontrado")
+        com_res = supabase.table("comercios").select("user_id, nombre").eq("id", id).execute()
+        if not com_res.data: 
+            raise HTTPException(404, "Comercio no encontrado")
+        
         user_id = com_res.data[0]["user_id"]
+        nombre_com = com_res.data[0]["nombre"]
         
-        # 2. Activar perfil
-        supabase.table("profiles").update({"estado": "activo"}).eq("id", user_id).execute()
+        # 2. Activar perfil y comercio de forma secuencial con verificación
+        p_res = supabase.table("profiles").update({"estado": "activo"}).eq("id", user_id).execute()
+        c_res = supabase.table("comercios").update({"estado": "activo"}).eq("id", id).execute()
         
-        # 3. Activar comercio
-        res = supabase.table("comercios").update({"estado": "activo"}).eq("id", id).execute()
+        if not p_res.data or not c_res.data:
+            logger.error(f"Fallo de actualización en DB: Profile={bool(p_res.data)}, Comercio={bool(c_res.data)}")
+            raise HTTPException(400, "No se pudo actualizar el estado en la base de datos")
         
-        return {"success": True, "message": "Comercio aprobado y activado"}
+        logger.info(f"✅ Comercio '{nombre_com}' ({id}) aprobado exitosamente.")
+        return {"success": True, "message": f"Comercio '{nombre_com}' aprobado y activado correctamente"}
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error approving commerce: {e}")
+        logger.error(f"Error approving commerce {id}: {e}")
         raise HTTPException(400, detail=str(e))
 
 @app.post("/api/v1/admin/camaras", dependencies=[Depends(get_admin_user)])
