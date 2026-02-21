@@ -357,10 +357,10 @@ export const ApiService = {
     },
     updateFCMToken: async (token: string) => {
       return tryFetchOrFallback(
-        () => fetch(`/users/firebase-token`, { // Usando el endpoint específico del SPEC
+        () => fetch(`${API_BASE_URL}/user/fcm-token`, {
           method: 'POST',
           headers: getHeaders(),
-          body: JSON.stringify({ firebase_token: token }),
+          body: JSON.stringify({ token: token }), // Sincronizado con el backend payload.get("token")
         }),
         async () => ({ success: true }),
         'Update FCM Token'
