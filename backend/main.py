@@ -48,22 +48,21 @@ MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-token-placeholder")
 # Inicializar Mercado Pago
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 
-url: str = os.getenv("SUPABASE_URL", "")
-key: str = os.getenv("SUPABASE_KEY", "")
-service_role_key: str = os.getenv("SUPABASE_SERVICE_KEY", key)
-
-# Cliente Privilegiado (Para operaciones de base de datos protegidas)
-if service_role_key == key:
-    logger.warning("⚠️ SUPABASE_SERVICE_KEY no detectada o igual a ANON_KEY. La creación de usuarios fallará.")
+# Cliente Privilegiado (Para operaciones de base de datos protegidas y Admin API)
+# Verificación de integridad de llaves
+if not service_role_key or service_role_key == key:
+    logger.critical("🚨 ERROR CRÍTICO: No se detectó SUPABASE_SERVICE_KEY. Operaciones administrativas fallarán.")
 else:
-    logger.info("✅ SUPABASE_SERVICE_KEY detectada y cargada.")
+    # Loguear solo longitud y primeros caracteres para seguridad
+    logger.info(f"✅ SUPABASE_SERVICE_KEY cargada (Length: {len(service_role_key)})")
 
 try:
+    # Aseguramos que el cliente admin se cree con la service_role_key explícitamente
     supabase: Client = create_client(
         url, 
         service_role_key,
         options=ClientOptions(
-            postgrest_client_timeout=10,
+            postgrest_client_timeout=20,
             schema="public"
         )
     )
@@ -1176,36 +1175,60 @@ async def update_fcm_token(payload: dict, user: TokenData = Depends(get_current_
 @app.post("/api/v1/user/change-password")
 @limiter.limit("10/hour")
 async def change_password(data: PasswordChange, request: Request, user: TokenData = Depends(get_current_user)):
-    # 1. Validar contraseña actual (re-autenticando)
-    logger.info(f"Intento de cambio de clave para: {user.username}")
+    """
+    Cambio de contraseña robusto:
+    1. Valida clave actual mediante un login temporal
+    2. Actualiza clave usando Auth Admin API (Service Role)
+    """
+    logger.info(f"🔐 Intento de cambio de clave: {user.username}")
+    
+    # 1. Validar contraseña actual
+    # Creamos un cliente temporal para no afectar el estado global
+    temp_client = create_client(url, key)
     try:
-        # Intentamos re-autenticar al usuario para confirmar que conoce la clave actual
-        auth_res = supabase_anon.auth.sign_in_with_password({
+        auth_res = temp_client.auth.sign_in_with_password({
             "email": user.username,
             "password": data.current_password
         })
         if not auth_res.user:
-            raise Exception("No se pudo validar la identidad")
+            raise Exception("Credenciales actuales inválidas")
     except Exception as e:
-        logger.warning(f"Fallo re-autenticación en cambio de clave: {user.username} - {str(e)}")
-        raise HTTPException(401, "La contraseña actual es incorrecta o la sesión ha expirado")
+        logger.warning(f"❌ Fallo validación de clave actual para {user.username}: {str(e)}")
+        raise HTTPException(401, "La contraseña actual es incorrecta")
 
-    # 2. Actualizar a la nueva contraseña usando Admin API (para mayor fiabilidad)
+    # 2. Actualizar contraseña
+    # Intentamos primero con Admin API ya que tenemos el UID y es más persistente
     try:
-        # Usamos el admin client para bypass de cualquier restricción de sesión en el cambio forzado
+        # IMPORTANTE: Asegurarse de que 'supabase' sea el cliente con SERVICE_KEY
+        if not supabase:
+            raise Exception("Cliente Admin no disponible")
+            
+        # Intentar actualización administrativa
         supabase.auth.admin.update_user_by_id(
             user.uid,
             attributes={"password": data.new_password}
         )
         
-        # Opcional: Si el usuario tenía temp_password, borrarlo del perfil para marcar que ya cambió clave
+        # Marcar cambio de clave en el perfil
         supabase.table("profiles").update({"temp_password": None}).eq("id", user.uid).execute()
         
-        logger.info(f"Contraseña actualizada exitosamente para: {user.username} ({user.uid})")
+        logger.info(f"✅ Contraseña actualizada exitosamente para {user.username}")
         return {"message": "¡Contraseña actualizada con éxito!"}
+        
     except Exception as e:
-        logger.error(f"Error fatal actualizando contraseña para {user.uid}: {e}")
-        raise HTTPException(400, f"No se pudo establecer la nueva contraseña: {str(e)}")
+        logger.error(f"🚨 Error crítico en cambio de clave (Admin API): {e}")
+        # Fallback: Intentar con el cliente temporal autenticado recién creado
+        try:
+            temp_client.auth.update_user({"password": data.new_password})
+            supabase.table("profiles").update({"temp_password": None}).eq("id", user.uid).execute()
+            logger.info(f"✅ Contraseña actualizada vía fallback (User Context) para {user.username}")
+            return {"message": "¡Contraseña actualizada con éxito!"}
+        except Exception as fallback_err:
+            logger.error(f"🚨 Falló fallback de cambio de clave: {fallback_err}")
+            error_msg = str(e)
+            if "User not allowed" in error_msg:
+                error_msg = "Error de permisos en el servidor (Admin Key). Por favor contacte a soporte."
+            raise HTTPException(400, f"No se pudo establecer la nueva contraseña: {error_msg}")
 
 # --- 6. AUTOGESTIÓN COMERCIAL ---
 
