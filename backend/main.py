@@ -751,13 +751,47 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
             
             new_user_id = auth_res.user.id
         except Exception as auth_err:
-            error_msg = str(auth_err)
+            error_msg = str(auth_err).lower()
             logger.error(f"Excepción en Supabase Auth al crear comercio: {error_msg}")
-            if "already registered" in error_msg or "already exists" in error_msg:
-                raise HTTPException(400, "El usuario ya existe en Supabase Auth. Use un CUIT diferente.")
-            if "User not allowed" in error_msg:
+            
+            if "already registered" in error_msg or "already exists" in error_msg or "422" in error_msg:
+                try:
+                    logger.info(f"🔎 Email duplicado detectado ({auth_email}). Verificando si es un usuario huérfano...")
+                    # Listar usuarios para encontrar el ID del existente
+                    users_res = supabase.auth.admin.list_users()
+                    # En algunas versiones es .users, en otras es el objeto directo iterable
+                    all_users = getattr(users_res, 'users', users_res)
+                    existing_user = next((u for u in all_users if u.email == auth_email), None)
+                    
+                    if existing_user:
+                        # Verificar si tiene perfil en public.profiles
+                        p_check = supabase.table("profiles").select("id").eq("id", existing_user.id).execute()
+                        if not p_check.data:
+                            logger.warning(f"🧹 Usuario huérfano encontrado (ID: {existing_user.id}). Eliminando para reintentar alta...")
+                            supabase.auth.admin.delete_user(existing_user.id)
+                            # Reintentar creación
+                            retry_res = supabase.auth.admin.create_user({
+                                "email": auth_email,
+                                "password": comercio.temp_password,
+                                "user_metadata": {
+                                    "nombre": comercio.nombre,
+                                    "cuit": comercio.cuit,
+                                    "rol": "COMERCIO"
+                                },
+                                "email_confirm": True
+                            })
+                            new_user_id = retry_res.user.id
+                        else:
+                            raise HTTPException(400, f"Error: El email {auth_email} ya tiene un perfil asociado. Use otro CUIT.")
+                    else:
+                        raise HTTPException(400, "El email ya existe en Auth pero no se pudo recuperar para limpieza.")
+                except Exception as recovery_err:
+                    logger.error(f"Fallo en recuperación de huérfano: {recovery_err}")
+                    raise HTTPException(400, f"El usuario ya existe en Auth y la limpieza falló: {str(auth_err)}")
+            elif "User not allowed" in error_msg:
                 raise HTTPException(400, "Error de Permisos: La SERVICE_KEY es inválida o no tiene permisos de Auth Admin.")
-            raise HTTPException(400, f"Fallo al crear usuario en Auth: {error_msg}")
+            else:
+                raise HTTPException(400, f"Fallo al crear usuario en Auth: {error_msg}")
         
         # 2. Crear Perfil
         logger.info(f"👤 Creando perfil para {auth_email}...")
