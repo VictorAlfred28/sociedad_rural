@@ -48,6 +48,10 @@ MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-token-placeholder")
 # Inicializar Mercado Pago
 mp_sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 
+url: str = os.getenv("SUPABASE_URL", "")
+key: str = os.getenv("SUPABASE_KEY", "")
+service_role_key: str = os.getenv("SUPABASE_SERVICE_KEY", key)
+
 # Cliente Privilegiado (Para operaciones de base de datos protegidas y Admin API)
 # Verificación de integridad de llaves
 if not service_role_key or service_role_key == key:
