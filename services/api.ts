@@ -295,6 +295,18 @@ export const ApiService = {
         async () => [],
         "Get Promociones"
       );
+    },
+    getPremium: async (params: { categoria?: string, sort?: string, limit?: number, offset?: number }) => {
+      const { categoria = 'todos', sort = 'recientes', limit = 20, offset = 0 } = params;
+      const query = new URLSearchParams({
+        categoria,
+        sort,
+        limit: limit.toString(),
+        offset: offset.toString()
+      });
+      const res = await fetch(`${API_BASE_URL}/beneficios?${query}`, { headers: getHeaders() });
+      if (!res.ok) throw new Error("Error al obtener beneficios premium");
+      return res.json();
     }
   },
 

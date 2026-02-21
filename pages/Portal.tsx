@@ -101,6 +101,37 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
     }, [profile?.id]);
 
 
+    // Estados de Beneficios Premium
+    const [premiumBenefits, setPremiumBenefits] = useState<any[]>([]);
+    const [activeCategory, setActiveCategory] = useState('todos');
+    const [sortBy, setSortBy] = useState('recientes');
+    const [isPremiumLoading, setIsPremiumLoading] = useState(true);
+
+    const CATEGORIES = [
+        { id: 'todos', label: 'Todos', icon: '✨' },
+        { id: 'alimentos', label: 'Comida', icon: '🍔' },
+        { id: 'salud', label: 'Salud', icon: '🏥' },
+        { id: 'servicios', label: 'Servicios', icon: '🛠️' },
+        { id: 'tiendas', label: 'Tiendas', icon: '🛍️' },
+        { id: 'agro', label: 'Campo', icon: '🚜' },
+    ];
+
+    const fetchPremiumBenefits = async (cat = activeCategory, sort = sortBy) => {
+        setIsPremiumLoading(true);
+        try {
+            const data = await ApiService.promociones.getPremium({ categoria: cat, sort });
+            setPremiumBenefits(data);
+        } catch (err) {
+            console.error("Error fetching premium benefits:", err);
+        } finally {
+            setIsPremiumLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPremiumBenefits();
+    }, [activeCategory, sortBy]);
+
     // Detectar retorno de Mercado Pago
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -111,6 +142,66 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
             alert("El pago no pudo ser procesado. Intente nuevamente.");
         }
     }, [location]);
+
+    // --- COMPONENTES UI PREMIUM ---
+    const CategoryChip = ({ id, label, icon }: any) => (
+        <button
+            onClick={() => setActiveCategory(id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${activeCategory === id
+                ? 'bg-rural-green text-white shadow-lg scale-105'
+                : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
+                }`}
+        >
+            <span>{icon}</span>
+            {label}
+        </button>
+    );
+
+    const SkeletonCard = () => (
+        <div className="bg-gray-100 animate-pulse rounded-2xl h-64 w-full"></div>
+    );
+
+    const PremiumBenefitCard = ({ item }: { item: any }) => (
+        <div className="group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-transparent hover:border-rural-gold/30 flex flex-col h-full animate-in fade-in slide-in-from-bottom-2">
+            {/* Image & Badge */}
+            <div className="relative h-40 overflow-hidden">
+                <img
+                    src={item.imagen_url || `https://picsum.photos/seed/${item.id}/400/300`}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    alt={item.titulo}
+                    loading="lazy"
+                />
+                <div className="absolute top-3 right-3 bg-rural-gold text-rural-green px-3 py-1 rounded-lg font-black text-sm shadow-xl flex items-center gap-1">
+                    {item.porcentaje_descuento}% <span className="text-[10px]">OFF</span>
+                </div>
+                {new Date(item.fecha_inicio) > new Date(Date.now() - 7 * 86400000) && (
+                    <div className="absolute top-3 left-3 bg-green-500 text-white px-2 py-0.5 rounded-md font-bold text-[10px] uppercase tracking-tighter">
+                        Nuevo
+                    </div>
+                )}
+            </div>
+
+            {/* Content */}
+            <div className="p-4 flex flex-col flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                    {item.comercio_logo && <img src={item.comercio_logo} className="w-5 h-5 rounded-full border border-gray-100" />}
+                    <span className="text-[10px] font-bold text-rural-green/70 uppercase tracking-widest truncate">{item.comercio_nombre}</span>
+                </div>
+                <h4 className="text-gray-800 dark:text-gray-100 font-bold text-sm leading-tight line-clamp-1 mb-1">{item.titulo}</h4>
+                <p className="text-gray-500 dark:text-gray-400 text-[11px] line-clamp-2 leading-relaxed flex-1">{item.descripcion}</p>
+
+                <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-gray-400">
+                        <MapPin className="w-3 h-3" />
+                        <span className="text-[10px]">{item.categoria}</span>
+                    </div>
+                    <button className="bg-gray-50 hover:bg-rural-green hover:text-white dark:bg-slate-700 text-rural-green text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors border border-gray-100 dark:border-gray-600">
+                        Usar Beneficio
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 
     const handlePayment = async () => {
         setPaymentLoading(true);
@@ -533,51 +624,90 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                             </div>
                         </div>
 
-                        {/* --- SECCIONES DINÁMICAS --- */}
-                        <div className={`space-y-12 transition-all duration-500 ${isRestricted ? 'opacity-40 pointer-events-none select-none blur-[2px]' : ''}`}>
+                        {/* --- SECCIÓN DE BENEFICIOS PREMIUM (NUEVO) --- */}
+                        <div className={`space-y-12 transition-all duration-500 pb-10 ${isRestricted ? 'opacity-40 pointer-events-none select-none blur-[2px]' : ''}`}>
+
                             <section className="mt-8">
-                                <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3 mb-6">
-                                    <span className="bg-rural-gold text-rural-green w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm">A</span>
-                                    Beneficios en Comercio
-                                </h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                    {loadingContent ? [1, 2, 3, 4].map(i => <SkeletonOffer key={i} />) : offers.map(offer => (
-                                        <div key={offer.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                            <img src={offer.logo_url || `https://picsum.photos/seed/shop-${offer.id}/300/200`} className="w-full h-24 object-cover" alt="" />
-                                            <div className="p-3">
-                                                <p className="text-xs font-bold truncate">{offer.nombre}</p>
-                                                <p className="text-[10px] text-gray-500">{offer.descuento_base}% Off</p>
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                                    <div>
+                                        <h3 className="text-2xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3">
+                                            <span className="bg-rural-gold text-rural-green w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md">✨</span>
+                                            Beneficios Exclusivos
+                                        </h3>
+                                        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Aprovechá los descuentos por ser socio activo.</p>
+                                    </div>
+
+                                    {/* Ordenamiento */}
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-rural-green transition-all shadow-sm"
+                                    >
+                                        <option value="recientes">Más recientes</option>
+                                        <option value="descuento">Mayor descuento</option>
+                                        <option value="vencimiento">Próximos a vencer</option>
+                                    </select>
+                                </div>
+
+                                {/* Barra de Categorías (Scroll Horizontal) */}
+                                <div className="flex gap-3 overflow-x-auto pb-6 scrollbar-none mask-fade-right">
+                                    {CATEGORIES.map(cat => (
+                                        <CategoryChip key={cat.id} {...cat} />
+                                    ))}
+                                </div>
+
+                                {/* Beneficios Destacados (Solo si hay y no está filtrado) */}
+                                {activeCategory === 'todos' && premiumBenefits.length > 0 && (
+                                    <div className="mb-10 overflow-hidden rounded-3xl group">
+                                        <div className="relative h-48 md:h-64 bg-rural-green flex items-center overflow-hidden">
+                                            <div className="absolute inset-0 bg-gradient-to-r from-rural-green via-rural-green/80 to-transparent z-10"></div>
+                                            <img
+                                                src={premiumBenefits[0].imagen_url || "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80"}
+                                                className="absolute right-0 w-2/3 h-full object-cover grayscale-[20%] group-hover:scale-105 transition-transform duration-1000"
+                                            />
+                                            <div className="relative z-20 p-8 flex flex-col justify-center max-w-md">
+                                                <span className="bg-rural-gold text-rural-green text-[10px] font-black px-2 py-1 rounded w-fit mb-3 uppercase tracking-widest">Destacado</span>
+                                                <h4 className="text-white text-2xl font-serif font-bold leading-tight mb-2">{premiumBenefits[0].titulo}</h4>
+                                                <p className="text-green-100 text-sm line-clamp-2 mb-4 opacity-80">{premiumBenefits[0].descripcion}</p>
+                                                <div className="text-rural-gold text-3xl font-black mb-1">{premiumBenefits[0].porcentaje_descuento}% OFF</div>
+                                                <button className="bg-white text-rural-green font-bold py-2 px-6 rounded-xl w-fit text-sm hover:bg-rural-gold transition-colors shadow-lg">Ver Detalle</button>
                                             </div>
                                         </div>
-                                    ))}
+                                    </div>
+                                )}
+
+                                {/* Grid de Beneficios */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {isPremiumLoading ? (
+                                        [1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />)
+                                    ) : premiumBenefits.length > 0 ? (
+                                        premiumBenefits.map(item => (
+                                            <PremiumBenefitCard key={item.id} item={item} />
+                                        ))
+                                    ) : (
+                                        <div className="col-span-full py-20 flex flex-col items-center justify-center text-center bg-gray-50 dark:bg-slate-800/50 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                            <div className="text-5xl mb-4 opacity-40">🐂</div>
+                                            <h4 className="font-bold text-gray-400 dark:text-gray-500">No encontramos beneficios en esta categoría</h4>
+                                            <p className="text-gray-400 dark:text-gray-500 text-sm">Probá buscando en otra categoría o limpiando los filtros.</p>
+                                            <button
+                                                onClick={() => setActiveCategory('todos')}
+                                                className="mt-6 text-rural-green font-bold text-sm hover:underline"
+                                            >
+                                                Ver todos los beneficios
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
 
-                            <section>
-                                <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-3 mb-6">
-                                    <span className="bg-amber-700 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm">B</span>
-                                    Promociones
-                                </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    {loadingContent ? [1, 2].map(i => <SkeletonPromo key={i} />) : promotions.map(promo => (
-                                        <div key={promo.id} className="relative rounded-2xl overflow-hidden shadow-lg h-40 group hover:shadow-2xl transition-all duration-300">
-                                            <img src={promo.imagen_url || `https://picsum.photos/seed/promo-${promo.id}/600/300`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 flex flex-col justify-end">
-                                                <div className="flex justify-between items-end">
-                                                    <div>
-                                                        <h4 className="text-white font-bold text-lg">{promo.titulo}</h4>
-                                                        <p className="text-white/80 text-xs line-clamp-2">{promo.descripcion}</p>
-                                                    </div>
-                                                    {promo.porcentaje_descuento ? (
-                                                        <div className="bg-rural-gold text-rural-green px-3 py-1 rounded-lg font-bold text-sm shadow-lg whitespace-nowrap">
-                                                            {promo.porcentaje_descuento}% OFF
-                                                        </div>
-                                                    ) : null}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                            {/* Sección de Soporte / Ayuda */}
+                            <section className="bg-gradient-to-br from-rural-brown/10 to-transparent p-8 rounded-3xl border border-rural-brown/10 flex flex-col md:flex-row items-center gap-6">
+                                <div className="bg-rural-brown text-white w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-xl">🌾</div>
+                                <div className="flex-1 text-center md:text-left">
+                                    <h4 className="font-bold text-gray-800 dark:text-gray-100">¿Sos comerciante?</h4>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Sumate a nuestra red de beneficios y llega a más de 5.000 socios activos en toda la zona norte de Corrientes.</p>
                                 </div>
+                                <button className="bg-rural-brown text-white font-bold py-3 px-8 rounded-xl hover:bg-black transition-all shadow-lg active:scale-95">Contactar Administración</button>
                             </section>
                         </div>
                     </>

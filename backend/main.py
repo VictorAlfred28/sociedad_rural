@@ -944,6 +944,59 @@ async def update_socio(socio_id: str, data: SocioUpdate, user: TokenData = Depen
         logger.error(f"Error actualizando socio {socio_id}: {e}")
         raise HTTPException(status_code=400, detail="Error al actualizar datos del socio")
 
+@app.get("/api/v1/beneficios", dependencies=[Depends(get_current_user)])
+async def get_beneficios_premium(
+    categoria: Optional[str] = Query(None),
+    sort: str = Query("recientes"), # recientes, descuento, vencimiento
+    limit: int = Query(20),
+    offset: int = Query(0)
+):
+    """
+    Endpoint Premium unificado para obtener beneficios (promociones)
+    con filtrado avanzado y ordenamiento.
+    """
+    try:
+        query = supabase.table("promociones").select("*, comercios(*)")
+        
+        # Filtro de estado activo siempre
+        query = query.eq("estado", "activo")
+        
+        # Filtro de fecha de fin (solo vigentes)
+        today = datetime.now().strftime("%Y-%m-%d")
+        query = query.gte("fecha_fin", today)
+        
+        # Ejecutar base para poder filtrar por categoría del comercio unido
+        res = query.execute()
+        beneficios = res.data or []
+        
+        # 1. Filtrado por categoría (Rubro del comercio)
+        if categoria and categoria.lower() != "todos":
+            beneficios = [b for b in beneficios if b.get("comercios", {}).get("rubro", "").lower() == categoria.lower()]
+            
+        # 2. Mapeo plano para el frontend
+        for b in beneficios:
+            comercio = b.get("comercios") or {}
+            b["comercio_nombre"] = comercio.get("nombre", "Comercio")
+            b["comercio_logo"] = comercio.get("logo_url", "")
+            b["categoria"] = comercio.get("rubro", "General")
+            
+        # 3. Ordenamiento
+        if sort == "recientes":
+            beneficios.sort(key=lambda x: x.get("fecha_inicio", "") or "", reverse=True)
+        elif sort == "descuento":
+            beneficios.sort(key=lambda x: x.get("porcentaje_descuento", 0) or 0, reverse=True)
+        elif sort == "vencimiento":
+            beneficios.sort(key=lambda x: x.get("fecha_fin", "") or "")
+            
+        # 4. Paginación manual tras ordenamiento/filtrado
+        end_idx = offset + limit
+        paginated = beneficios[offset : end_idx]
+        
+        return paginated
+    except Exception as e:
+        logger.error(f"Error in benefits premium endpoint: {e}")
+        raise HTTPException(500, f"Error al procesar beneficios: {str(e)}")
+
 # --- 5.1 PROMOCIONES ---
 @app.get("/api/v1/promociones", dependencies=[Depends(get_current_user)])
 async def get_promociones(limit: int = 100, offset: int = 0):
@@ -957,7 +1010,6 @@ async def get_promociones(limit: int = 100, offset: int = 0):
         # Formatear para el frontend
         flat_data = []
         for p in (res.data or []):
-            # Safe access to nested join
             comercio = p.get('comercios')
             p['comercio_nombre'] = comercio.get('nombre') if comercio else "Comercio Desconocido"
             flat_data.append(p)
