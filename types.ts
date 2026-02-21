@@ -53,10 +53,14 @@ export interface Comercio {
   rubro: string;
   tipo_plan: CommercePlan;
   estado: UserStatus;
-  user_id?: string; // Nuevo
-  categoria?: string; // Nuevo
-  ubicacion?: string; // Nuevo
-  cuit?: string; // Nuevo
+  user_id?: string;
+  categoria?: string;
+  ubicacion?: string;
+  cuit?: string;
+  barrio?: string;
+  provincia?: string;
+  descripcion?: string;
+  logo_url?: string;
 }
 
 export interface AuditLog {

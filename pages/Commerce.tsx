@@ -21,7 +21,11 @@ export const Commerce = () => {
     nombre: '',
     cuit: '',
     categoria: '',
+    barrio: '',
+    provincia: 'Corrientes',
     ubicacion: '',
+    descripcion: '',
+    logo_url: '',
     temp_password: Math.random().toString(36).slice(-8).toUpperCase(),
     municipio_id: '10b7a9bf-9de0-4f79-b060-2c23a30b26e0',
     camara_id: ''
@@ -70,11 +74,14 @@ export const Commerce = () => {
     setErrorMessage(null);
     setFormData({
       nombre: comercio.nombre,
-      rubro: comercio.rubro || '',
-      direccion: comercio.direccion,
-      telefono: comercio.telefono,
-      email: comercio.email,
-      descuento_base: comercio.descuento_base,
+      cuit: comercio.cuit || '',
+      categoria: comercio.categoria || '',
+      barrio: comercio.barrio || '',
+      provincia: comercio.provincia || 'Corrientes',
+      ubicacion: comercio.ubicacion || '',
+      descripcion: comercio.descripcion || '',
+      logo_url: comercio.logo_url || '',
+      temp_password: '', // No se edita aquí por seguridad inicial
       municipio_id: comercio.municipio_id,
       tipo_plan: comercio.tipo_plan || 'gratuito'
     });
@@ -336,25 +343,53 @@ export const Commerce = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Barrio</label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
-                    value={formData.categoria}
-                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                    placeholder="Ej. Veterinaria"
+                    value={formData.barrio}
+                    onChange={(e) => setFormData({ ...formData, barrio: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provincia</label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
-                    value={formData.ubicacion}
-                    onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                    placeholder="Ej. Calle 123, Corrientes"
+                    value={formData.provincia}
+                    onChange={(e) => setFormData({ ...formData, provincia: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación (Google Maps / Referencia)</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
+                  value={formData.ubicacion}
+                  onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción del Negocio</label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
+                  rows={2}
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL Logo/Imagen</label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
+                  value={formData.logo_url}
+                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                />
               </div>
 
               <div>

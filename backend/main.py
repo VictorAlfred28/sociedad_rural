@@ -235,15 +235,23 @@ class ComercioCreate(BaseModel):
     nombre: str
     cuit: str
     categoria: str
+    barrio: Optional[str] = None
+    provincia: Optional[str] = "Corrientes"
     ubicacion: str
-    municipio_id: Optional[str] = None
+    descripcion: Optional[str] = None
+    logo_url: Optional[str] = None
     temp_password: str
-    camara_id: Optional[str] = None 
+    municipio_id: Optional[str] = None
+    camara_id: Optional[str] = None
 
 class ComercioUpdate(BaseModel):
     nombre: Optional[str] = None
-    rubro: Optional[str] = None
-    direccion: Optional[str] = None
+    categoria: Optional[str] = None
+    barrio: Optional[str] = None
+    provincia: Optional[str] = None
+    ubicacion: Optional[str] = None
+    descripcion: Optional[str] = None
+    logo_url: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[str] = None
 
@@ -397,6 +405,14 @@ async def validate_qr(request: Request, profile_id: str, user: TokenData = Depen
         logger.error(f"Error QR Check: {e}")
         raise HTTPException(status_code=400, detail="Error de validación")
 
+
+# --- 0. USUARIO (PERFIL) ---
+@app.get("/api/v1/users/profile")
+async def get_my_profile(user: TokenData = Depends(get_current_user)):
+    res = supabase.table("profiles").select("*").eq("id", user.uid).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+    return res.data[0]
 
 # 1. AUTENTICACIÓN
 @app.post("/api/v1/auth/token", response_model=Token)
@@ -658,7 +674,12 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
             "user_id": new_user_id,
             "nombre": comercio.nombre,
             "categoria": comercio.categoria,
+            "barrio": comercio.barrio,
+            "provincia": comercio.provincia,
             "ubicacion": comercio.ubicacion,
+            "descripcion": comercio.descripcion,
+            "logo_url": comercio.logo_url,
+            "cuit": comercio.cuit,
             "municipio_id": comercio.municipio_id,
             "camara_id": comercio.camara_id or user.camara_id,
             "estado": "pendiente"
@@ -730,6 +751,13 @@ async def update_comercio(id: str, comercio: ComercioUpdate, user: TokenData = D
     try:
         payload = comercio.model_dump(exclude_unset=True)
         res = supabase.table("comercios").update(payload).eq("id", id).execute()
+        
+        # Sincronizar nombre en profiles si cambia en comercios
+        if "nombre" in payload:
+            com_res = supabase.table("comercios").select("user_id").eq("id", id).execute()
+            if com_res.data:
+                supabase.table("profiles").update({"nombre": payload["nombre"]}).eq("id", com_res.data[0]["user_id"]).execute()
+
         if not res.data: raise HTTPException(404, "Comercio no encontrado")
         return res.data[0]
     except Exception as e:

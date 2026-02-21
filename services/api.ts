@@ -309,6 +309,11 @@ export const ApiService = {
   },
 
   user: {
+    getMe: async (): Promise<Profile> => {
+      const res = await fetch(`${API_BASE_URL}/users/profile`, { headers: getHeaders() });
+      if (!res.ok) throw new Error("No se pudo obtener el perfil");
+      return res.json();
+    },
     updateLocation: async (lat: number, lng: number) => {
       return tryFetchOrFallback(
         () => fetch(`${API_BASE_URL}/user/location-update`, {

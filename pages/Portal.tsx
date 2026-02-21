@@ -37,64 +37,57 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
     const location = useLocation();
 
     useEffect(() => {
-        // Cargar perfil
-        const stored = localStorage.getItem('user_data');
-        if (stored) {
-            const parsedProfile = JSON.parse(stored);
-            setProfile(parsedProfile);
-            // Intentar cargar foto guardada localmente para este usuario
-            const savedPhoto = localStorage.getItem(`profile_photo_${parsedProfile.id}`);
-            if (savedPhoto) setUserPhoto(savedPhoto);
+        const initPortal = async () => {
+            try {
+                // 1. Forzar carga de perfil fresco del servidor
+                const freshProfile = await ApiService.user.getMe();
+                setProfile(freshProfile);
+                localStorage.setItem('user_data', JSON.stringify(freshProfile));
 
-            // Actualizar ubicación si es posible
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    ApiService.user.updateLocation(position.coords.latitude, position.coords.longitude)
-                        .catch(err => console.error("Error updating location:", err));
-                });
-            }
+                const savedPhoto = localStorage.getItem(`profile_photo_${freshProfile.id}`);
+                if (savedPhoto) setUserPhoto(savedPhoto);
 
-            // Registrar Token FCM (Notificaciones)
-            const setupNotifications = async () => {
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition((position) => {
+                        ApiService.user.updateLocation(position.coords.latitude, position.coords.longitude)
+                            .catch(err => console.error("Error location:", err));
+                    });
+                }
+
                 const token = await requestNotificationPermission();
                 if (token) {
-                    await ApiService.user.updateFCMToken(token)
-                        .catch(err => console.error("Error updating FCM token:", err));
+                    await ApiService.user.updateFCMToken(token).catch(() => { });
                 }
-            };
-            setupNotifications();
-        }
+            } catch (err) {
+                console.error("Error initializing profile:", err);
+                const stored = localStorage.getItem('user_data');
+                if (stored) setProfile(JSON.parse(stored));
+            }
+        };
+        initPortal();
+    }, []);
 
-        // Cargar contenido dinámico
+    useEffect(() => {
         const fetchContent = async () => {
+            if (!profile) return;
             try {
                 const [comercios, promos, evts] = await Promise.all([
                     ApiService.comercios.getAll(),
                     ApiService.promociones.getAll(),
                     ApiService.eventos.getAll()
                 ]);
-                // Filtrar ofertas (comercios con descuento > 0)
                 setOffers(comercios.filter(c => c.descuento_base > 0));
                 setPromotions(promos);
                 setEvents(evts);
 
-                // Si es comercial o cámara, cargar sus datos específicos
-                const userData = localStorage.getItem('user_data');
-                if (userData) {
-                    const p = JSON.parse(userData);
-                    const role = p.rol?.toUpperCase();
-                    if (role === 'COMERCIO' || role === 'COMERCIAL') {
-                        const [cData, pData] = await Promise.all([
-                            ApiService.commerceSelf.getProfile(),
-                            ApiService.commerceSelf.getPromos()
-                        ]);
-                        setMyCommerce(cData);
-                        setMyPromos(pData);
-                    } else if (role === 'CAMARA_COMERCIO' || role === 'ADMIN_CAMARA') {
-                        // En un entorno real, aquí cargaríamos los comercios ya asignados a esta cámara
-                        // Por ahora simulamos o cargamos desde una supuesta relación
-                        // ApiService.camaras.getAssignedComercios(p.id) ...
-                    }
+                const role = profile.rol?.toUpperCase();
+                if (role === 'COMERCIO' || role === 'COMERCIAL') {
+                    const [cData, pData] = await Promise.all([
+                        ApiService.commerceSelf.getProfile(),
+                        ApiService.commerceSelf.getPromos()
+                    ]);
+                    setMyCommerce(cData);
+                    setMyPromos(pData);
                 }
             } catch (err) {
                 console.error("Error loading portal content:", err);
@@ -103,7 +96,7 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
             }
         };
         fetchContent();
-    }, []);
+    }, [profile?.id]);
 
 
     // Detectar retorno de Mercado Pago
@@ -694,7 +687,10 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                                         <h3 className="text-2xl font-serif font-bold mt-1">{myCommerce?.nombre || 'Mi Comercio'}</h3>
                                         <div className="flex flex-wrap gap-3 mt-4">
                                             <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
-                                                <MapPin className="w-3 h-3 text-rural-gold" /> {myCommerce?.direccion}
+                                                <MapPin className="w-3 h-3 text-rural-gold" /> {myCommerce?.direccion}{myCommerce?.barrio ? `, B° ${myCommerce.barrio}` : ''}
+                                            </span>
+                                            <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
+                                                <CheckCircle className="w-3 h-3 text-rural-gold" /> {myCommerce?.provincia || 'Corrientes'}
                                             </span>
                                             <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
                                                 <Megaphone className="w-3 h-3 text-rural-gold" /> {myCommerce?.rubro}
