@@ -402,7 +402,10 @@ export const ApiService = {
       const res = await fetch(`${API_BASE_URL}/my-commerce/promos`, {
         method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error("Error al crear promoción");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Error al crear la promoción");
+      }
       return res.json();
     },
     deletePromo: async (id: string) => {

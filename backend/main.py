@@ -748,8 +748,10 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
             "estado": "pendiente"
         }
         res = supabase.table("comercios").insert(comercio_db_data).execute()
-        
-        return {"success": True, "comercio": res.data[0], "user_id": new_user_id}
+        if res.data:
+            supabase.table("profiles").update({"comercio_id": res.data[0]['id']}).eq("id", new_user_id).execute()
+            
+        return {"success": True, "comercio": res.data[0] if res.data else None, "user_id": new_user_id}
         
     except Exception as e:
         logger.error(f"Error admin creating commerce: {e}")
@@ -1171,15 +1173,23 @@ async def create_my_promo(promo: PromocionCreate, user: TokenData = Depends(get_
     if not comercio_id:
         raise HTTPException(403, "No tiene un comercio vinculado")
     
-    payload = promo.model_dump()
+    # Usar dict() para compatibilidad con Pydantic v1/v2
+    payload = promo.dict() if hasattr(promo, 'dict') else promo.model_dump()
     payload["comercio_id"] = comercio_id
     
     try:
         res = supabase.table("promociones").insert(payload).execute()
+        if not res.data:
+            # Si no hay data, puede ser un error de RLS o constraint
+            logger.error(f"No data returned on promo insert. Error?: {getattr(res, 'error', 'Unknown')}")
+            raise Exception("No se recibió confirmación de la base de datos")
+            
         return res.data[0]
     except Exception as e:
-        logger.error(f"Error creating commerce promo: {e}")
-        raise HTTPException(400, "Error al crear la promoción")
+        logger.error(f"Error creating commerce promo for commerce {comercio_id}: {e}")
+        # Intentar obtener un mensaje más descriptivo si es posible
+        detail = str(e) if "403" not in str(e) else "No tiene permisos para crear promociones en este comercio"
+        raise HTTPException(400, f"Error al crear la promoción: {detail}")
 
 @app.delete("/api/v1/my-commerce/promos/{promo_id}")
 async def delete_my_promo(promo_id: str, user: TokenData = Depends(get_current_user)):

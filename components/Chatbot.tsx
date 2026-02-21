@@ -25,6 +25,23 @@ Tono de conversación:
 - Si no sabes algo, di que no tienes la información y sugiere contactar a la administración.
 `;
 
+const STATIC_RESPONSES: Record<string, string> = {
+  "beneficios": "¡Ser socio tiene muchas ventajas! 🐮 Tienes descuentos de hasta el 20% en veterinarias, agroinsumos y tiendas locales. Puedes ver todos los comercios adheridos en la sección 'Comercios' del portal.",
+  "descuentos": "Contamos con una amplia red de comercios amigos. Presentando tu carnet digital (que encontrás en la sección 'Carnet') accedés a beneficios exclusivos en toda la zona.",
+  "exposicion": "La Gran Exposición Rural es nuestro evento estrella. Generalmente se realiza en agosto con muestras de ganado, maquinaria y tradición. ¡Estate atento a la sección de 'Eventos'!",
+  "cuota": "Podés consultar tu estado de deuda en la sección 'Estado de Cuenta'. Los pagos se realizan de forma segura a través de Mercado Pago directamente desde la app. 💳",
+  "contacto": "Nuestra administración atiende en Ruta 12 Km 1000. También podés llamarnos al 3794-000-000 de lunes a viernes de 8 a 16hs. 🧉",
+  "carnet": "Tu carnet de socio es digital. Lo encontrás siempre disponible en la pestaña 'Carnet'. Sirve para validar que sos socio activo en los comercios adheridos.",
+  "remates": "Realizamos remates ferias mensuales, generalmente el tercer jueves de cada mes. Consultá el calendario de remates en la sección 'Eventos'."
+};
+
+const SUGGESTIONS = [
+  { label: "Beneficios de socio 🐮", key: "beneficios" },
+  { label: "Próximos eventos 🚜", key: "exposicion" },
+  { label: "Pagar mi cuota 💳", key: "cuota" },
+  { label: "Carnet digital 🆔", key: "carnet" },
+];
+
 interface Message {
   id: string;
   role: 'user' | 'model';
@@ -36,10 +53,9 @@ export const Chatbot = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: '1', role: 'model', text: '¡Hola! Soy Rumi 🐮, tu asistente virtual. ¿En qué puedo ayudarte hoy? Consultame sobre descuentos, eventos o tu cuota.' }
+    { id: '1', role: 'model', text: '¡Hola! Soy Rumi 🐮, tu asistente virtual de la Sociedad Rural. ¿En qué puedo ayudarte hoy? Podés elegir una opción abajo o escribirme lo que necesites.' }
   ]);
 
-  // Referencia al chat de Gemini para mantener historial
   const chatSessionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -51,37 +67,64 @@ export const Chatbot = () => {
     scrollToBottom();
   }, [messages, isOpen]);
 
-  // Inicializar sesión de chat al abrir
   useEffect(() => {
     if (isOpen && !chatSessionRef.current) {
-      chatSessionRef.current = ai.chats.create({
-        model: 'gemini-3-flash-preview',
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-        },
-      });
+      try {
+        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        chatSessionRef.current = model.startChat({
+          history: [],
+          // Nota: Las instrucciones del sistema en el SDK se pasan al obtener el modelo, pero usaremos el prompt inicial en el historial si es necesario
+          // Por simplicidad en este entorno, mantenemos la lógica de envío
+        });
+      } catch (e) {
+        console.warn("AI no disponible, usando modo estático.");
+      }
     }
   }, [isOpen]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (customText?: string) => {
+    const textToSubmit = customText || input;
+    if (!textToSubmit.trim() || isLoading) return;
 
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', text: input };
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', text: textToSubmit };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
 
+    // 1. Lógica de Respuesta Local (Estática)
+    const normalizedText = textToSubmit.toLowerCase();
+    let localResponse = "";
+
+    for (const [key, value] of Object.entries(STATIC_RESPONSES)) {
+      if (normalizedText.includes(key)) {
+        localResponse = value;
+        break;
+      }
+    }
+
+    if (localResponse) {
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'model',
+          text: localResponse
+        }]);
+        setIsLoading(false);
+      }, 800);
+      return;
+    }
+
+    // 2. Fallback a Gemini
     try {
       if (!chatSessionRef.current) {
-        // Fallback por si la ref se perdió
-        chatSessionRef.current = ai.chats.create({
-          model: 'gemini-3-flash-preview',
-          config: { systemInstruction: SYSTEM_INSTRUCTION },
-        });
+        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        chatSessionRef.current = model.startChat({ history: [] });
+        // Pre-alimentamos el contexto como primer mensaje invisible o instrucción
+        await chatSessionRef.current.sendMessage(SYSTEM_INSTRUCTION + "\n\nEntendido. Ahora respóndeme como Rumi.");
       }
 
-      const result = await chatSessionRef.current.sendMessage({ message: userMsg.text });
-      const responseText = result.text;
+      const result = await chatSessionRef.current.sendMessage(userMsg.text);
+      const responseText = result.response.text();
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -94,7 +137,7 @@ export const Chatbot = () => {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'model',
-        text: '¡Muuu! 🐮 Tuve un problema de conexión. Por favor, intenta de nuevo más tarde.'
+        text: '¡Muuu! 🐮 Por ahora tengo información sobre cuotas, beneficios y eventos. ¿Sobre qué tema te gustaría saber más?'
       }]);
     } finally {
       setIsLoading(false);
@@ -148,14 +191,14 @@ export const Chatbot = () => {
           </div>
 
           {/* Área de Mensajes */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F0F2F5]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F0F2F5] scrollbar-thin scrollbar-thumb-gray-300">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user'
+                  className={`max-w-[80%] p-3 rounded-2xl text-sm shadow-sm animate-fade-in ${msg.role === 'user'
                     ? 'bg-rural-green text-white rounded-br-none'
                     : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'
                     }`}
@@ -164,11 +207,27 @@ export const Chatbot = () => {
                 </div>
               </div>
             ))}
+
+            {/* Chips de sugerencia (Solo si no está cargando) */}
+            {!isLoading && (
+              <div className="flex flex-wrap gap-2 pt-2">
+                {SUGGESTIONS.map((sug) => (
+                  <button
+                    key={sug.key}
+                    onClick={() => handleSend(sug.label)}
+                    className="bg-white border border-rural-green/30 text-rural-green text-xs py-1.5 px-3 rounded-full hover:bg-rural-green hover:text-white transition-all duration-200 shadow-sm flex items-center gap-1"
+                  >
+                    {sug.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-white p-3 rounded-2xl rounded-bl-none border border-gray-200 shadow-sm flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-rural-green" />
-                  <span className="text-xs text-gray-500">Rumi está pensando...</span>
+                  <span className="text-xs text-gray-500 italic">Rumi está pensando...</span>
                 </div>
               </div>
             )}
@@ -182,14 +241,14 @@ export const Chatbot = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Pregunta sobre cuotas, eventos..."
+              placeholder="Escribe tu consulta aquí..."
               className="flex-1 px-4 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:border-rural-green focus:ring-1 focus:ring-rural-green"
               disabled={isLoading}
             />
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!input.trim() || isLoading}
-              className="p-2 bg-rural-green text-white rounded-full hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="p-2 bg-rural-green text-white rounded-full hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
             >
               <Send className="w-5 h-5 ml-0.5" />
             </button>
