@@ -1069,9 +1069,10 @@ async def get_beneficios_premium(
         # Filtro de estado activo siempre
         query = query.eq("estado", "activo")
         
-        # Filtro de fecha de fin (solo vigentes)
+        # Filtro de fecha de fin (solo vigentes o sin fecha de fin definida)
         today = datetime.now().strftime("%Y-%m-%d")
-        query = query.gte("fecha_fin", today)
+        # Usamos or_ para permitir gte a hoy O is.null (permanentes)
+        query = query.or_(f"fecha_fin.gte.{today},fecha_fin.is.null")
         
         # Ejecutar base para poder filtrar por categoría del comercio unido
         res = query.execute()
