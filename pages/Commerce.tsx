@@ -28,7 +28,8 @@ export const Commerce = () => {
     logo_url: '',
     temp_password: Math.random().toString(36).slice(-8).toUpperCase(),
     municipio_id: '10b7a9bf-9de0-4f79-b060-2c23a30b26e0',
-    camara_id: ''
+    camara_id: '',
+    tipo_plan: 'gratuito' as CommercePlan
   };
   const [formData, setFormData] = useState(initialFormState);
 

@@ -427,10 +427,10 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                                         <AlertTriangle className="w-3 h-3" /> CARNET RESTRINGIDO - REGULARIZAR PAGO
                                     </div>
                                 )}
-                            </div >
+                            </div>
 
                             {/* Controles del Carnet */}
-                            < div className="flex gap-4 w-full max-w-sm justify-center" >
+                            <div className="flex gap-4 w-full max-w-sm justify-center">
                                 <label className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer shadow-sm transition-colors">
                                     <Camera className="w-4 h-4" />
                                     <span className="hidden xs:inline">Cambiar</span> Foto
@@ -450,8 +450,8 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                                     <Shield className="w-4 h-4" />
                                     Seguridad
                                 </button>
-                            </div >
-                        </div >
+                            </div>
+                        </div>
 
                         {/* --- MENSAJE DE MOROSIDAD / BLOQUEO --- */}
                         {
@@ -798,13 +798,13 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                         </div>
                     </div>
                 </div>
-            </main >
+            </main>
 
             <ChangePasswordModal
                 isOpen={showPasswordModal}
                 onClose={() => setShowPasswordModal(false)}
             />
-        </div >
+        </div>
     );
 };
 
