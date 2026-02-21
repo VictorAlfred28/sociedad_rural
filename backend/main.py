@@ -194,6 +194,12 @@ async def root():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+@app.get("/api/v1/municipios", tags=["Configuración"])
+async def get_municipios():
+    """Retorna la lista de municipios configurados"""
+    res = supabase.table("municipios").select("*").order("nombre").execute()
+    return res.data or []
+
 # --- MODELOS ---
 
 class Token(BaseModel):

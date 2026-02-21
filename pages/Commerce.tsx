@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Phone, Mail, Edit2, Trash2, Loader2, Plus, X, Save, AlertTriangle, PieChart } from 'lucide-react';
+import { MapPin, Phone, Mail, Edit2, Trash2, Loader2, Plus, X, Save, AlertTriangle, PieChart, Upload } from 'lucide-react';
 import { ApiService } from '../services/api';
 import { Comercio, CommercePlan } from '../types';
 
@@ -7,7 +7,9 @@ export const Commerce = () => {
   const [comercios, setComercios] = useState<Comercio[]>([]);
   const [loading, setLoading] = useState(true);
   const [operationLoading, setOperationLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [quota, setQuota] = useState<{ used: number, limit: number, percent: number, is_full: boolean } | null>(null);
+  const [municipios, setMunicipios] = useState<any[]>([]);
 
   // Estados para Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,12 +40,14 @@ export const Commerce = () => {
 
   const fetchData = async () => {
     try {
-      const [dataComercios, dataQuota] = await Promise.all([
+      const [dataComercios, dataQuota, dataMunicipios] = await Promise.all([
         ApiService.comercios.getAll(),
-        ApiService.stats.getQuota()
+        ApiService.stats.getQuota(),
+        ApiService.municipios.getAll()
       ]);
       setComercios(dataComercios);
       setQuota(dataQuota);
+      setMunicipios(dataMunicipios);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -99,6 +103,23 @@ export const Commerce = () => {
   const handleOpenDelete = (id: string) => {
     setDeletingId(id);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setErrorMessage(null);
+    try {
+      const publicUrl = await ApiService.storage.uploadImage(file);
+      setFormData(prev => ({ ...prev, logo_url: publicUrl }));
+    } catch (error: any) {
+      console.error("Error uploading image:", error);
+      setErrorMessage("Error al subir la imagen. Intente nuevamente.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -415,13 +436,58 @@ export const Commerce = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">URL Logo/Imagen</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
-                      value={formData.logo_url}
-                      onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Municipio</label>
+                    <select
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none bg-white"
+                      value={formData.municipio_id}
+                      onChange={(e) => setFormData({ ...formData, municipio_id: e.target.value })}
+                      required
+                    >
+                      <option value="">Seleccione un municipio</option>
+                      {municipios.map(m => (
+                        <option key={m.id} value={m.id}>{m.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo/Imagen del Negocio</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
+                          value={formData.logo_url}
+                          onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                          placeholder="URL de la imagen o use el botón ->"
+                        />
+                      </div>
+                      <label
+                        className={`cursor-pointer flex items-center justify-center px-4 py-2 bg-rural-green/10 text-rural-green rounded-lg border border-rural-green/30 hover:bg-rural-green/20 transition-all ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title="Subir desde PC o Móvil"
+                      >
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          disabled={uploading}
+                        />
+                        {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                      </label>
+                    </div>
+                    {formData.logo_url && (
+                      <div className="mt-2 relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 group">
+                        <img src={formData.logo_url} alt="Vista previa del logo" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, logo_url: '' })}
+                          className="absolute top-0 right-0 bg-red-600 text-white p-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">

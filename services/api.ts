@@ -308,6 +308,36 @@ export const ApiService = {
     }
   },
 
+  municipios: {
+    getAll: async (): Promise<any[]> => {
+      return tryFetchOrFallback(
+        () => fetch(`${API_BASE_URL}/municipios`, { headers: getHeaders() }),
+        async () => [],
+        "Get Municipios"
+      );
+    }
+  },
+
+  storage: {
+    uploadImage: async (file: File, bucket: string = 'comercios'): Promise<string> => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    }
+  },
+
   user: {
     getMe: async (): Promise<Profile> => {
       const res = await fetch(`${API_BASE_URL}/users/profile`, { headers: getHeaders() });
