@@ -89,6 +89,7 @@ export interface Promocion {
   fecha_desde: string;
   fecha_hasta: string;
   estado: UserStatus;
+  descuento_base?: number;
   comercio_nombre?: string; // Virtual para facilitar UI
 }
 

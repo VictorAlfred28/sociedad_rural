@@ -3,6 +3,7 @@ import { LogOut, User, CreditCard, AlertTriangle, CheckCircle, MapPin, Phone, Lo
 import { ApiService } from '../services/api';
 import { Profile, Comercio, Promocion } from '../types';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
+import { CreatePromoModal } from '../components/CreatePromoModal';
 import { useLocation } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import { requestNotificationPermission } from '../services/firebase';
@@ -32,6 +33,7 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
 
     // Estados Cambio Contraseña
     const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [showCreatePromoModal, setShowCreatePromoModal] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
 
     const location = useLocation();
@@ -752,7 +754,10 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                                         <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                                             <Megaphone className="w-5 h-5 text-amber-600" /> Mis Promociones
                                         </h3>
-                                        <button className="bg-rural-gold text-rural-green px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
+                                        <button
+                                            onClick={() => setShowCreatePromoModal(true)}
+                                            className="bg-rural-gold text-rural-green px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-yellow-500 transition-all active:scale-95"
+                                        >
                                             <Plus className="w-4 h-4" /> Crear Promo
                                         </button>
                                     </div>
@@ -798,12 +803,20 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                         </div>
                     </div>
                 </div>
+                {/* Modales */}
+                <ChangePasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
+
+                <CreatePromoModal
+                    isOpen={showCreatePromoModal}
+                    onClose={() => setShowCreatePromoModal(false)}
+                    onSuccess={(newPromo) => {
+                        setMyPromos(prev => [newPromo, ...prev]);
+                        // También actualizar la lista global de promociones
+                        setPromotions(prev => [newPromo, ...prev]);
+                    }}
+                />
             </main>
 
-            <ChangePasswordModal
-                isOpen={showPasswordModal}
-                onClose={() => setShowPasswordModal(false)}
-            />
         </div>
     );
 };
