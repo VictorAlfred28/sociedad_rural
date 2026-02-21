@@ -102,3 +102,13 @@ export interface Evento {
   lugar: string;
   estado: UserStatus;
 }
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'nuevo_socio' | 'nueva_promo' | 'sistema';
+  link?: string;
+  read: boolean;
+  created_at: string;
+}

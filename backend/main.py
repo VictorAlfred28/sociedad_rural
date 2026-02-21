@@ -321,6 +321,9 @@ class PasswordChange(BaseModel):
     current_password: str
     new_password: str
 
+class NotificationUpdate(BaseModel):
+    read: bool
+
 class PaymentPreferenceRequest(BaseModel):
 
     title: str = "Cuota Social Mensual"
@@ -1456,6 +1459,39 @@ async def payment_webhook(request: Request):
     except Exception as e:
         logger.error(f"Error procesando webhook: {e}")
         return JSONResponse(content={"status": "error_logged"}, status_code=200)
+
+# --- 8. NOTIFICACIONES (ADMIN) ---
+
+@app.get("/api/v1/admin/notifications", dependencies=[Depends(get_admin_user)])
+async def get_notifications(limit: int = 20, unread_only: bool = False):
+    try:
+        query = supabase.table("notifications").select("*").order("created_at", desc=True)
+        if unread_only:
+            query = query.eq("read", False)
+        
+        res = query.limit(limit).execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error fetching notifications: {e}")
+        return []
+
+@app.post("/api/v1/admin/notifications/{id}/read", dependencies=[Depends(get_admin_user)])
+async def mark_notification_read(id: str):
+    try:
+        res = supabase.table("notifications").update({"read": True}).eq("id", id).execute()
+        return {"success": True, "data": res.data[0] if res.data else None}
+    except Exception as e:
+        logger.error(f"Error marking notification read: {e}")
+        raise HTTPException(400, "No se pudo marcar la notificación como leída")
+
+@app.post("/api/v1/admin/notifications/mark-all-read", dependencies=[Depends(get_admin_user)])
+async def mark_all_notifications_read():
+    try:
+        supabase.table("notifications").update({"read": True}).eq("read", False).execute()
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error marking all notifications read: {e}")
+        raise HTTPException(400, "No se pudieron marcar todas las notificaciones como leídas")
 
 # Entry point local
 if __name__ == "__main__":

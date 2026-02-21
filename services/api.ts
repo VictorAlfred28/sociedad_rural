@@ -256,6 +256,22 @@ export const ApiService = {
     }
   },
 
+  notifications: {
+    getAll: async (unreadOnly: boolean = false): Promise<any[]> => {
+      const res = await fetch(`${API_BASE_URL}/admin/notifications?unread_only=${unreadOnly}`, { headers: getHeaders() });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    markRead: async (id: string) => {
+      const res = await fetch(`${API_BASE_URL}/admin/notifications/${id}/read`, { method: 'POST', headers: getHeaders() });
+      return res.json();
+    },
+    markAllRead: async () => {
+      const res = await fetch(`${API_BASE_URL}/admin/notifications/mark-all-read`, { method: 'POST', headers: getHeaders() });
+      return res.json();
+    }
+  },
+
   payments: {
     createPreference: async (unitPrice: number, title: string) => {
       const res = await fetch(`${API_BASE_URL}/payments/preference`, {

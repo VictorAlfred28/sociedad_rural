@@ -14,6 +14,7 @@ import { ApiService } from './services/api';
 import { Chatbot } from './components/Chatbot';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import NotificationBell from './components/NotificationBell';
 
 // Layout del Administrador
 const AdminLayout = ({ children, onLogout, role }: { children?: React.ReactNode, onLogout: () => void, role: string }) => {
@@ -38,10 +39,7 @@ const AdminLayout = ({ children, onLogout, role }: { children?: React.ReactNode,
             >
               <Shield className="w-5 h-5" />
             </button>
-            <button className="relative p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700 rounded-full transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-            </button>
+            {(role === 'superadmin' || role === 'admin_camara') && <NotificationBell />}
             <div className="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-gray-700">
               <div className="text-right hidden md:block">
                 <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Administrador</p>
