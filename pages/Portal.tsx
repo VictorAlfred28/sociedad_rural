@@ -355,7 +355,8 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
         </div>
     );
 
-    const isRestricted = profile?.estado !== 'activo' || profile?.is_moroso;
+    const status = profile?.estado?.toLowerCase();
+    const isRestricted = (status !== 'activo' && status !== 'active') || profile?.is_moroso === true;
     const role = profile?.rol?.toUpperCase();
     const isComercio = role === 'COMERCIO' || role === 'COMERCIAL';
     const isCamara = role === 'CAMARA_COMERCIO' || role === 'ADMIN_CAMARA';
@@ -480,7 +481,7 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                                                     {profile?.nombre} {profile?.apellido}
                                                 </h3>
                                                 <p className="text-rural-gold font-medium text-xs sm:text-base mb-1 uppercase tracking-wide">
-                                                    {profile?.rol === 'comun' ? 'Socio Activo' : profile?.rol}
+                                                    {(profile?.estado?.toLowerCase() === 'activo') ? 'Socio Activo' : 'Socio Pendiente'}
                                                 </p>
                                                 <div className="flex flex-col gap-0.5 mt-1 sm:mt-2 text-[10px] sm:text-sm text-gray-300 font-mono">
                                                     <span>DNI: {profile?.dni}</span>

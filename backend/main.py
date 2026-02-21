@@ -979,7 +979,8 @@ async def create_socio(socio: SocioCreate, user: TokenData = Depends(get_admin_u
                         "dni": socio.dni,
                         "nombre": socio.nombre.strip(),
                         "apellido": socio.apellido.strip(),
-                        "camara_id": socio.camara_id or user.camara_id
+                        "camara_id": socio.camara_id or user.camara_id,
+                        "estado": "activo"
                     }
                 }
             })
@@ -1000,6 +1001,7 @@ async def create_socio(socio: SocioCreate, user: TokenData = Depends(get_admin_u
                 "dni": socio.dni.strip(),
                 "rol": socio.rol,
                 "estado": "activo",
+                "is_active": True,
                 "camara_id": socio.camara_id or user.camara_id
             }
             
@@ -1023,7 +1025,11 @@ async def create_socio(socio: SocioCreate, user: TokenData = Depends(get_admin_u
 
 @app.post("/api/v1/socios/{socio_id}/aprobar", dependencies=[Depends(get_admin_user)])
 async def aprobar_socio(socio_id: str):
-    supabase.table("profiles").update({"estado": "activo"}).eq("id", socio_id).execute()
+    # Actualizar estado e is_active a la vez
+    supabase.table("profiles").update({
+        "estado": "activo",
+        "is_active": True
+    }).eq("id", socio_id).execute()
     return {"message": "Socio aprobado"}
 
 @app.put("/api/v1/socios/{socio_id}", dependencies=[Depends(get_admin_user)])
