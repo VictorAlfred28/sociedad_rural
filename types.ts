@@ -86,10 +86,10 @@ export interface Promocion {
   titulo: string;
   descripcion: string;
   imagen_url: string;
-  fecha_desde: string;
-  fecha_hasta: string;
+  fecha_inicio: string;
+  fecha_fin: string;
   estado: UserStatus;
-  descuento_base?: number;
+  porcentaje_descuento?: number;
   comercio_nombre?: string; // Virtual para facilitar UI
 }
 

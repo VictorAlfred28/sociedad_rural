@@ -560,11 +560,20 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                                 </h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     {loadingContent ? [1, 2].map(i => <SkeletonPromo key={i} />) : promotions.map(promo => (
-                                        <div key={promo.id} className="relative rounded-2xl overflow-hidden shadow-lg h-40">
-                                            <img src={promo.imagen_url || `https://picsum.photos/seed/promo-${promo.id}/600/300`} className="w-full h-full object-cover" alt="" />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex flex-col justify-end">
-                                                <h4 className="text-white font-bold">{promo.titulo}</h4>
-                                                <p className="text-white/70 text-xs">{promo.descripcion}</p>
+                                        <div key={promo.id} className="relative rounded-2xl overflow-hidden shadow-lg h-40 group hover:shadow-2xl transition-all duration-300">
+                                            <img src={promo.imagen_url || `https://picsum.photos/seed/promo-${promo.id}/600/300`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 flex flex-col justify-end">
+                                                <div className="flex justify-between items-end">
+                                                    <div>
+                                                        <h4 className="text-white font-bold text-lg">{promo.titulo}</h4>
+                                                        <p className="text-white/80 text-xs line-clamp-2">{promo.descripcion}</p>
+                                                    </div>
+                                                    {promo.porcentaje_descuento ? (
+                                                        <div className="bg-rural-gold text-rural-green px-3 py-1 rounded-lg font-bold text-sm shadow-lg whitespace-nowrap">
+                                                            {promo.porcentaje_descuento}% OFF
+                                                        </div>
+                                                    ) : null}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}

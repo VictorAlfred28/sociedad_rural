@@ -12,7 +12,7 @@ export const CreatePromoModal: React.FC<CreatePromoModalProps> = ({ isOpen, onCl
     const [formData, setFormData] = useState({
         titulo: '',
         descripcion: '',
-        descuento_base: 0,
+        porcentaje_descuento: 0,
         imagen_url: ''
     });
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -44,17 +44,20 @@ export const CreatePromoModal: React.FC<CreatePromoModalProps> = ({ isOpen, onCl
             if (imageFile) {
                 setIsUploading(true);
                 finalImageUrl = await ApiService.storage.uploadImage(imageFile, 'comercios');
+                setFormData(prev => ({ ...prev, imagen_url: finalImageUrl }));
                 setIsUploading(false);
             }
 
-            // 2. Crear promo en backend
-            const newPromo = await ApiService.commerceSelf.createPromo({
+            // 2. Crear promo en backend con el objeto actualizado directamente
+            const payload = {
                 ...formData,
                 imagen_url: finalImageUrl
-            });
+            };
+
+            const newPromo = await ApiService.commerceSelf.createPromo(payload);
 
             onSuccess(newPromo);
-            setFormData({ titulo: '', descripcion: '', descuento_base: 0, imagen_url: '' });
+            setFormData({ titulo: '', descripcion: '', porcentaje_descuento: 0, imagen_url: '' });
             setImageFile(null);
             setImagePreview(null);
             onClose();
@@ -152,8 +155,8 @@ export const CreatePromoModal: React.FC<CreatePromoModalProps> = ({ isOpen, onCl
                                     min="0"
                                     max="100"
                                     className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-gray-600 rounded-xl outline-none focus:ring-2 focus:ring-rural-green dark:text-white"
-                                    value={formData.descuento_base}
-                                    onChange={e => setFormData({ ...formData, descuento_base: parseInt(e.target.value) || 0 })}
+                                    value={formData.porcentaje_descuento}
+                                    onChange={e => setFormData({ ...formData, porcentaje_descuento: parseInt(e.target.value) || 0 })}
                                 />
                             </div>
                             <p className="text-[10px] text-gray-400 mt-1 ml-1">Opcional, se mostrará en la tarjeta.</p>

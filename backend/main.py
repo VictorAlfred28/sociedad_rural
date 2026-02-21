@@ -272,20 +272,19 @@ class PromocionCreate(BaseModel):
     titulo: str
     descripcion: Optional[str] = None
     imagen_url: Optional[str] = ""
-    fecha_desde: Optional[Union[datetime, str]] = None
-    fecha_hasta: Optional[Union[datetime, str]] = None
+    fecha_inicio: Optional[Union[datetime, str]] = None
+    fecha_fin: Optional[Union[datetime, str]] = None
     estado: str = "activo"
-    descuento_base: Optional[int] = 0
-    municipio_id: Optional[str] = None
-    tipo_plan: Optional[str] = "gratuito"
+    porcentaje_descuento: Optional[int] = 0
 
 class PromocionUpdate(BaseModel):
     titulo: Optional[str] = None
     descripcion: Optional[str] = None
     imagen_url: Optional[str] = None
-    fecha_desde: Optional[datetime] = None
-    fecha_hasta: Optional[datetime] = None
+    fecha_inicio: Optional[datetime] = None
+    fecha_fin: Optional[datetime] = None
     estado: Optional[str] = None
+    porcentaje_descuento: Optional[int] = None
 
 class EventoCreate(BaseModel):
     titulo: str
