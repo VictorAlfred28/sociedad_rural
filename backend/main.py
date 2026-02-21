@@ -240,6 +240,9 @@ class ComercioCreate(BaseModel):
     ubicacion: str
     descripcion: Optional[str] = None
     logo_url: Optional[str] = None
+    direccion: Optional[str] = ""
+    telefono: Optional[str] = ""
+    email: Optional[str] = ""
     temp_password: str
     municipio_id: Optional[str] = None
     camara_id: Optional[str] = None
@@ -252,8 +255,11 @@ class ComercioUpdate(BaseModel):
     ubicacion: Optional[str] = None
     descripcion: Optional[str] = None
     logo_url: Optional[str] = None
+    direccion: Optional[str] = None
     telefono: Optional[str] = None
     email: Optional[str] = None
+    descuento_base: Optional[int] = None
+    rubro: Optional[str] = None
 
 class PromocionCreate(BaseModel):
     comercio_id: Optional[str] = None
@@ -609,6 +615,53 @@ async def get_quota_stats(user: TokenData = Depends(get_current_user)):
     }
 
 
+@app.get("/api/v1/dashboard/stats", dependencies=[Depends(get_admin_user)])
+async def get_dashboard_stats(user: TokenData = Depends(get_current_user)):
+    """
+    Estadísticas consolidadas para el Dashboard Administrativo.
+    """
+    try:
+        # Base queries con filtro por cámara si no es superadmin
+        profiles_q = supabase.table("profiles").select("id", count="exact")
+        comercios_q = supabase.table("comercios").select("id", count="exact")
+        
+        if user.role == "admin_camara" and user.camara_id:
+            profiles_q = profiles_q.eq("camara_id", user.camara_id)
+            comercios_q = comercios_q.eq("camara_id", user.camara_id)
+            
+        # 1. Socios Activos
+        activos = profiles_q.eq("rol", "comun").eq("estado", "activo").execute().count or 0
+        
+        # 2. Socios Pendientes
+        pendientes = profiles_q.eq("rol", "comun").eq("estado", "pendiente").execute().count or 0
+        
+        # 3. Comercios Adheridos
+        comercios = comercios_q.eq("estado", "activo").execute().count or 0
+        
+        # 4. Recaudación (Placeholder logic - Suma mensual de cuotas pagadas)
+        # En prod esto debería filtrar por mes actual
+        recaudacion = 0
+        try:
+            pago_res = supabase.table("cuotas").select("monto").eq("pagado", True).execute()
+            recaudacion = sum(float(p['monto']) for p in pago_res.data) if pago_res.data else 0
+        except: pass
+
+        return {
+            "sociosActivos": activos,
+            "sociosPendientes": pendientes,
+            "recaudacionMensual": recaudacion,
+            "comerciosAdheridos": comercios
+        }
+    except Exception as e:
+        logger.error(f"Error generating dashboard stats: {e}")
+        return {
+            "sociosActivos": 0,
+            "sociosPendientes": 0,
+            "recaudacionMensual": 0,
+            "comerciosAdheridos": 0
+        }
+
+
 # 4. COMERCIOS (ADMIN & PUBLIC)
 
 @app.get("/api/v1/comercios")
@@ -679,6 +732,10 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
             "ubicacion": comercio.ubicacion,
             "descripcion": comercio.descripcion,
             "logo_url": comercio.logo_url,
+            "direccion": comercio.direccion,
+            "telefono": comercio.telefono,
+            "email": comercio.email,
+            "rubro": comercio.categoria, # Rubro inicial mapeado a categoría
             "cuit": comercio.cuit,
             "municipio_id": comercio.municipio_id,
             "camara_id": comercio.camara_id or user.camara_id,
