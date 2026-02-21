@@ -264,6 +264,7 @@ class ComercioCreate(BaseModel):
     telefono: Optional[str] = ""
     email: Optional[str] = ""
     temp_password: str
+    tipo_plan: str = "gratuito"
     municipio_id: Optional[str] = None
     camara_id: Optional[str] = None
 
@@ -705,19 +706,34 @@ async def get_comercios(
 async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depends(get_admin_user)):
     """
     SuperAdmin crea comercio:
-    1. Crea usuario en Auth con temp_password
-    2. Crea perfil con rol COMERCIO y estado PENDIENTE
-    3. Crea entrada en tabla comercios
+    1. Validaciones preventivas (CUIT, Email)
+    2. Crea usuario en Auth con temp_password
+    3. Crea perfil con rol COMERCIO y estado PENDIENTE
+    4. Crea entrada en tabla comercios
     """
     try:
-        # Generar un email ficticio basado en CUIT si no se provee, 
-        # o usar uno genérico para cumplir con Supabase Auth
-        email = f"comercio_{comercio.cuit}@sociedad-rural.com"
+        if not supabase:
+            raise HTTPException(500, "Conexión con Supabase Admin no disponible.")
+
+        # Generar un email ficticio basado en CUIT para Auth
+        auth_email = f"comercio_{comercio.cuit.strip()}@sociedad-rural.com"
         
+        # 0. Validaciones Preventivas
+        # A. Verificar si el CUIT/DNI ya existe en perfiles
+        existing_profile = supabase.table("profiles").select("id").eq("dni", comercio.cuit.strip()).execute()
+        if existing_profile.data:
+            raise HTTPException(400, f"Error: El CUIT/DNI {comercio.cuit} ya está registrado en el sistema.")
+
+        # B. Verificar si el email (si se provee) ya existe
+        if comercio.email and "@" in comercio.email:
+            existing_email = supabase.table("profiles").select("id").eq("email", comercio.email.strip().lower()).execute()
+            if existing_email.data:
+                raise HTTPException(400, f"Error: El email {comercio.email} ya está registrado.")
+
         # 1. Crear en Auth
         try:
             auth_res = supabase.auth.admin.create_user({
-                "email": email,
+                "email": auth_email,
                 "password": comercio.temp_password,
                 "user_metadata": {
                     "nombre": comercio.nombre,
@@ -728,22 +744,23 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
             })
             
             if not auth_res.user:
-                logger.error(f"Supabase Auth Error: {auth_res}")
-                raise HTTPException(status_code=400, detail="Error de Supabase Auth: No se pudo crear el usuario")
+                raise Exception("No se recibió respuesta de Auth")
             
             new_user_id = auth_res.user.id
         except Exception as auth_err:
-            logger.error(f"Excepción en Supabase Auth: {auth_err}")
-            if "User not allowed" in str(auth_err):
-                detail = "Error de Permisos: La SERVICE_KEY no tiene permisos suficientes para crear usuarios o el email ya existe."
-            else:
-                detail = f"Error al crear usuario en Auth: {str(auth_err)}"
-            raise HTTPException(status_code=400, detail=detail)
+            error_msg = str(auth_err)
+            logger.error(f"Excepción en Supabase Auth al crear comercio: {error_msg}")
+            if "already registered" in error_msg or "already exists" in error_msg:
+                raise HTTPException(400, "El usuario ya existe en Supabase Auth. Use un CUIT diferente.")
+            if "User not allowed" in error_msg:
+                raise HTTPException(400, "Error de Permisos: La SERVICE_KEY es inválida o no tiene permisos de Auth Admin.")
+            raise HTTPException(400, f"Fallo al crear usuario en Auth: {error_msg}")
         
         # 2. Crear Perfil
+        logger.info(f"👤 Creando perfil para {auth_email}...")
         profile_data = {
             "id": new_user_id,
-            "email": email,
+            "email": auth_email,
             "dni": comercio.cuit, # El CUIT actúa como DNI para perfiles comerciales
             "nombre": comercio.nombre,
             "cuit": comercio.cuit,
@@ -752,9 +769,13 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
             "temp_password": comercio.temp_password,
             "camara_id": comercio.camara_id or user.camara_id
         }
-        supabase.table("profiles").upsert(profile_data).execute()
-        
+        p_res = supabase.table("profiles").upsert(profile_data).execute()
+        if not p_res.data:
+            logger.error(f"❌ Fallo al insertar perfil: {p_res}")
+            raise Exception("No se pudo crear el perfil en la base de datos")
+
         # 3. Crear Comercio
+        logger.info(f"🏢 Insertando datos del comercio '{comercio.nombre}'...")
         comercio_db_data = {
             "user_id": new_user_id,
             "nombre": comercio.nombre,
@@ -767,8 +788,9 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
             "direccion": comercio.direccion,
             "telefono": comercio.telefono,
             "email": comercio.email,
-            "rubro": comercio.categoria, # Rubro inicial mapeado a categoría
+            "rubro": comercio.categoria, 
             "cuit": comercio.cuit,
+            "tipo_plan": comercio.tipo_plan,
             "municipio_id": comercio.municipio_id,
             "camara_id": comercio.camara_id or user.camara_id,
             "estado": "pendiente"
@@ -779,9 +801,11 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
             
         return {"success": True, "comercio": res.data[0] if res.data else None, "user_id": new_user_id}
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error admin creating commerce: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"🚨 Error crítico admin_create_comercio: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Error al crear comercio: {str(e)}")
 
 @app.post("/api/v1/admin/comercios/{id}/approve", dependencies=[Depends(get_admin_user)])
 async def approve_comercio(id: str):
