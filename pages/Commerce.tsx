@@ -19,13 +19,12 @@ export const Commerce = () => {
   // Estado del Formulario
   const initialFormState = {
     nombre: '',
-    rubro: '',
-    direccion: '',
-    telefono: '',
-    email: '',
-    descuento_base: 0,
-    municipio_id: '10b7a9bf-9de0-4f79-b060-2c23a30b26e0', // Default Corrientes Capital (Valid UUID)
-    tipo_plan: 'gratuito' as CommercePlan
+    cuit: '',
+    categoria: '',
+    ubicacion: '',
+    temp_password: Math.random().toString(36).slice(-8).toUpperCase(),
+    municipio_id: '10b7a9bf-9de0-4f79-b060-2c23a30b26e0',
+    camara_id: ''
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -95,7 +94,7 @@ export const Commerce = () => {
       if (editingId) {
         await ApiService.comercios.update(editingId, formData);
       } else {
-        await ApiService.comercios.create(formData);
+        await ApiService.comercios.adminCreate(formData);
       }
       await fetchData(); // Refresh list and quota
       setIsModalOpen(false);
@@ -204,10 +203,9 @@ export const Commerce = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Comercio</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Rubro / Descuento</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Contacto / Dirección</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Plan / Estado</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Comercio / CUIT</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Rubro / Ubicación</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Estado</th>
                   <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
@@ -216,39 +214,41 @@ export const Commerce = () => {
                   <tr key={comercio.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={`https://picsum.photos/seed/${comercio.id}/100/100`}
-                          alt={comercio.nombre}
-                          className="w-10 h-10 rounded-lg object-cover border border-gray-100"
-                        />
-                        <span className="font-bold text-gray-900">{comercio.nombre}</span>
+                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-rural-green font-bold">
+                          {comercio.nombre.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-gray-900">{comercio.nombre}</span>
+                          <span className="text-xs text-gray-500">CUIT: {comercio.cuit || '-'}</span>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-rural-brown">{comercio.rubro || 'General'}</span>
-                        <span className="text-xs font-bold text-rural-green">{comercio.descuento_base}% OFF</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col text-sm text-gray-500">
-                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {comercio.direccion || '-'}</span>
-                        <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {comercio.telefono || '-'}</span>
+                        <span className="text-sm font-medium text-rural-brown">{comercio.categoria || comercio.rubro || 'General'}</span>
+                        <span className="text-xs text-gray-500">{comercio.ubicacion || '-'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${comercio.tipo_plan === 'premium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
-                          }`}>
-                          {comercio.tipo_plan || 'gratuito'}
-                        </span>
                         <button
                           onClick={() => handleToggleStatus(comercio.id, comercio.estado || 'activo')}
-                          className={`flex items-center gap-1 text-[10px] font-bold uppercase transition-colors px-2 py-0.5 rounded-md ${comercio.estado === 'inactivo' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}
+                          className={`flex items-center gap-1 text-[10px] font-bold uppercase transition-colors px-2 py-0.5 rounded-md ${comercio.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-700' : comercio.estado === 'inactivo' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}
                         >
-                          <div className={`w-1.5 h-1.5 rounded-full ${comercio.estado === 'inactivo' ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`}></div>
+                          <div className={`w-1.5 h-1.5 rounded-full ${comercio.estado === 'pendiente' ? 'bg-yellow-500' : comercio.estado === 'inactivo' ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`}></div>
                           {comercio.estado || 'activo'}
                         </button>
+                        {comercio.estado === 'pendiente' && (
+                          <button
+                            onClick={async () => {
+                              await ApiService.comercios.approve(comercio.id);
+                              fetchData();
+                            }}
+                            className="bg-rural-green text-white text-[10px] px-2 py-0.5 rounded hover:bg-green-900 transition-colors"
+                          >
+                            APROBAR
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -310,42 +310,49 @@ export const Commerce = () => {
                 />
               </div>
 
-              {/* Selector de Plan */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Plan de Suscripción</label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green outline-none bg-white"
-                  value={formData.tipo_plan}
-                  onChange={(e) => setFormData({ ...formData, tipo_plan: e.target.value as CommercePlan })}
-                >
-                  <option value="gratuito" disabled={!editingId && quota?.is_full}>
-                    {(!editingId && quota?.is_full) ? 'Gratuito (Cupo Lleno)' : 'Gratuito (Básico)'}
-                  </option>
-                  <option value="premium">Premium (Ilimitado + Destacado)</option>
-                </select>
-                {(!editingId && quota?.is_full && formData.tipo_plan === 'gratuito') && (
-                  <p className="text-xs text-red-500 mt-1">Debes seleccionar Premium, el cupo gratuito está lleno.</p>
-                )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CUIT</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
+                    value={formData.cuit}
+                    onChange={(e) => setFormData({ ...formData, cuit: e.target.value })}
+                    placeholder="20123456789"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña Temporal</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none font-mono"
+                    value={formData.temp_password}
+                    onChange={(e) => setFormData({ ...formData, temp_password: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rubro</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
-                    value={formData.rubro}
-                    onChange={(e) => setFormData({ ...formData, rubro: e.target.value })}
+                    value={formData.categoria}
+                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
                     placeholder="Ej. Veterinaria"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Descuento (%)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
                   <input
-                    type="number"
+                    type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-rural-green focus:ring-1 focus:ring-rural-green outline-none"
-                    value={formData.descuento_base}
-                    onChange={(e) => setFormData({ ...formData, descuento_base: Number(e.target.value) })}
+                    value={formData.ubicacion}
+                    onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                    placeholder="Ej. Calle 123, Corrientes"
                   />
                 </div>
               </div>

@@ -1,5 +1,5 @@
 
-export type UserRole = 'comun' | 'profesional' | 'comercial' | 'admin_camara' | 'superadmin';
+export type UserRole = 'comun' | 'profesional' | 'comercial' | 'admin_camara' | 'superadmin' | 'SOCIO' | 'COMERCIO' | 'CAMARA_COMERCIO' | 'SUPERADMIN';
 export type UserStatus = 'activo' | 'pendiente' | 'inactivo';
 export type CommercePlan = 'gratuito' | 'premium';
 
@@ -22,10 +22,14 @@ export interface Profile {
   provincia: string;
   rol: UserRole;
   estado: UserStatus;
-  is_moroso: boolean; // Nuevo
-  camara_id?: string; // Nuevo
+  is_moroso: boolean;
+  camara_id?: string;
   comercio_id?: string;
   fecha_alta: string;
+  cuit?: string; // Nuevo
+  firebase_token?: string; // Nuevo
+  is_active?: boolean; // Nuevo
+  temp_password?: string; // Nuevo
 }
 
 export interface Municipio {
@@ -39,7 +43,7 @@ export interface Comercio {
   id: string;
   nombre: string;
   municipio_id: string;
-  camara_id: string; // Nuevo
+  camara_id: string;
   direccion: string;
   telefono: string;
   email: string;
@@ -47,8 +51,12 @@ export interface Comercio {
   lng: number;
   descuento_base: number;
   rubro: string;
-  tipo_plan: CommercePlan; // Nuevo
+  tipo_plan: CommercePlan;
   estado: UserStatus;
+  user_id?: string; // Nuevo
+  categoria?: string; // Nuevo
+  ubicacion?: string; // Nuevo
+  cuit?: string; // Nuevo
 }
 
 export interface AuditLog {

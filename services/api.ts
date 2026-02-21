@@ -143,6 +143,20 @@ export const ApiService = {
         async () => [],
         "Get Cámaras"
       );
+    },
+    create: async (data: any) => {
+      const res = await fetch(`${API_BASE_URL}/admin/camaras`, {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error("Error al crear cámara");
+      return res.json();
+    },
+    asignarComercios: async (id: string, comerciosIds: string[]) => {
+      const res = await fetch(`${API_BASE_URL}/admin/camaras/${id}/asignar-comercios`, {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify({ comercios_ids: comerciosIds })
+      });
+      if (!res.ok) throw new Error("Error al asignar comercios");
+      return res.json();
     }
   },
 
@@ -222,6 +236,23 @@ export const ApiService = {
       const res = await fetch(`${API_BASE_URL}/comercios/${id}`, { method: 'DELETE', headers: getHeaders() });
       if (!res.ok) throw new Error("Error al eliminar");
       return res.json();
+    },
+    adminCreate: async (data: any) => {
+      const res = await fetch(`${API_BASE_URL}/admin/comercios`, {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Error al crear comercio por admin");
+      }
+      return res.json();
+    },
+    approve: async (id: string) => {
+      const res = await fetch(`${API_BASE_URL}/admin/comercios/${id}/approve`, {
+        method: 'POST', headers: getHeaders()
+      });
+      if (!res.ok) throw new Error("Error al aprobar comercio");
+      return res.json();
     }
   },
 
@@ -291,10 +322,10 @@ export const ApiService = {
     },
     updateFCMToken: async (token: string) => {
       return tryFetchOrFallback(
-        () => fetch(`${API_BASE_URL}/user/fcm-token`, {
+        () => fetch(`/users/firebase-token`, { // Usando el endpoint específico del SPEC
           method: 'POST',
           headers: getHeaders(),
-          body: JSON.stringify({ fcm_token: token }),
+          body: JSON.stringify({ firebase_token: token }),
         }),
         async () => ({ success: true }),
         'Update FCM Token'

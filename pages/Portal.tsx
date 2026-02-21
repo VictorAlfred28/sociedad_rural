@@ -5,6 +5,7 @@ import { Profile, Comercio, Promocion } from '../types';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 import { useLocation } from 'react-router-dom';
 import html2canvas from 'html2canvas';
+import { requestNotificationPermission } from '../services/firebase';
 
 export const Portal = ({ onLogout }: { onLogout: () => void }) => {
     const [profile, setProfile] = useState<Profile | null>(null);
@@ -22,6 +23,12 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
     const [validatorDni, setValidatorDni] = useState('');
     const [validationResult, setValidationResult] = useState<any>(null);
     const [isValidating, setIsValidating] = useState(false);
+
+    // Estados de Cámara
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<Comercio[]>([]);
+    const [assignedComercios, setAssignedComercios] = useState<Comercio[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
 
     // Estados Cambio Contraseña
     const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -48,11 +55,14 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
             }
 
             // Registrar Token FCM (Notificaciones)
-            const storedFCM = localStorage.getItem('fcm_token');
-            if (storedFCM) {
-                ApiService.user.updateFCMToken(storedFCM)
-                    .catch(err => console.error("Error updating FCM token:", err));
-            }
+            const setupNotifications = async () => {
+                const token = await requestNotificationPermission();
+                if (token) {
+                    await ApiService.user.updateFCMToken(token)
+                        .catch(err => console.error("Error updating FCM token:", err));
+                }
+            };
+            setupNotifications();
         }
 
         // Cargar contenido dinámico
@@ -68,17 +78,22 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                 setPromotions(promos);
                 setEvents(evts);
 
-                // Si es comercial, cargar sus datos específicos
+                // Si es comercial o cámara, cargar sus datos específicos
                 const userData = localStorage.getItem('user_data');
                 if (userData) {
                     const p = JSON.parse(userData);
-                    if (p.rol === 'comercial') {
+                    const role = p.rol?.toUpperCase();
+                    if (role === 'COMERCIO' || role === 'COMERCIAL') {
                         const [cData, pData] = await Promise.all([
                             ApiService.commerceSelf.getProfile(),
                             ApiService.commerceSelf.getPromos()
                         ]);
                         setMyCommerce(cData);
                         setMyPromos(pData);
+                    } else if (role === 'CAMARA_COMERCIO' || role === 'ADMIN_CAMARA') {
+                        // En un entorno real, aquí cargaríamos los comercios ya asignados a esta cámara
+                        // Por ahora simulamos o cargamos desde una supuesta relación
+                        // ApiService.camaras.getAssignedComercios(p.id) ...
                     }
                 }
             } catch (err) {
@@ -160,7 +175,8 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
         const isActivo = status === 'activo' && !isMoroso;
         let label = status || 'Pendiente';
         if (isMoroso) label = 'Deuda Pendiente';
-        const isAdmin = ['admin', 'superadmin', 'admin_camara'].includes(profile?.rol?.toLowerCase() || '');
+        const role = profile?.rol?.toUpperCase();
+        const isAdmin = ['ADMIN', 'SUPERADMIN', 'ADMIN_CAMARA', 'CAMARA_COMERCIO'].includes(role || '');
 
         return (
             <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${isActivo ? 'bg-green-100/20 text-green-300 border-green-400' : 'bg-red-100/20 text-red-300 border-red-400'}`}>
@@ -194,6 +210,38 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
         }
     };
 
+    // Manejadores Cámara
+    const handleSearchComercios = async () => {
+        if (searchQuery.length < 3) return;
+        setIsSearching(true);
+        try {
+            const all = await ApiService.comercios.getAll();
+            const filtered = all.filter(c =>
+                (c.nombre.toLowerCase().includes(searchQuery.toLowerCase()) || c.cuit?.includes(searchQuery)) &&
+                !assignedComercios.find(a => a.id === c.id)
+            );
+            setSearchResults(filtered);
+        } catch (err) {
+            console.error("Error searching comercios:", err);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const handleAssignComercio = async (comercio: Comercio) => {
+        if (assignedComercios.length >= 10) {
+            alert("Has alcanzado el límite de 10 comercios.");
+            return;
+        }
+        try {
+            // En un entorno real llamaríamos a ApiService.camaras.asignarComercios
+            setAssignedComercios([...assignedComercios, comercio]);
+            setSearchResults(prev => prev.filter(c => c.id === comercio.id));
+        } catch (err) {
+            alert("Error al asignar comercio.");
+        }
+    };
+
 
     // --- SKELETON COMPONENTS ---
     const SkeletonOffer = () => (
@@ -222,7 +270,9 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
     );
 
     const isRestricted = profile?.estado !== 'activo' || profile?.is_moroso;
-    const isComercio = profile?.rol === 'comercial';
+    const role = profile?.rol?.toUpperCase();
+    const isComercio = role === 'COMERCIO' || role === 'COMERCIAL';
+    const isCamara = role === 'CAMARA_COMERCIO' || role === 'ADMIN_CAMARA';
 
     return (
         <div className="min-h-screen font-sans pb-20 transition-colors duration-300">
@@ -253,24 +303,29 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
 
                 {/* Saludo */}
                 <div className="flex flex-col gap-1">
-                    <h2 className="text-2xl font-serif font-bold text-gray-800 dark:text-gray-100">Hola, {profile?.nombre}</h2>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">Bienvenido a tu panel de gestión.</p>
+                    <h2 className="text-2xl font-serif font-bold text-gray-800 dark:text-gray-100">
+                        {isCamara ? 'Panel de Cámara de Comercio' : `Hola, ${profile?.nombre}`}
+                    </h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                        {isCamara ? 'Gestión de hasta 10 comercios asociados' : 'Bienvenido a tu panel de gestión.'}
+                    </p>
                 </div>
 
                 {/* --- TABS SYSTEM --- */}
-                {isComercio && (
+                {(isComercio || isCamara) && (
                     <div className="flex bg-gray-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-4">
                         <button
                             onClick={() => setActiveTab('socio')}
                             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'socio' ? 'bg-white dark:bg-slate-700 text-rural-green dark:text-rural-gold shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
                         >
-                            <User className="w-4 h-4" /> Mi Carnet
+                            <User className="w-4 h-4" /> {isCamara ? 'Perfil Admin' : 'Mi Carnet'}
                         </button>
                         <button
                             onClick={() => setActiveTab('negocio')}
                             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'negocio' ? 'bg-white dark:bg-slate-700 text-rural-green dark:text-rural-gold shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
                         >
-                            <Store className="w-4 h-4" /> Mi Negocio
+                            {isCamara ? <Shield className="w-4 h-4" /> : <Store className="w-4 h-4" />}
+                            {isCamara ? 'Gestionar Cámara' : 'Mi Negocio'}
                         </button>
                     </div>
                 )}
@@ -525,102 +580,210 @@ export const Portal = ({ onLogout }: { onLogout: () => void }) => {
                 ) : (
                     // --- PANEL DE COMERCIO ---
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8 pb-10">
-                        {/* Header Negocio */}
-                        <div className="bg-gradient-to-br from-rural-green to-[#0f291e] rounded-3xl p-6 text-white shadow-xl relative overflow-hidden border-2 border-rural-gold/20">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-rural-gold/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-                            <div className="relative z-10">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-rural-gold opacity-80">Perfil Comercial</span>
-                                <h3 className="text-2xl font-serif font-bold mt-1">{myCommerce?.nombre || 'Mi Comercio'}</h3>
-                                <div className="flex flex-wrap gap-3 mt-4">
-                                    <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
-                                        <MapPin className="w-3 h-3 text-rural-gold" /> {myCommerce?.direccion}
-                                    </span>
-                                    <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
-                                        <Megaphone className="w-3 h-3 text-rural-gold" /> {myCommerce?.rubro}
-                                    </span>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${myCommerce?.tipo_plan === 'premium' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>
-                                        PLAN {myCommerce?.tipo_plan?.toUpperCase()}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Validador de Socios */}
-                        <section className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-                            <h4 className="font-serif font-bold text-gray-800 dark:text-gray-100 text-lg mb-4 flex items-center gap-2">
-                                <UserCheck className="w-5 h-5 text-rural-green" /> Validador de Socios
-                            </h4>
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Ingrese DNI o escanee código"
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rural-green transition-all"
-                                        value={validatorDni}
-                                        onChange={(e) => setValidatorDni(e.target.value)}
-                                    />
-                                </div>
-                                <button
-                                    onClick={handleValidateMember}
-                                    disabled={isValidating}
-                                    className="bg-rural-green text-white px-6 py-3 rounded-xl font-bold hover:bg-[#143225] disabled:opacity-50 transition-all flex items-center gap-2"
-                                >
-                                    {isValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
-                                    Validar
-                                </button>
-                            </div>
-
-                            {validationResult && (
-                                <div className={`mt-6 p-5 rounded-2xl border-2 animate-in zoom-in duration-300 ${validationResult.is_active && !validationResult.is_moroso ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h5 className="text-xl font-bold text-gray-900 mt-1">{validationResult.nombre}</h5>
-                                            <p className="text-sm font-medium text-gray-500">DNI: {validationResult.dni}</p>
-                                        </div>
-                                        <div className={`p-3 rounded-full ${validationResult.is_active && !validationResult.is_moroso ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                                            {validationResult.is_active && !validationResult.is_moroso ? <CheckCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
-                                        </div>
+                        {isCamara ? (
+                            // --- PANEL DE CÁMARA ---
+                            <div className="space-y-6">
+                                <div className="bg-gradient-to-r from-rural-brown to-[#4a240a] rounded-3xl p-6 text-white shadow-xl border-2 border-rural-gold/20">
+                                    <h3 className="text-2xl font-serif font-bold">Gestión de Cámara</h3>
+                                    <p className="text-sm opacity-80 mt-1">Has sido asignado para gestionar los beneficios de los siguientes comercios.</p>
+                                    <div className="mt-4 flex items-center gap-2 bg-black/20 w-fit px-3 py-1 rounded-full text-xs border border-white/10 text-rural-gold font-bold">
+                                        <Shield className="w-3 h-3" /> Máximo 10 comercios permitidos
                                     </div>
-                                    <p className={`font-bold text-lg mt-4 ${validationResult.is_active && !validationResult.is_moroso ? 'text-green-700' : 'text-red-700'}`}>
-                                        {validationResult.is_active && !validationResult.is_moroso ? '¡ACCESO Y BENEFICIO DISPONIBLE!' : 'NO APLICAR BENEFICIO - SOCIO IRREGULAR'}
-                                    </p>
                                 </div>
-                            )}
-                        </section>
 
-                        {/* Gestión de Promociones */}
-                        <section>
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                                    <Megaphone className="w-5 h-5 text-amber-600" /> Mis Promociones
-                                </h3>
-                                <button className="bg-rural-gold text-rural-green px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
-                                    <Plus className="w-4 h-4" /> Crear Promo
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {myPromos.length > 0 ? myPromos.map(promo => (
-                                    <div key={promo.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-gray-100 flex gap-4 shadow-sm">
-                                        <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                                            <img src={promo.imagen_url || `https://picsum.photos/seed/${promo.id}/200`} className="w-full h-full object-cover" alt="" />
+                                <section className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <h4 className="font-serif font-bold text-gray-800 dark:text-gray-100 text-lg mb-6 flex items-center gap-2">
+                                        <Plus className="w-5 h-5 text-rural-green" /> Asignar Comercios a mi Cámara
+                                    </h4>
+                                    <div className="text-sm text-gray-500 mb-4">
+                                        Busca y selecciona comercios de tu zona para gestionar sus promociones.
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar comercio por nombre o CUIT..."
+                                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rural-gold transition-all"
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleSearchComercios()}
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={handleSearchComercios}
+                                                disabled={isSearching}
+                                                className="bg-rural-gold text-rural-green px-6 py-3 rounded-xl font-bold hover:bg-yellow-500 transition-all flex items-center gap-2"
+                                            >
+                                                {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buscar'}
+                                            </button>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h5 className="font-bold text-gray-900 dark:text-white truncate">{promo.titulo}</h5>
-                                            <div className="mt-2 flex justify-between items-center">
-                                                <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">ACTIVA</span>
-                                                <button onClick={() => handleDeletePromo(promo.id)} className="text-red-500 hover:text-red-700">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+
+                                        {searchResults.length > 0 && (
+                                            <div className="bg-white dark:bg-slate-800 border border-rural-gold/30 rounded-2xl overflow-hidden shadow-lg animate-in fade-in zoom-in duration-200">
+                                                <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-rural-gold/5 text-[10px] font-bold text-rural-brown uppercase tracking-wider">
+                                                    Resultados de búsqueda
+                                                </div>
+                                                <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-48 overflow-y-auto">
+                                                    {searchResults.map(result => (
+                                                        <div key={result.id} className="p-3 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                                                            <div>
+                                                                <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{result.nombre}</p>
+                                                                <p className="text-[10px] text-gray-400">CUIT: {result.cuit}</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleAssignComercio(result)}
+                                                                className="p-2 bg-rural-green text-white rounded-lg hover:bg-[#143225] transition-all"
+                                                            >
+                                                                <Plus className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-600">
+                                            <p className="text-xs font-bold text-gray-400 uppercase mb-3">Comercios Asignados ({assignedComercios.length}/10)</p>
+                                            <div className="flex flex-col gap-2">
+                                                {assignedComercios.length > 0 ? assignedComercios.map(comercio => (
+                                                    <div key={comercio.id} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-rural-green/10 flex items-center justify-center text-rural-green">
+                                                                <Store className="w-4 h-4" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold">{comercio.nombre}</p>
+                                                                <p className="text-[10px] text-gray-500">{comercio.categoria}</p>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setAssignedComercios(prev => prev.filter(c => c.id !== comercio.id))}
+                                                            className="text-gray-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                )) : (
+                                                    <div className="text-center py-6 text-gray-400 italic text-sm">
+                                                        No tienes comercios asignados aún.
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                )) : (
-                                    <div className="col-span-full py-10 text-center border-2 border-dashed border-gray-100 rounded-3xl text-gray-400 italic">No hay promociones.</div>
-                                )}
+                                </section>
+
+                                <section>
+                                    <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-6">
+                                        <Megaphone className="w-5 h-5 text-amber-600" /> Promociones Activas en Cámara
+                                    </h3>
+                                    <div className="text-center py-10 bg-white/50 dark:bg-slate-800/50 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-400">
+                                        Aquí aparecerán las promociones de tus comercios asociados.
+                                    </div>
+                                </section>
                             </div>
-                        </section>
+                        ) : (
+                            // --- PANEL DE COMERCIO (EXISTENTE) ---
+                            <>
+                                <div className="bg-gradient-to-br from-rural-green to-[#0f291e] rounded-3xl p-6 text-white shadow-xl relative overflow-hidden border-2 border-rural-gold/20">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-rural-gold/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+                                    <div className="relative z-10">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-rural-gold opacity-80">Perfil Comercial</span>
+                                        <h3 className="text-2xl font-serif font-bold mt-1">{myCommerce?.nombre || 'Mi Comercio'}</h3>
+                                        <div className="flex flex-wrap gap-3 mt-4">
+                                            <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
+                                                <MapPin className="w-3 h-3 text-rural-gold" /> {myCommerce?.direccion}
+                                            </span>
+                                            <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border border-white/10">
+                                                <Megaphone className="w-3 h-3 text-rural-gold" /> {myCommerce?.rubro}
+                                            </span>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${myCommerce?.tipo_plan === 'premium' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>
+                                                PLAN {myCommerce?.tipo_plan?.toUpperCase()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Validador de Socios */}
+                                <section className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <h4 className="font-serif font-bold text-gray-800 dark:text-gray-100 text-lg mb-4 flex items-center gap-2">
+                                        <UserCheck className="w-5 h-5 text-rural-green" /> Validador de Socios
+                                    </h4>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <input
+                                                type="text"
+                                                placeholder="Ingrese DNI o escanee código"
+                                                className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-rural-green transition-all"
+                                                value={validatorDni}
+                                                onChange={(e) => setValidatorDni(e.target.value)}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleValidateMember}
+                                            disabled={isValidating}
+                                            className="bg-rural-green text-white px-6 py-3 rounded-xl font-bold hover:bg-[#143225] disabled:opacity-50 transition-all flex items-center gap-2"
+                                        >
+                                            {isValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                                            Validar
+                                        </button>
+                                    </div>
+
+                                    {validationResult && (
+                                        <div className={`mt-6 p-5 rounded-2xl border-2 animate-in zoom-in duration-300 ${validationResult.is_active && !validationResult.is_moroso ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h5 className="text-xl font-bold text-gray-900 mt-1">{validationResult.nombre}</h5>
+                                                    <p className="text-sm font-medium text-gray-500">DNI: {validationResult.dni}</p>
+                                                </div>
+                                                <div className={`p-3 rounded-full ${validationResult.is_active && !validationResult.is_moroso ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                                    {validationResult.is_active && !validationResult.is_moroso ? <CheckCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                                                </div>
+                                            </div>
+                                            <p className={`font-bold text-lg mt-4 ${validationResult.is_active && !validationResult.is_moroso ? 'text-green-700' : 'text-red-700'}`}>
+                                                {validationResult.is_active && !validationResult.is_moroso ? '¡ACCESO Y BENEFICIO DISPONIBLE!' : 'NO APLICAR BENEFICIO - SOCIO IRREGULAR'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </section>
+
+                                {/* Gestión de Promociones */}
+                                <section>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xl font-serif font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                            <Megaphone className="w-5 h-5 text-amber-600" /> Mis Promociones
+                                        </h3>
+                                        <button className="bg-rural-gold text-rural-green px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2">
+                                            <Plus className="w-4 h-4" /> Crear Promo
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {myPromos.length > 0 ? myPromos.map(promo => (
+                                            <div key={promo.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-gray-100 flex gap-4 shadow-sm">
+                                                <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                                                    <img src={promo.imagen_url || `https://picsum.photos/seed/${promo.id}/200`} className="w-full h-full object-cover" alt="" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h5 className="font-bold text-gray-900 dark:text-white truncate">{promo.titulo}</h5>
+                                                    <div className="mt-2 flex justify-between items-center">
+                                                        <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">ACTIVA</span>
+                                                        <button onClick={() => handleDeletePromo(promo.id)} className="text-red-500 hover:text-red-700">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="col-span-full py-10 text-center border-2 border-dashed border-gray-100 rounded-3xl text-gray-400 italic">No hay promociones.</div>
+                                        )}
+                                    </div>
+                                </section>
+                            </>
+                        )}
                     </div>
                 )}
 

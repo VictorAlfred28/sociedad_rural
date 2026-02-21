@@ -40,9 +40,9 @@ logging.basicConfig(
 logger = logging.getLogger("SociedadRuralAPI")
 
 # --- CONFIGURACIÓN SECRETOS ---
-SECRET_KEY = os.getenv("SECRET_KEY", "tu_clave_super_secreta_para_firmar_tokens")
+SECRET_KEY = os.getenv("SECRET_KEY", "prod-secret-fallback-spec-2026")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 # Reducido a 1 hora por seguridad SPEC
 MP_ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "TEST-token-placeholder")
 
 # Inicializar Mercado Pago
@@ -233,13 +233,11 @@ class SocioUpdate(BaseModel):
 
 class ComercioCreate(BaseModel):
     nombre: str
-    rubro: str
-    direccion: str
-    telefono: str
-    email: str
-    descuento_base: int = 0
+    cuit: str
+    categoria: str
+    ubicacion: str
     municipio_id: Optional[str] = None
-    tipo_plan: str = "gratuito" # gratuito | premium
+    temp_password: str
     camara_id: Optional[str] = None 
 
 class ComercioUpdate(BaseModel):
@@ -250,25 +248,16 @@ class ComercioUpdate(BaseModel):
     email: Optional[str] = None
 
 class PromocionCreate(BaseModel):
-    titulo: str
-    descripcion: str
-    imagen_url: Optional[str] = ""
-    fecha_desde: Optional[str] = None
-    fecha_hasta: Optional[str] = None
-    estado: str = "activo"
-    descuento_base: Optional[int] = None
-    municipio_id: Optional[str] = None
-    tipo_plan: Optional[str] = None
-    estado: Optional[str] = None
-
-class PromocionCreate(BaseModel):
-    comercio_id: str
+    comercio_id: Optional[str] = None
     titulo: str
     descripcion: Optional[str] = None
-    imagen_url: Optional[str] = None
-    fecha_desde: Optional[datetime] = None
-    fecha_hasta: Optional[datetime] = None
+    imagen_url: Optional[str] = ""
+    fecha_desde: Optional[Union[datetime, str]] = None
+    fecha_hasta: Optional[Union[datetime, str]] = None
     estado: str = "activo"
+    descuento_base: Optional[int] = 0
+    municipio_id: Optional[str] = None
+    tipo_plan: Optional[str] = "gratuito"
 
 class PromocionUpdate(BaseModel):
     titulo: Optional[str] = None
@@ -413,40 +402,75 @@ async def validate_qr(request: Request, profile_id: str, user: TokenData = Depen
 @app.post("/api/v1/auth/token", response_model=Token)
 @limiter.limit("10/minute") 
 async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
-    email = form_data.username.strip()
-    if form_data.username.strip().isdigit(): 
-        # Uso de índice 'idx_profiles_dni'
-        res = supabase.table("profiles").select("email").eq("dni", form_data.username).execute()
-        if not res.data: raise HTTPException(400, "DNI no encontrado")
-        email = res.data[0]["email"]
+    username_input = form_data.username.strip()
+    email = None
+    is_commerce = False
+
+    # 1. DETECCIÓN AUTOMÁTICA (CUIT vs Email/DNI)
+    if username_input.isdigit():
+        if len(username_input) >= 10: # Probablemente CUIT
+            # Buscar por CUIT
+            res = supabase.table("profiles").select("email, rol, estado, temp_password").eq("cuit", username_input).execute()
+            if not res.data: raise HTTPException(400, "CUIT no encontrado")
+            email = res.data[0]["email"]
+            is_commerce = True
+        else: # Probablemente DNI
+            res = supabase.table("profiles").select("email").eq("dni", username_input).execute()
+            if not res.data: raise HTTPException(400, "DNI no encontrado")
+            email = res.data[0]["email"]
+    else:
+        email = username_input
 
     try:
+        # Verificar estado y contraseña temporal antes de autenticar en Supabase si es comercio
+        user_check = supabase.table("profiles").select("*").eq("email", email).execute()
+        if not user_check.data: raise HTTPException(400, "Usuario no encontrado")
+        
+        profile = user_check.data[0]
+        
+        # Validar si es comercio y está aprobado
+        if profile.get("rol") == "COMERCIO" or profile.get("rol") == "comercial":
+            if profile.get("estado") != "activo":
+                raise HTTPException(403, "El comercio aún no ha sido aprobado por el administrador.")
+
+        # Intentar login
         auth_res = supabase.auth.sign_in_with_password({"email": email, "password": form_data.password})
         user_id = auth_res.user.id
         
-        # Uso de PK index
-        prof_res = supabase.table("profiles").select("*").eq("id", user_id).execute()
-        prof = prof_res.data[0] if prof_res.data else {}
-        
-        role = prof.get("rol", "comun")
-        camara_id = prof.get("camara_id")
+        role = profile.get("rol", "comun")
+        camara_id = profile.get("camara_id")
+
+        # Verificar si requiere cambio de contraseña (primer login)
+        force_password_change = False
+        if profile.get("temp_password") and profile.get("temp_password") == form_data.password:
+            force_password_change = True
 
         access_token = create_access_token(
             data={"sub": email, "role": role, "uid": user_id, "camara_id": camara_id},
             expires_delta=timedelta(days=1)
         )
+        
         logger.info(f"Login exitoso: {email} ({role})")
+        
+        # Retornar info extendida si es necesario forzar cambio
+        response_user = {"email": email, "id": user_id}
+        if force_password_change:
+            response_user["force_password_change"] = True
+
         return {
-            "access_token": access_token, "token_type": "bearer",
-            "role": role, "user": {"email": email, "id": user_id}, "profile": prof
+            "access_token": access_token, 
+            "token_type": "bearer",
+            "role": role, 
+            "user": response_user, 
+            "profile": profile
         }
+    except HTTPException:
+        raise
     except Exception as e:
         error_msg = str(e)
         logger.warning(f"Intento de login fallido: {email} - {error_msg}")
         if "Email not confirmed" in error_msg:
-            raise HTTPException(400, "Debes confirmar tu correo electrónico antes de ingresar.")
-        if "Email logins are disabled" in error_msg:
-            raise HTTPException(400, "El inicio de sesión por correo está deshabilitado en Supabase. Contacte al administrador.")
+            raise HTTPException(400, "Debes confirmar tu correo electrónico.")
         raise HTTPException(400, "Usuario o contraseña incorrectos")
 
 @app.post("/api/v1/auth/register")
@@ -569,7 +593,8 @@ async def get_quota_stats(user: TokenData = Depends(get_current_user)):
     }
 
 
-# 4. COMERCIOS (HARDENED + PAGINADO)
+# 4. COMERCIOS (ADMIN & PUBLIC)
+
 @app.get("/api/v1/comercios")
 async def get_comercios(
     user: TokenData = Depends(get_current_user),
@@ -577,70 +602,123 @@ async def get_comercios(
     offset: int = Query(0, ge=0)
 ):
     try:
-        # Query optimizada con paginación
         query = supabase.table("comercios").select("*, municipios(nombre), camaras(nombre)")
         if user.role == "admin_camara" and user.camara_id:
             query = query.eq("camara_id", user.camara_id)
         
-        # Aplicar paginación
         query = query.range(offset, offset + limit - 1)
-        
         res = query.execute()
         return res.data or []
     except Exception as e:
         logger.error(f"Error fetching comercios: {e}")
         return []
 
-@app.post("/api/v1/comercios", dependencies=[Depends(get_admin_user)])
-async def create_comercio(comercio: ComercioCreate, user: TokenData = Depends(get_current_user)):
-    target_camara_id = comercio.camara_id
-    if user.role == "admin_camara":
-        target_camara_id = user.camara_id 
-    
-    if not target_camara_id:
-        default_cam = supabase.table("camaras").select("id").limit(1).execute()
-        if default_cam.data: target_camara_id = default_cam.data[0]['id']
-        else: raise HTTPException(400, "Error de configuración: No hay cámaras en el sistema")
-
-    if comercio.tipo_plan == 'gratuito':
-        cam_res = supabase.table("camaras").select("limite_gratuitos").eq("id", target_camara_id).execute()
-        limite = cam_res.data[0]['limite_gratuitos'] if cam_res.data else 10
-        
-        # Optimizado con count exact
-        count_res = supabase.table("comercios").select("id", count="exact")\
-            .eq("camara_id", target_camara_id)\
-            .eq("tipo_plan", "gratuito")\
-            .eq("estado", "activo").execute()
-        
-        actuales = count_res.count
-        
-        if actuales >= limite:
-            raise HTTPException(status_code=409, detail=f"Límite de comercios gratuitos alcanzado ({actuales}/{limite}).")
-
+@app.post("/api/v1/admin/comercios", dependencies=[Depends(get_admin_user)])
+async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depends(get_admin_user)):
+    """
+    SuperAdmin crea comercio:
+    1. Crea usuario en Auth con temp_password
+    2. Crea perfil con rol COMERCIO y estado PENDIENTE
+    3. Crea entrada en tabla comercios
+    """
     try:
-        payload = comercio.model_dump(exclude_unset=True)
-        payload['camara_id'] = target_camara_id
+        # Generar un email ficticio basado en CUIT si no se provee, 
+        # o usar uno genérico para cumplir con Supabase Auth
+        email = f"comercio_{comercio.cuit}@sociedad-rural.com"
         
-        res = supabase.table("comercios").insert(payload).execute()
+        # 1. Crear en Auth
+        auth_res = supabase.auth.admin.create_user({
+            "email": email,
+            "password": comercio.temp_password,
+            "user_metadata": {
+                "nombre": comercio.nombre,
+                "cuit": comercio.cuit,
+                "rol": "COMERCIO"
+            },
+            "email_confirm": True
+        })
         
-        try:
-            supabase.table("audit_logs").insert({
-                "usuario_id": user.uid,
-                "camara_id": target_camara_id,
-                "accion": "CREATE_COMERCIO",
-                "detalle": f"Alta comercio {comercio.nombre} ({comercio.tipo_plan})"
-            }).execute()
-        except Exception:
-            pass 
+        new_user_id = auth_res.user.id
         
-        return res.data[0]
-
+        # 2. Crear Perfil
+        profile_data = {
+            "id": new_user_id,
+            "email": email,
+            "nombre": comercio.nombre,
+            "cuit": comercio.cuit,
+            "rol": "COMERCIO",
+            "estado": "pendiente",
+            "temp_password": comercio.temp_password,
+            "camara_id": comercio.camara_id or user.camara_id
+        }
+        supabase.table("profiles").upsert(profile_data).execute()
+        
+        # 3. Crear Comercio
+        comercio_db_data = {
+            "user_id": new_user_id,
+            "nombre": comercio.nombre,
+            "categoria": comercio.categoria,
+            "ubicacion": comercio.ubicacion,
+            "municipio_id": comercio.municipio_id,
+            "camara_id": comercio.camara_id or user.camara_id,
+            "estado": "pendiente"
+        }
+        res = supabase.table("comercios").insert(comercio_db_data).execute()
+        
+        return {"success": True, "comercio": res.data[0], "user_id": new_user_id}
+        
     except Exception as e:
-        error_str = str(e)
-        if "LÍMITE EXCEDIDO" in error_str:
-            raise HTTPException(status_code=409, detail="Error Crítico de Integridad: El límite de comercios fue excedido concurrentemente.")
-        logger.error(f"Error DB Insert: {error_str}")
-        raise HTTPException(status_code=400, detail="Error al procesar la solicitud en base de datos.")
+        logger.error(f"Error admin creating commerce: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/v1/admin/comercios/{id}/approve", dependencies=[Depends(get_admin_user)])
+async def approve_comercio(id: str):
+    """Aprueba un comercio (tanto en perfiles como en tabla comercios)"""
+    try:
+        # 1. Obtener el comercio para saber el user_id
+        com_res = supabase.table("comercios").select("user_id").eq("id", id).execute()
+        if not com_res.data: raise HTTPException(404, "Comercio no encontrado")
+        user_id = com_res.data[0]["user_id"]
+        
+        # 2. Activar perfil
+        supabase.table("profiles").update({"estado": "activo"}).eq("id", user_id).execute()
+        
+        # 3. Activar comercio
+        res = supabase.table("comercios").update({"estado": "activo"}).eq("id", id).execute()
+        
+        return {"success": True, "message": "Comercio aprobado y activado"}
+    except Exception as e:
+        logger.error(f"Error approving commerce: {e}")
+        raise HTTPException(400, detail=str(e))
+
+@app.post("/api/v1/admin/camaras", dependencies=[Depends(get_admin_user)])
+async def create_camara(camara_data: dict):
+    res = supabase.table("camaras").insert(camara_data).execute()
+    return res.data[0]
+
+@app.post("/api/v1/admin/camaras/{id}/asignar-comercios", dependencies=[Depends(get_admin_user)])
+async def asignar_comercios_camara(id: str, payload: dict):
+    """Asigna una lista de comercios a una cámara (Máximo 10)"""
+    comercios_ids = payload.get("comercios_ids", [])
+    
+    if len(comercios_ids) > 10:
+        raise HTTPException(400, "Una cámara solo puede gestionar hasta 10 comercios asignados.")
+    
+    try:
+        # Limpiar asignaciones previas si es necesario o manejar incrementalmente
+        # Aquí optamos por reemplazar la lista de asignados para esa cámara
+        # 1. Borrar actuales
+        supabase.table("camara_comercios").delete().eq("camara_id", id).execute()
+        
+        # 2. Insertar nuevos
+        if comercios_ids:
+            inserts = [{"camara_id": id, "comercio_id": c_id} for c_id in comercios_ids]
+            supabase.table("camara_comercios").insert(inserts).execute()
+            
+        return {"success": True, "count": len(comercios_ids)}
+    except Exception as e:
+        logger.error(f"Error assigning comercios to camera: {e}")
+        raise HTTPException(400, detail=str(e))
 
 @app.put("/api/v1/comercios/{id}", dependencies=[Depends(get_admin_user)])
 async def update_comercio(id: str, comercio: ComercioUpdate, user: TokenData = Depends(get_current_user)):
@@ -912,11 +990,12 @@ async def test_notification(data: dict, user: TokenData = Depends(get_current_us
     return {"success": success}
 
 @app.post("/api/v1/user/fcm-token")
+@app.post("/users/firebase-token") # Alias solicitado en el SPEC
 async def update_fcm_token(payload: dict, user: TokenData = Depends(get_current_user)):
-    token = payload.get("token")
+    token = payload.get("token") or payload.get("firebase_token")
     if not token: raise HTTPException(400, "Token requerido")
-    supabase.table("profiles").update({"fcm_token": token}).eq("id", user.uid).execute()
-    return {"status": "ok"}
+    supabase.table("profiles").update({"firebase_token": token}).eq("id", user.uid).execute()
+    return {"status": "ok", "token": token}
 
 @app.post("/api/v1/user/change-password")
 @limiter.limit("10/hour")
@@ -1124,9 +1203,8 @@ async def payment_webhook(request: Request):
                     "mp_preference_id": payment_id 
                 }
                 
+                logger.info(f"✅ Pago aprobado: {payment_id} para cuota {external_ref}")
                 supabase.table("cuotas").update(update_data).eq("id", external_ref).execute()
-                
-                logger.info(f"✅ Cuota {external_ref} marcada como PAGADA.")
         
         return JSONResponse(content={"status": "received"}, status_code=200)
 

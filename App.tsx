@@ -106,6 +106,8 @@ const App = () => {
     setUserRole('comun');
   };
 
+  const forcePasswordChange = localStorage.getItem('force_password_change') === 'true';
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-rural-white">
@@ -128,10 +130,33 @@ const App = () => {
     );
   }
 
-  const isAdmin = ['admin', 'superadmin', 'admin_camara'].includes(userRole?.toLowerCase() || '');
+  // Si requiere cambio de contraseña
+  if (forcePasswordChange) {
+    return (
+      <HashRouter>
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+          <ChangePasswordModal
+            isOpen={true}
+            onClose={() => {
+              localStorage.removeItem('force_password_change');
+              window.location.reload();
+            }}
+          />
+          <div className="text-center">
+            <h2 className="text-xl font-bold mb-2">Cambio de Contraseña Obligatorio</h2>
+            <p className="text-gray-600">Por seguridad, debes cambiar tu contraseña temporal antes de continuar.</p>
+          </div>
+        </div>
+      </HashRouter>
+    );
+  }
 
-  // Si es SOCIO
-  if (!isAdmin) {
+  const role = userRole?.toUpperCase();
+  const isAdmin = ['ADMIN', 'SUPERADMIN'].includes(role);
+  const isCamara = ['ADMIN_CAMARA', 'CAMARA_COMERCIO'].includes(role);
+
+  // Si es SOCIO, COMERCIO o CÁMARA (Acceso a portal beneficiario/gestor móvil)
+  if (role === 'SOCIO' || role === 'COMERCIO' || role === 'COMUN' || role === 'COMERCIAL' || role === 'PROFESIONAL' || isCamara) {
     return (
       <HashRouter>
         <UserLayout onLogout={handleLogout} role={userRole}>
@@ -140,6 +165,9 @@ const App = () => {
           </div>
           <Routes>
             <Route path="/portal" element={<Portal onLogout={handleLogout} />} />
+            {role === 'COMERCIO' || role === 'COMERCIAL' ? (
+              <Route path="/commerce" element={<Commerce />} />
+            ) : null}
             <Route path="*" element={<Navigate to="/portal" replace />} />
           </Routes>
         </UserLayout>
@@ -147,7 +175,7 @@ const App = () => {
     );
   }
 
-  // Si es ADMIN
+  // Si es ADMIN / SUPERADMIN / CAMARA
   return (
     <HashRouter>
       <Routes>

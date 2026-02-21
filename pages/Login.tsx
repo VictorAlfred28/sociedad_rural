@@ -23,13 +23,14 @@ export const Login = ({ onLogin }: { onLogin: () => void }) => {
       if (response.access_token) {
         // Guardar Token
         localStorage.setItem('auth_token', response.access_token);
-        
+
         // Guardar Rol y Datos
         if (response.role) {
-            localStorage.setItem('user_role', response.role);
+          localStorage.setItem('user_role', response.role);
         }
-        if (response.profile) {
-            localStorage.setItem('user_data', JSON.stringify(response.profile));
+        // Verificar si requiere cambio de contraseña
+        if (response.user?.force_password_change) {
+          localStorage.setItem('force_password_change', 'true');
         }
 
         // Notificar login exitoso
@@ -54,18 +55,18 @@ export const Login = ({ onLogin }: { onLogin: () => void }) => {
     <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 left-0 w-full h-64 bg-rural-green"></div>
-      <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none" 
-           style={{ backgroundImage: 'radial-gradient(#D4AF37 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+      <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none"
+        style={{ backgroundImage: 'radial-gradient(#D4AF37 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
       </div>
 
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative z-10 border-t-4 border-rural-gold">
         <div className="text-center mb-8">
-           <div className="w-20 h-20 bg-rural-green text-rural-gold mx-auto rounded-full flex items-center justify-center text-2xl font-bold border-4 border-white shadow-lg mb-4">
-             SR
-           </div>
-           <h1 className="text-2xl font-serif font-bold text-gray-800">Sociedad Rural</h1>
-           <p className="text-rural-brown font-medium">Norte de Corrientes</p>
-           <p className="text-gray-400 text-xs mt-2 uppercase tracking-widest">Acceso de Socios</p>
+          <div className="w-20 h-20 bg-rural-green text-rural-gold mx-auto rounded-full flex items-center justify-center text-2xl font-bold border-4 border-white shadow-lg mb-4">
+            SR
+          </div>
+          <h1 className="text-2xl font-serif font-bold text-gray-800">Sociedad Rural</h1>
+          <p className="text-rural-brown font-medium">Norte de Corrientes</p>
+          <p className="text-gray-400 text-xs mt-2 uppercase tracking-widest">Acceso de Socios</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -77,21 +78,21 @@ export const Login = ({ onLogin }: { onLogin: () => void }) => {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Usuario (DNI o Email)</label>
-            <input 
-              type="text" 
+            <label className="block text-sm font-medium text-gray-700 mb-1">Usuario (DNI, CUIT o Email)</label>
+            <input
+              type="text"
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rural-green focus:border-transparent outline-none transition-all"
               value={emailOrDni}
               onChange={(e) => setEmailOrDni(e.target.value)}
-              placeholder="Ej: 12345678 o admin@rural.com"
+              placeholder="Ej: 20123456789 o admin@rural.com"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rural-green focus:border-transparent outline-none transition-all"
               value={password}
@@ -99,7 +100,7 @@ export const Login = ({ onLogin }: { onLogin: () => void }) => {
             />
           </div>
 
-          <button 
+          <button
             type="submit"
             disabled={loading}
             className={`w-full py-3 bg-rural-green text-white font-semibold rounded-lg hover:bg-[#143225] transition-colors flex items-center justify-center gap-2 shadow-lg shadow-rural-green/20 ${loading ? 'opacity-80 cursor-not-allowed' : ''}`}
@@ -114,10 +115,10 @@ export const Login = ({ onLogin }: { onLogin: () => void }) => {
             Sistema seguro protegido. Todas las acciones son monitoreadas.
           </p>
           <div className="pt-4 border-t border-gray-100">
-             <p className="text-sm text-gray-600">¿Desea asociarse?</p>
-             <Link to="/registro" className="text-rural-green font-bold hover:underline text-sm">
-                Solicitar Alta de Socio
-             </Link>
+            <p className="text-sm text-gray-600">¿Desea asociarse?</p>
+            <Link to="/registro" className="text-rural-green font-bold hover:underline text-sm">
+              Solicitar Alta de Socio
+            </Link>
           </div>
         </div>
       </div>
