@@ -719,6 +719,7 @@ async def admin_create_comercio(comercio: ComercioCreate, user: TokenData = Depe
         profile_data = {
             "id": new_user_id,
             "email": email,
+            "dni": comercio.cuit, # El CUIT actúa como DNI para perfiles comerciales
             "nombre": comercio.nombre,
             "cuit": comercio.cuit,
             "rol": "COMERCIO",
