@@ -18,10 +18,9 @@ interface Comercio {
 export default function CamaraDashboard() {
     const { user, token, logout } = useAuth();
     const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<'SOCIO' | 'COMERCIOS' | 'SOCIOS'>('COMERCIOS');
     const [comercios, setComercios] = useState<Comercio[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
-    const [activeTab, setActiveTab] = useState<'SOCIO' | 'COMERCIOS'>('COMERCIOS');
+    const [socios, setSocios] = useState<any[]>([]);
     const [editingComercio, setEditingComercio] = useState<Comercio | null>(null);
 
     const [formData, setFormData] = useState({
@@ -38,7 +37,24 @@ export default function CamaraDashboard() {
 
     useEffect(() => {
         fetchComercios();
+        fetchSocios();
     }, []);
+
+    const fetchSocios = async () => {
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/camara/mis-socios`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                setSocios(data.socios || []);
+            }
+        } catch (error) {
+            console.error("Error fetching socios:", error);
+        }
+    };
 
     const fetchComercios = async () => {
         try {
@@ -162,17 +178,24 @@ export default function CamaraDashboard() {
 
             <main className="max-w-4xl mx-auto px-6 pt-8">
                 {/* Custom Tab Switcher */}
-                <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm mb-8">
+                <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm mb-8 overflow-x-auto no-scrollbar">
                     <button
                         onClick={() => setActiveTab('SOCIO')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'SOCIO' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/10'}`}
+                        className={`flex-1 min-w-fit whitespace-nowrap flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${activeTab === 'SOCIO' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/10'}`}
                     >
                         <span className="material-symbols-outlined text-xl">person</span>
                         Ingresar como Socio
                     </button>
                     <button
+                        onClick={() => setActiveTab('SOCIOS')}
+                        className={`flex-1 min-w-fit whitespace-nowrap flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${activeTab === 'SOCIOS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/10'}`}
+                    >
+                        <span className="material-symbols-outlined text-xl">group</span>
+                        Panel de Socios
+                    </button>
+                    <button
                         onClick={() => setActiveTab('COMERCIOS')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'COMERCIOS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/10'}`}
+                        className={`flex-1 min-w-fit whitespace-nowrap flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all ${activeTab === 'COMERCIOS' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/10'}`}
                     >
                         <span className="material-symbols-outlined text-xl">storefront</span>
                         Registrar Comercios
@@ -182,6 +205,48 @@ export default function CamaraDashboard() {
                 {activeTab === 'SOCIO' ? (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
                         <SocioHomeContent />
+                    </div>
+                ) : activeTab === 'SOCIOS' ? (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold">Socios de {user?.municipio}</h3>
+                            <div className="bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-xs font-bold">
+                                {socios.length} SOCIOS
+                            </div>
+                        </div>
+
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-20 grayscale opacity-30">
+                                <div className="size-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+                                <p className="font-bold text-sm">Cargando socios...</p>
+                            </div>
+                        ) : socios.length === 0 ? (
+                            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 p-20 flex flex-col items-center text-center">
+                                <span className="material-symbols-outlined text-6xl text-slate-200 dark:text-slate-800 mb-4">person_off</span>
+                                <p className="font-bold text-slate-400">No hay socios registrados en este municipio.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {socios.map((socio) => (
+                                    <div key={socio.id} className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group transition-all">
+                                        <div className="flex items-center gap-4">
+                                            <div className="size-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600">
+                                                <span className="material-symbols-outlined">person</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-base leading-none mb-1">{socio.nombre_apellido}</h4>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">DNI: {socio.dni} • {socio.email}</p>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${socio.estado === 'APROBADO' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                        {socio.estado}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
