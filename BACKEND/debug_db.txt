@@ -1,0 +1,22 @@
+--- AUTH USERS ---
+empleadotest@test.com d6d9fdc2-3891-4ab7-9237-e2a23aaaf37b
+supertest_20266886410@test.com af8f9711-bc90-4b43-95a2-9d5d174518d8
+supertest3@test.com 2139ba27-e195-4f1f-877f-dcbc5ba00715
+supertest2@test.com e3bb7065-74d4-4c43-ac69-22704c384f46
+camara_4c649d0c@test.com b9764ddf-bc97-4014-8b5e-ca09d12ae4c8
+carnosa@gmail.com 3275c8f0-87f8-4f20-9155-95174f469e67
+camara@ituzaingo.gob.ar 47800505-4461-4f03-b221-bd5d4952458c
+agro@gmail.com a3440b07-320c-4bd9-b318-f1e3936894ec
+agropecuaria@gmail.com 7aff8031-edfc-4f8b-9b65-d7f4b2c14af2
+victoralfredo2498@gmail.com 613c7902-b5e8-4d26-b0f8-45ee24b7b4a6
+
+--- PROFILES ---
+Email: victoralfredo2498@gmail.com | ID: 613c7902-b5e8-4d26-b0f8-45ee24b7b4a6 | DNI: 12345678 | Rol: ADMIN | Estado: APROBADO
+Email: agropecuaria@gmail.com | ID: 7aff8031-edfc-4f8b-9b65-d7f4b2c14af2 | DNI: 20111222333 | Rol: COMERCIO | Estado: APROBADO
+Email: agro@gmail.com | ID: a3440b07-320c-4bd9-b318-f1e3936894ec | DNI: 20333222113 | Rol: COMERCIO | Estado: APROBADO
+Email: camara@ituzaingo.gob.ar | ID: 47800505-4461-4f03-b221-bd5d4952458c | DNI: 2044444443 | Rol: CAMARA | Estado: APROBADO
+Email: carnosa@gmail.com | ID: 3275c8f0-87f8-4f20-9155-95174f469e67 | DNI: 20111111113 | Rol: COMERCIO | Estado: APROBADO
+Email: supertest2@test.com | ID: e3bb7065-74d4-4c43-ac69-22704c384f46 | DNI: 20111111112 | Rol: COMERCIO | Estado: PENDIENTE
+Email: camara_4c649d0c@test.com | ID: b9764ddf-bc97-4014-8b5e-ca09d12ae4c8 | DNI: 3000000004c | Rol: CAMARA | Estado: APROBADO
+Email: supertest_20266886410@test.com | ID: af8f9711-bc90-4b43-95a2-9d5d174518d8 | DNI: 20266886410 | Rol: COMERCIO | Estado: APROBADO
+Email: empleadotest@test.com | ID: d6d9fdc2-3891-4ab7-9237-e2a23aaaf37b | DNI: 30739511 | Rol: COMERCIO | Estado: APROBADO

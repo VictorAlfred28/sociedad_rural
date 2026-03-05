@@ -1,0 +1,45 @@
+====================================================================
+INFORME DE CULMINACIÓN: SOCIEDAD RURAL NORTE APP
+====================================================================
+FECHA: 04 de Marzo de 2026
+TEMA: Mejoras de Seguridad Nivel Producción & Guía de Conexión Make.com
+
+--------------------------------------------------------------------
+1. RESUMEN DE MEJORAS DE SEGURIDAD (APLICADAS EN BACKEND Y BD)
+--------------------------------------------------------------------
+Se ha elevado el sistema de un MVP a un estándar Institucional / SaaS multi-tenant, corrigiendo vulnerabilidades graves detectadas en la auditoría:
+
+A) BLINDAJE DE INFRAESTRUCTURA (BASE DE DATOS SUPABASE)
+- Inmutabilidad Policial: Se activó RLS (Row Level Security) y un Trigger en PostgreSQL sobre la tabla `auditoria_logs`. Ahora es matemáticamente imposible que un Administrador o un atacante borre o modifique el registro de auditoría para ocultar rastros. Solo se permite agregar nuevos eventos.
+- Aislamiento Multi-Tenant: Se aplicaron políticas RLS en la tabla `comercios`. Ahora la base de datos bloquea nativamente que una Cámara extraiga datos de los comercios de otra Cámara, previniendo fugas masivas de datos incluso si el Backend fallara.
+- Índices de Rendimiento: Se crearon 3 índices estructurales (`idx_profiles_rol_estado`, `idx_auditoria_usuario`, `idx_profiles_titular`) que aceleran la velocidad de búsqueda de Supabase reduciendo drásticamente el consumo de memoria al consultar perfiles y logs.
+
+B) PARCHEO DEL BACKEND (FASTAPI - main.py)
+- Prevención de "Mass Assignment": Se corrigieron los endpoints `PUT /api/perfil` y `PUT /api/admin/users/{user_id}`. Un usuario malintencionado ya no puede enviar campos ocultos (ej: "rol": "ADMIN" o "estado": "APROBADO") mezclados en su formulario de edición de perfil para auto-elevar sus privilegios.
+- Protección de Restablecimiento de Claves: El endpoint de reseteo `/api/admin/users/{user_id}/reset-password` ahora bloquea activamente intentos de un Administrador de secuestrar la cuenta de OTRO Administrador General, imponiendo límites vitales de seguridad horizontal.
+- Prevención de Ataques DDoS (Falta de Memoria): Se implementó validación estricta de paginación (`limit <= 100`) en listas masivas (Ej: `/api/admin/auditoria`). Anteriormente, cualquiera podía solicitar un millón de registros y colapsar el servidor RAM.
+
+
+--------------------------------------------------------------------
+2. GUÍA: CÓMO CONECTAR INSTAGRAM OFICIAL EN MAKE.COM
+--------------------------------------------------------------------
+Para que los posteos de la Sociedad Rural entren automáticamente a la pestaña "EVENTOS" de la aplicación, debes configurar el "Oído" de Make.com. 
+
+REQUISITO PREVIO OBLIGATORIO:
+La cuenta de Instagram de la Sociedad Rural debe ser obligatoriamente una cuenta de tipo "Empresa" o "Creador" y estar vinculada a una Página de Facebook (Fanpage comercial).
+
+PASO A PASO EN MAKE.COM:
+1. Entra a tu escenario en Make.com.
+2. Haz clic en el círculo grande central (el botón "+") para crear el PRIMER MÓDULO.
+3. Busca la aplicación llamada: "Instagram for Business" (Instagram para Empresas).
+4. Elige el evento / trigger: "Watch New Media" (Observar nuevos medios).
+5. Se abrirá la ventana de configuración. Arriba dale al botón "Add" (Agregar) al lado de "Connection".
+6. Te pedirá Iniciar Sesión en Facebook. Usa el perfil personal de Facebook del usuario que sea Administrador de la Fanpage de la Sociedad Rural.
+7. Otorga los permisos necesarios aceptando todas las ventanas de Facebook.
+8. De regreso en Make, selecciona en la lista desplegable la "Página (Page)" y luego la "Cuenta de Instagram" de la Rural.
+9. En la opción "Limit" (Límite), escribe "1" o "2" (es la cantidad máxima de posts que procesará a la vez).
+10. Presiona "OK" y dile que empiece a buscar novedades "From now on" (Desde ahora en adelante).
+11. ¡Listo! Solo te queda unir ese módulo leyendo Instagram con el segundo módulo "HTTP" (el que ya configuramos antes para enviar la info a tu sistema). 
+    
+    El flujo final se leerá así: "(Instagram) Watch New Media" ---> "(HTTP) Make a request".
+====================================================================
