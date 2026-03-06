@@ -306,6 +306,30 @@ export default function MiNegocio() {
                     VALIDAR CARNET SOCIO
                 </button>
 
+                {/* BOTÓN SIMULACIÓN PARA TEST */}
+                <button
+                    onClick={() => {
+                        setScanResult({
+                            valido: true,
+                            mensaje: "Socio con deuda - Acceso Restringido",
+                            socio: {
+                                id: "sim-deudor",
+                                nombre_apellido: "CARLOS MÉNDEZ (TEST)",
+                                dni: "10123456",
+                                estado: "RESTRINGIDO",
+                                municipio: "Goya",
+                                rol: "SOCIO",
+                                tipo_vinculo: "Titular"
+                            }
+                        });
+                        setShowScanner(false);
+                    }}
+                    className="w-full mb-4 flex items-center justify-center gap-2 bg-red-500/10 text-red-500 border border-red-500/30 font-bold py-2 rounded-xl transition-all active:scale-95 text-xs"
+                >
+                    <span className="material-symbols-outlined text-sm">science</span>
+                    Test: Simular Socio con Deuda
+                </button>
+
                 <div className="flex items-center gap-3 my-6">
                     <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mis Publicaciones</span>

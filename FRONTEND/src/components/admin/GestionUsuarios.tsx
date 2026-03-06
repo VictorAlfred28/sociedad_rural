@@ -137,6 +137,27 @@ export default function GestionUsuarios() {
 
             {/* Buscador y Filtros */}
             <div className="px-4 flex flex-col gap-3">
+                <button
+                    onClick={() => {
+                        setUsers(prev => [
+                            {
+                                id: "simulacion-" + Date.now(),
+                                nombre_apellido: "Carlos Méndez (Simulado)",
+                                dni: "10123456",
+                                email: "carlos@mock.com",
+                                rol: "SOCIO",
+                                estado: "RESTRINGIDO",
+                                motivo: "Con Mora"
+                            } as any,
+                            ...prev
+                        ]);
+                    }}
+                    className="w-full bg-[#E57373]/10 text-[#E57373] border border-[#E57373]/30 hover:bg-[#E57373] hover:text-white font-bold py-2 rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                    <span className="material-symbols-outlined text-sm">science</span>
+                    Simular Usuario Restringido (Mora)
+                </button>
+
                 <div className="relative group">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-admin-accent admin-transition">search</span>
                     <input
