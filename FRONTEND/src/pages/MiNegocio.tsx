@@ -455,9 +455,7 @@ export default function MiNegocio() {
                     </div>
                 )}
 
-                <div className="mb-8">
-                    <GestionDependientes />
-                </div>
+
 
                 {/* Filtros */}
                 <div className="flex gap-2 overflow-x-auto pb-1 mb-4 scrollbar-hide">
@@ -560,6 +558,10 @@ export default function MiNegocio() {
                         })}
                     </div>
                 )}
+
+                <div className="mt-8 mb-8">
+                    <GestionDependientes />
+                </div>
             </main>
 
             {/* FULL SCREEN SCANNER MODAL */}
