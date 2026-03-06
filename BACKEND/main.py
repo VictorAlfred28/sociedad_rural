@@ -629,7 +629,7 @@ def valida_socio(socio_id: str):
 
         return {
             "valido": es_activo,
-            " socio": {
+            "socio": {
                 "id": perfil["id"],
                 "nombre_apellido": perfil["nombre_apellido"],
                 "dni": perfil["dni"],

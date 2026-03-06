@@ -219,13 +219,13 @@ export default function GestionUsuarios() {
                             {/* Acciones */}
                             <div className="flex gap-2 pt-3 mt-1 border-t border-admin-border relative">
                                 {user.estado === 'PENDIENTE' && (
-                                    <button onClick={() => handleStatusChange(user.id, 'APROBADO')} className="flex-1 bg-[#10b981]/10 text-[#10b981] hover:bg-[#10b981] hover:text-white rounded-lg h-9 text-xs font-bold active:scale-95 admin-transition">
+                                    <button onClick={() => handleStatusChange(user.id, 'APROBADO')} className="flex-1 bg-[#052e16] text-[#10b981] hover:bg-[#10b981] hover:text-white rounded-lg h-9 text-xs font-bold active:scale-95 admin-transition">
                                         Aprobar
                                     </button>
                                 )}
 
                                 {user.estado === 'APROBADO' && user.id !== token && (
-                                    <button onClick={() => handleStatusChange(user.id, 'SUSPENDIDO')} className="flex-1 bg-[#f59e0b]/10 text-[#f59e0b] hover:bg-[#f59e0b] hover:text-white rounded-lg h-9 text-xs font-bold active:scale-95 admin-transition">
+                                    <button onClick={() => handleStatusChange(user.id, 'SUSPENDIDO')} className="flex-1 bg-[#451a03] text-[#f59e0b] hover:bg-[#f59e0b] hover:text-white rounded-lg h-9 text-xs font-bold active:scale-95 admin-transition">
                                         Suspender
                                     </button>
                                 )}
@@ -237,15 +237,20 @@ export default function GestionUsuarios() {
                                 )}
 
                                 {user.estado === 'RESTRINGIDO' && (
-                                    <button onClick={() => alert('La pasarela de pagos se encuentra en desarrollo. Por favor contáctese con Administración para regularizar su deuda.')} className="flex-1 bg-[#E57373]/10 text-[#E57373] hover:bg-[#E57373] hover:text-white rounded-lg h-9 text-xs font-bold active:scale-95 admin-transition">
-                                        Pagar Mora
-                                    </button>
+                                    <>
+                                        <button onClick={() => alert('La pasarela de pagos se encuentra en desarrollo. Por favor contáctese con Administración para regularizar su deuda.')} className="flex-1 bg-[#10b981] text-white hover:bg-[#059669] rounded-lg h-9 text-xs font-bold active:scale-95 admin-transition">
+                                            Regularizar
+                                        </button>
+                                        <button onClick={() => alert('La pasarela de pagos se encuentra en desarrollo. Por favor contáctese con Administración para regularizar su deuda.')} className="flex-1 bg-[#E57373] text-white hover:bg-[#ef5350] rounded-lg h-9 text-xs font-bold active:scale-95 admin-transition">
+                                            Pagar Mora
+                                        </button>
+                                    </>
                                 )}
 
                                 <button
                                     onClick={() => confirmReset(user.id, user.nombre_apellido || user.email)}
                                     title="Restablecer Contraseña"
-                                    className="flex items-center justify-center w-9 h-9 bg-admin-card-hover text-slate-400 hover:text-admin-accent rounded-lg active:scale-95 admin-transition">
+                                    className="flex items-center justify-center w-9 h-9 bg-[#1e293b] text-slate-400 border border-slate-700 hover:text-admin-accent hover:border-admin-accent rounded-lg active:scale-95 admin-transition">
                                     <span className="material-symbols-outlined text-[18px]">key</span>
                                 </button>
 
@@ -253,7 +258,7 @@ export default function GestionUsuarios() {
                                     <button
                                         onClick={() => confirmDelete(user.id, user.nombre_apellido || user.email)}
                                         title="Eliminar Usuario"
-                                        className="flex items-center justify-center w-9 h-9 bg-[#ef4444]/10 text-[#ef4444] hover:bg-[#ef4444] hover:text-white rounded-lg active:scale-95 admin-transition">
+                                        className="flex items-center justify-center w-9 h-9 bg-[#450a0a] text-[#ef4444] border border-[#7f1d1d] hover:bg-[#ef4444] hover:text-white rounded-lg active:scale-95 admin-transition">
                                         <span className="material-symbols-outlined text-[18px]">delete</span>
                                     </button>
                                 )}

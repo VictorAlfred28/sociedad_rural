@@ -37,6 +37,9 @@ interface SocioValidado {
         dni: string;
         estado: string;
         municipio: string;
+        rol?: string;
+        tipo_vinculo?: string;
+        titular_id?: string | null;
     };
 }
 
@@ -600,6 +603,20 @@ export default function MiNegocio() {
                                         <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Datos del Socio</p>
                                         <p className="font-bold text-slate-900 text-lg uppercase leading-tight">{scanResult.socio.nombre_apellido}</p>
                                         <p className="text-slate-600 font-mono mt-1">DNI/CUIT: {scanResult.socio.dni || 'No provisto'}</p>
+
+                                        <div className="mt-3 p-2 bg-slate-100/50 rounded-xl border border-slate-200">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Tipo de Miembro</p>
+                                            <p className="text-sm font-bold text-primary dark:text-primary-light uppercase">
+                                                {scanResult.socio.rol === 'SOCIO'
+                                                    ? scanResult.socio.titular_id
+                                                        ? `Grupo Familiar - ${scanResult.socio.tipo_vinculo || 'Adherente'}`
+                                                        : 'Socio Común'
+                                                    : scanResult.socio.titular_id
+                                                        ? 'Empleado de Comercio'
+                                                        : 'Comercio Titular'
+                                                }
+                                            </p>
+                                        </div>
 
                                         <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
                                             <span className="text-[10px] font-bold px-2 py-1 bg-slate-200 text-slate-700 rounded uppercase">
