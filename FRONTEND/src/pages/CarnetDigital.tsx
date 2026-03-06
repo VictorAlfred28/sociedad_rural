@@ -1,12 +1,22 @@
+import { useState } from 'react';
 import BottomNav from '../components/BottomNav';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.jpg';
 
 export default function CarnetDigital() {
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  const [isSimulatingDebt, setIsSimulatingDebt] = useState(false);
 
-  if (!user) return null;
+  if (!authUser) return null;
+
+  // Si estamos simulando, sobreescribimos los datos del socio
+  const user = isSimulatingDebt ? {
+    ...authUser,
+    nombre_apellido: "CARLOS MÉNDEZ (SIMULACIÓN)",
+    dni: "10123456",
+    estado: "RESTRINGIDO"
+  } : authUser;
 
   const getStatusColor = () => {
     switch (user.estado) {
@@ -34,7 +44,13 @@ export default function CarnetDigital() {
           <span className="text-[10px] font-bold tracking-[0.2em] text-primary uppercase">Membresía Digital</span>
           <h2 className="text-slate-900 dark:text-slate-100 text-base font-bold leading-tight">SOCIEDAD RURAL</h2>
         </div>
-        <div className="size-10"></div>
+        <button
+          onClick={() => setIsSimulatingDebt(!isSimulatingDebt)}
+          className={`size-10 flex items-center justify-center rounded-full border transition-all ${isSimulatingDebt ? 'bg-red-500 border-red-400 text-white' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'}`}
+          title="Simular Deuda"
+        >
+          <span className="material-symbols-outlined text-xl">{isSimulatingDebt ? 'warning' : 'science'}</span>
+        </button>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">
