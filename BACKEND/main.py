@@ -1,6 +1,7 @@
 import os
 import re
 import requests
+import pytz
 from fastapi import FastAPI, HTTPException, status, Request, BackgroundTasks, Query, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
@@ -12,6 +13,8 @@ from uuid import uuid4
 import firebase_admin
 from firebase_admin import credentials, messaging
 import json
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 # Cargar variables de entorno
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -38,9 +41,98 @@ opts = ClientOptions(
 )
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY, options=opts)
 
+# ─── SCHEDULER AUTOMÁTICO DE MORA ──────────────────────────────────────────
+import logging
+logger = logging.getLogger(__name__)
+
+def tarea_automatica_mora():
+    """
+    Se ejecuta automáticamente el día 11 de cada mes a las 8:00 AM (hora Argentina).
+    Detecta socios sin pago del mes y les envía WhatsApp de aviso.
+    """
+    hoy = datetime.now()
+    mes_actual = hoy.month
+    anio_actual = hoy.year
+    fecha_venci = f"{anio_actual}-{mes_actual:02d}-10"
+    logger.info(f"[SCHEDULER] Ejecutando detección automática de mora para {mes_actual}/{anio_actual}")
+    
+    try:
+        socios_res = supabase.table("profiles").select("id, nombre_apellido, telefono") \
+            .eq("rol", "SOCIO").eq("estado", "APROBADO").execute()
+        socios = socios_res.data or []
+        detectados = 0
+        
+        for socio in socios:
+            pago_check = supabase.table("pagos_cuotas") \
+                .select("id") \
+                .eq("socio_id", socio["id"]) \
+                .eq("fecha_vencimiento", fecha_venci) \
+                .in_("estado_pago", ["PAGADO", "PENDIENTE_VALIDACION"]) \
+                .execute()
+            
+            if not pago_check.data:
+                # Marcar como RESTRINGIDO
+                supabase.table("profiles").update({
+                    "estado": "RESTRINGIDO",
+                    "motivo": f"Mora automática cuota {mes_actual}/{anio_actual}"
+                }).eq("id", socio["id"]).execute()
+                
+                # Registrar deuda
+                supabase.table("pagos_cuotas").upsert({
+                    "socio_id": socio["id"],
+                    "monto": 5000,
+                    "fecha_vencimiento": fecha_venci,
+                    "estado_pago": "PENDIENTE"
+                }, on_conflict="socio_id,fecha_vencimiento").execute()
+                
+                # Log
+                supabase.table("activity_log").insert({
+                    "socio_id": socio["id"],
+                    "tipo_evento": "MORA_DETECTADA",
+                    "descripcion": f"Detección automática de mora para cuota {mes_actual}/{anio_actual}",
+                    "usuario_id": None
+                }).execute()
+                
+                # WhatsApp
+                if socio.get("telefono"):
+                    from urllib.parse import quote
+                    mensaje_wa = (
+                        f"Hola {socio['nombre_apellido']}! 👋 "
+                        f"Detectamos un atraso en el pago de tu cuota ({mes_actual}/{anio_actual}). "
+                        "Podés regularizarlo subiendo tu comprobante aquí: https://agentech.ar/cuotas"
+                    )
+                    enviar_whatsapp(socio["telefono"], mensaje_wa)
+                    detectados += 1
+        
+        logger.info(f"[SCHEDULER] Mora detectada: {detectados} socios notificados.")
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error en tarea automática de mora: {str(e)}")
+
+# Zona horaria Argentina
+TZ_ARGENTINA = pytz.timezone("America/Argentina/Buenos_Aires")
+
+scheduler = BackgroundScheduler(timezone=TZ_ARGENTINA)
+scheduler.add_job(
+    tarea_automatica_mora,
+    trigger=CronTrigger(day=11, hour=8, minute=0, timezone=TZ_ARGENTINA),
+    id="mora_mensual",
+    name="Detección automática de mora - día 11 a las 8:00 AM",
+    replace_existing=True
+)
+
 app = FastAPI(title="Sociedad Rural Norte de Corrientes API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.on_event("startup")
+def startup_scheduler():
+    scheduler.start()
+    logger.info("[SCHEDULER] Iniciado. Motor de mora programado para el día 11 de cada mes a las 8:00 AM (AR).")
+
+@app.on_event("shutdown")
+def shutdown_scheduler():
+    scheduler.shutdown(wait=False)
+    logger.info("[SCHEDULER] Apagado correctamente.")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

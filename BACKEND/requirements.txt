@@ -8,3 +8,5 @@ slowapi
 redis
 python-multipart
 firebase-admin
+apscheduler
+pytz
