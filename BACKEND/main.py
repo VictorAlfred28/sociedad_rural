@@ -2361,6 +2361,29 @@ def detectar_mora(request: Request, background_tasks: BackgroundTasks, admin_use
         logger.error(f"Error en detectar_mora: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# 12.5b TEST: Endpoint de prueba directa WhatsApp (Solo Admin)
+class TestWhatsAppRequest(BaseModel):
+    numero: str  # ej: 3794330172
+    mensaje: Optional[str] = None
+
+@app.post("/api/admin/test-whatsapp")
+def test_whatsapp_directo(req: TestWhatsAppRequest, admin_user = Depends(get_current_admin)):
+    """
+    Envía un mensaje de WhatsApp de prueba directa a un número específico.
+    Permite verificar la conectividad con Evolution API independientemente del motor de mora.
+    """
+    try:
+        mensaje = req.mensaje or (
+            "🔔 *PRUEBA - SOCIEDAD RURAL DEL NORTE*\n\n"
+            "Este es un mensaje de prueba del sistema automático de notificaciones. "
+            "Si recibiste este mensaje, la integración con WhatsApp está funcionando correctamente.\n\n"
+            "_Sociedad Rural del Norte de Corrientes_"
+        )
+        enviar_whatsapp(req.numero, mensaje)
+        return {"message": f"Mensaje enviado al número {req.numero}. Verificá el celular."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/mis-pagos")
 def get_mis_pagos(current_user = Depends(get_current_user)):
     try:
