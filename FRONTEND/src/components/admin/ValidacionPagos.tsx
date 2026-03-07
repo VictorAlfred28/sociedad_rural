@@ -122,14 +122,6 @@ export default function ValidacionPagos() {
                     <p className="text-slate-400 text-sm">Revisa pagos y sincroniza estados de mora.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleSyncMora}
-                        disabled={isProcessing}
-                        className="flex items-center gap-2 px-4 py-2 bg-admin-accent/20 text-admin-accent border border-admin-accent/30 rounded-xl font-bold hover:bg-admin-accent/30 transition-all active:scale-95 disabled:opacity-50"
-                    >
-                        <span className="material-symbols-outlined text-sm">sync</span>
-                        <span className="text-xs uppercase tracking-wider">Sincronizar Morosos</span>
-                    </button>
                     <span className="px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-xs font-bold border border-admin-border">
                         {pendientes.length} Pendientes
                     </span>
