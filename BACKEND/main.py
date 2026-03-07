@@ -1101,6 +1101,7 @@ class OfertaUpdateRequest(BaseModel):
     activo: Optional[bool] = None
     titulo: Optional[str] = None
     descripcion: Optional[str] = None
+    imagen_url: Optional[str] = None
 
 # ── Función auxiliar para obtener el comercio_id del JWT ─────────────────────
 def get_current_user_id(authorization: str) -> str:
@@ -1410,8 +1411,6 @@ async def upload_foto(file: UploadFile = File(...), current_user = Depends(get_c
         file_path = f"{current_user.id}/profile.{file_ext}"
         
         # 2. Subir a Supabase Storage
-        # Usamos el cliente global de admin para simplificar o el de auth si tuviera permisos
-        # Nota: storage.from_('perfiles').upload(...)
         res_storage = supabase.storage.from_("perfiles").upload(
             path=file_path,
             file=file_content,
@@ -1419,7 +1418,6 @@ async def upload_foto(file: UploadFile = File(...), current_user = Depends(get_c
         )
         
         # 3. Obtener URL pública
-        # En Supabase la URL suele ser: {SUPABASE_URL}/storage/v1/object/public/perfiles/{file_path}
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/perfiles/{file_path}"
         
         # 4. Actualizar en la tabla profiles
@@ -1429,6 +1427,37 @@ async def upload_foto(file: UploadFile = File(...), current_user = Depends(get_c
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error subiendo foto: {str(e)}")
+
+@app.post("/api/ofertas/foto")
+async def upload_oferta_foto(file: UploadFile = File(...), current_user = Depends(get_current_user)):
+    """
+    Sube una foto de oferta al bucket 'ofertas'.
+    """
+    try:
+        file_content = await file.read()
+        file_ext = file.filename.split(".")[-1]
+        # Usamos UUID para evitar colisiones si el mismo comercio sube varias ofertas
+        filename = f"{current_user.id}/{uuid4().hex}.{file_ext}"
+        
+        # Subir a Supabase Storage (bucket 'ofertas')
+        try:
+            supabase.storage.from_("ofertas").upload(
+                path=filename,
+                file=file_content,
+                file_options={"content-type": file.content_type, "upsert": "true"}
+            )
+        except Exception as storage_err:
+            # Si el bucket no existe en el primer intento, loggeamos el error
+            # En entorno real, el bucket 'ofertas' debe ser creado manualmente en el dashboard de Supabase
+            print(f"Error en Storage (asegurese que el bucket 'ofertas' sea publico): {storage_err}")
+            raise storage_err
+        
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/ofertas/{filename}"
+        
+        return {"message": "Imagen de oferta subida", "imagen_url": public_url}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error subiendo imagen de oferta: {str(e)}")
 
 @app.post("/api/notificar-olvido-password")
 @limiter.limit("3/minute")

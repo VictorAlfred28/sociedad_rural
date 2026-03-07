@@ -26,6 +26,7 @@ interface OfertaForm {
     tipo: TipoOferta;
     descuento_porcentaje: string;
     fecha_fin: string;
+    imagen_url: string;
 }
 
 interface SocioValidado {
@@ -84,7 +85,14 @@ export default function MiNegocio() {
         tipo: 'promocion',
         descuento_porcentaje: '',
         fecha_fin: '',
+        imagen_url: '',
     });
+
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [updatingLogo, setUpdatingLogo] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const logoInputRef = useRef<HTMLInputElement>(null);
 
     // Scanner states
     const [showScanner, setShowScanner] = useState(false);
@@ -123,6 +131,25 @@ export default function MiNegocio() {
         setSubmitting(true);
         setError('');
         try {
+            let imagen_url = '';
+
+            // 1. Si hay un archivo seleccionado para la oferta, subirlo primero
+            if (selectedFile) {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                const uploadResp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas/foto`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData,
+                });
+
+                if (uploadResp.ok) {
+                    const uploadData = await uploadResp.json();
+                    imagen_url = uploadData.imagen_url;
+                }
+            }
+
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas`, {
                 method: 'POST',
                 headers: {
@@ -135,6 +162,7 @@ export default function MiNegocio() {
                     tipo: form.tipo,
                     descuento_porcentaje: form.descuento_porcentaje ? parseInt(form.descuento_porcentaje) : null,
                     fecha_fin: form.fecha_fin || null,
+                    imagen_url: imagen_url || null,
                 }),
             });
             if (!resp.ok) {
@@ -142,7 +170,8 @@ export default function MiNegocio() {
                 throw new Error(data.detail || 'Error al crear oferta');
             }
             setShowForm(false);
-            setForm({ titulo: '', descripcion: '', tipo: 'promocion', descuento_porcentaje: '', fecha_fin: '' });
+            setForm({ titulo: '', descripcion: '', tipo: 'promocion', descuento_porcentaje: '', fecha_fin: '', imagen_url: '' });
+            setSelectedFile(null);
             await fetchOfertas();
         } catch (err: any) {
             setError(err.message);
@@ -180,13 +209,34 @@ export default function MiNegocio() {
         }
     };
 
-    // --- QR Scanner Implementation ---
+    const handleLogoUpload = async (file: File) => {
+        setUpdatingLogo(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/perfil/foto`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+
+            if (!resp.ok) throw new Error('Error al subir logo');
+
+            // Recargar la página o el usuario de auth para ver el cambio
+            window.location.reload();
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setUpdatingLogo(false);
+        }
+    };
+
     const startScanner = async () => {
         setShowScanner(true);
         setScanResult(null);
         setError('');
 
-        // Give UI time to render the reader div
         setTimeout(async () => {
             try {
                 const scanner = new Html5Qrcode("qr-reader");
@@ -194,19 +244,16 @@ export default function MiNegocio() {
                 setIsScanning(true);
 
                 await scanner.start(
-                    { facingMode: "environment" }, // Prefer back camera
+                    { facingMode: "environment" },
                     { fps: 10, qrbox: { width: 250, height: 250 } },
                     async (decodedText) => {
-                        // Success callback
                         await scanner.stop();
                         setIsScanning(false);
                         const urlMatch = decodedText.match(/\/valida-socio\/([a-f0-9-]+)$/i);
                         const socioIdToValidate = urlMatch ? urlMatch[1] : decodedText;
                         validarSocio(socioIdToValidate);
                     },
-                    (errorMessage) => {
-                        // Ignore standard read failures
-                    }
+                    () => { }
                 );
             } catch (err) {
                 console.error("Camera access error:", err);
@@ -231,29 +278,17 @@ export default function MiNegocio() {
     const validarSocio = async (socioId: string) => {
         try {
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/valida-socio/${socioId}`);
-
             if (!resp.ok && resp.status !== 400 && resp.status !== 404) {
                 throw new Error('Error de conexión al validar.');
             }
-
             const data = await resp.json();
-
             if (!resp.ok) {
-                // Return structured error as a falsy validation result
-                setScanResult({
-                    valido: false,
-                    mensaje: data.detail || 'Código QR inválido.'
-                });
+                setScanResult({ valido: false, mensaje: data.detail || 'Código QR inválido.' });
                 return;
             }
-
             setScanResult(data as SocioValidado);
-
         } catch (err: any) {
-            setScanResult({
-                valido: false,
-                mensaje: err.message || 'Ocurrió un error inesperado al leer el QR.'
-            });
+            setScanResult({ valido: false, mensaje: err.message || 'Ocurrió un error inesperado al leer el QR.' });
         }
     };
 
@@ -274,9 +309,31 @@ export default function MiNegocio() {
                     </div>
                     <div className="flex items-center gap-4">
                         <NotificationBell />
-                        <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-3xl text-white">storefront</span>
+                        <div
+                            onClick={() => logoInputRef.current?.click()}
+                            className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-all relative group overflow-hidden"
+                        >
+                            {updatingLogo ? (
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                            ) : user?.foto_url ? (
+                                <img src={user.foto_url} alt="Logo" className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="material-symbols-outlined text-3xl text-white">storefront</span>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <span className="material-symbols-outlined text-sm text-white">edit</span>
+                            </div>
                         </div>
+                        <input
+                            type="file"
+                            ref={logoInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleLogoUpload(file);
+                            }}
+                        />
                     </div>
                 </div>
 
@@ -430,6 +487,40 @@ export default function MiNegocio() {
                                     </div>
                                 )}
 
+                                {/* Imagen de la oferta */}
+                                <div>
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Imagen de la Promoción (opcional)</label>
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="w-full h-32 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all relative overflow-hidden"
+                                    >
+                                        {selectedFile ? (
+                                            <>
+                                                <img
+                                                    src={URL.createObjectURL(selectedFile)}
+                                                    alt="Preview"
+                                                    className="absolute inset-0 w-full h-full object-cover opacity-50"
+                                                />
+                                                <span className="relative z-10 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 px-3 py-1 rounded-full shadow-sm">
+                                                    Cambiar imagen
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className="material-symbols-outlined text-slate-400 text-3xl">add_photo_alternate</span>
+                                                <span className="text-xs font-semibold text-slate-400">Subir foto de la oferta</span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                    />
+                                </div>
+
                                 {/* Fecha de fin */}
                                 <div>
                                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Válido hasta (opcional)</label>
@@ -498,8 +589,12 @@ export default function MiNegocio() {
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-start gap-3 flex-1 min-w-0">
-                                            <div className={`w-10 h-10 rounded-xl ${cfg.color} flex items-center justify-center shrink-0`}>
-                                                <span className="material-symbols-outlined text-white text-xl">{cfg.icon}</span>
+                                            <div className={`w-14 h-14 rounded-xl ${cfg.color} flex items-center justify-center shrink-0 overflow-hidden`}>
+                                                {oferta.imagen_url ? (
+                                                    <img src={oferta.imagen_url} alt={oferta.titulo} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="material-symbols-outlined text-white text-2xl">{cfg.icon}</span>
+                                                )}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
