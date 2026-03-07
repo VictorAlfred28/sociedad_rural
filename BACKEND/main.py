@@ -1,7 +1,7 @@
 import os
 import re
 import requests
-from fastapi import FastAPI, HTTPException, status, Request, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, status, Request, BackgroundTasks, Query, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any
