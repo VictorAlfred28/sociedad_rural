@@ -207,6 +207,7 @@ export default function AdminDashboard() {
           {activeTab === 'auditoria' && <PanelAuditoria />}
 
           {activeTab === 'pagos' && <ValidacionPagos />}
+          {activeTab === 'reportes' && <ReportesPanel />}
         </div>
       </main>
     </div>

@@ -93,6 +93,53 @@ export default function ReportesPanel() {
                             )}
                         </button>
                     </div>
+
+                    {/* SYNC MORA CARD */}
+                    <div className="bg-admin-bg/50 border border-admin-border rounded-2xl p-6 hover:border-admin-accent/50 transition-all group md:col-span-2">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="size-12 rounded-xl bg-admin-accent/10 text-admin-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <span className="material-symbols-outlined">sync_lock</span>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-admin-text">Sincronizador de Morosidad</h3>
+                                <p className="text-xs text-slate-500 uppercase tracking-widest font-mono">Motor de Automatización</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-slate-500 mb-6">
+                            Ejecuta el escaneo de deudas en toda la base de socios. Detecta cuotas impagas, actualiza el estado a <span className="text-admin-rejected font-bold">RESTRINGIDO</span> y dispara automáticamente las notificaciones de WhatsApp con links de pago.
+                        </p>
+                        <button
+                            onClick={async () => {
+                                setIsDownloading('sync');
+                                try {
+                                    const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/cron/detectar-mora`, {
+                                        method: 'POST',
+                                        headers: { 'Authorization': `Bearer ${token}` }
+                                    });
+                                    if (resp.ok) {
+                                        alert('Sincronización completada. Se han procesado los socios morosos y enviado las notificaciones.');
+                                    } else {
+                                        throw new Error('Error en la sincronización');
+                                    }
+                                } catch (e) {
+                                    alert('Error al ejecutar la sincronización.');
+                                } finally {
+                                    setIsDownloading(null);
+                                }
+                            }}
+                            disabled={!!isDownloading}
+                            className="w-full py-4 bg-admin-accent text-white font-bold rounded-xl shadow-lg shadow-indigo-900/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                            {isDownloading === 'sync' ? (
+                                <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                <>
+                                    <span className="material-symbols-outlined">rocket_launch</span>
+                                    Ejecutar Sincronización de Morosos
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
 
