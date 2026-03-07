@@ -2036,7 +2036,8 @@ def enviar_whatsapp(telefono: str, mensaje: str):
         if url_base and not url_base.startswith(("http://", "https://")):
             url_base = f"https://{url_base}"
 
-        url = f"{url_base}/message/sendText/{instance}"
+        from urllib.parse import quote
+        url = f"{url_base}/message/sendText/{quote(instance)}"
         headers = {
             "Content-Type": "application/json",
             "apikey": apikey
