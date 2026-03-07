@@ -7,12 +7,13 @@ import PanelAuditoria from '../components/admin/PanelAuditoria';
 import GestionEventos from '../components/admin/GestionEventos';
 import NotificationBell from '../components/NotificationBell';
 import ValidacionPagos from '../components/admin/ValidacionPagos';
+import ReportesPanel from '../components/admin/ReportesPanel';
 
 export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
 
-  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos'
-  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos'>('panel');
+  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes'
+  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'classic' | 'cyber'>(() => {
@@ -34,6 +35,7 @@ export default function AdminDashboard() {
     { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Comercios' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
     { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
+    { id: 'reportes', icon: 'analytics', label: 'Reportes y Cierres' },
     { id: 'auditoria', icon: 'policy', label: 'Auditoría Institucional' },
   ] as const;
 

@@ -19,7 +19,9 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+import io
+import csv
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -2370,6 +2372,112 @@ def get_user_activity(user_id: str, admin_user = Depends(get_current_admin)):
         return {"activity": res.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# 12.6 REPORTES: Exportación de Socios (Excel/PDF)
+@app.get("/api/admin/reports/socios/excel")
+def exportar_socios_excel(admin_user = Depends(get_current_admin)):
+    """Genera un reporte en CSV optimizado para Excel con la lista de socios."""
+    try:
+        import pandas as pd
+        res = supabase.table("profiles").select("nombre_apellido, dni, email, telefono, estado, municipio, created_at").eq("rol", "SOCIO").execute()
+        if not res.data:
+            return JSONResponse(status_code=404, content={"detail": "No hay socios para exportar"})
+            
+        df = pd.DataFrame(res.data)
+        
+        # Limpieza y renombramiento para Excel
+        cols_map = {
+            "nombre_apellido": "Nombre y Apellido",
+            "dni": "DNI",
+            "email": "Email",
+            "telefono": "Teléfono",
+            "estado": "Estado",
+            "municipio": "Municipio",
+            "created_at": "Fecha de Alta"
+        }
+        df = df[list(cols_map.keys())].rename(columns=cols_map)
+        
+        # Formatear fecha
+        df["Fecha de Alta"] = pd.to_datetime(df["Fecha de Alta"]).dt.strftime("%d/%m/%Y")
+        
+        # Crear CSV en memoria (UTF-8 con BOM para que Excel reconozca tildes)
+        stream = io.StringIO()
+        df.to_csv(stream, index=False, sep=";", encoding="utf-8-sig")
+        
+        response = StreamingResponse(
+            iter([stream.getvalue()]),
+            media_type="text/csv"
+        )
+        response.headers["Content-Disposition"] = "attachment; filename=socios_sociedad_rural.csv"
+        return response
+    except Exception as e:
+        print(f"Error en reporte excel: {e}")
+        raise HTTPException(status_code=500, detail="Error al generar el reporte")
+
+@app.get("/api/admin/reports/socios/pdf")
+def exportar_socios_pdf(admin_user = Depends(get_current_admin)):
+    """Genera un reporte PDF con diseño institucional de los socios."""
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        
+        res = supabase.table("profiles").select("nombre_apellido, dni, estado, telefono, municipio").eq("rol", "SOCIO").execute()
+        data = res.data
+        
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), topMargin=30)
+        elements = []
+        
+        styles = getSampleStyleSheet()
+        # Título
+        elements.append(Paragraph("<b>SOCIEDAD RURAL DEL NORTE DE CORRIENTES</b>", styles['Title']))
+        elements.append(Paragraph("<b>INFORME ESTATUTARIO DE SOCIOS</b>", styles['Heading2']))
+        elements.append(Spacer(1, 10))
+        elements.append(Paragraph(f"Fecha de reporte: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+        elements.append(Spacer(1, 20))
+        
+        # Tabla de datos
+        table_data = [["SOCIO / NOMBRE Y APELLIDO", "DNI", "ESTADO", "TELÉFONO", "MUNICIPIO"]]
+        for s in data:
+            table_data.append([
+                str(s.get("nombre_apellido", "-")),
+                str(s.get("dni", "-")),
+                str(s.get("estado", "-")),
+                str(s.get("telefono", "-")),
+                str(s.get("municipio", "-"))
+            ])
+            
+        # Diseño de la tabla
+        t = Table(table_data, colWidths=[200, 80, 100, 100, 150])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.1, 0.4, 0.2)), # Verde institucional sugerido
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elements.append(t)
+        
+        # Pie de página
+        elements.append(Spacer(1, 30))
+        elements.append(Paragraph("Documento emitido por el Sistema de Gestión Digital - Sociedad Rural.", styles['Italic']))
+        
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return StreamingResponse(buffer, media_type="application/pdf", headers={
+            "Content-Disposition": "attachment; filename=reporte_socios_sociedad_rural.pdf"
+        })
+    except Exception as e:
+        print(f"Error en reporte PDF: {e}")
+        raise HTTPException(status_code=500, detail="Error al generar reporte PDF")
 
 # ─────────────────────────────────────────────────────────────────────────────
 
