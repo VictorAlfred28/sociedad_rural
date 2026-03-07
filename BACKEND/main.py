@@ -467,10 +467,7 @@ def login(credentials: LoginRequest, request: Request):
         profile = profile_res.data[0]
         
         # Validar si está pendiente o suspendido (Bloquear aquí en el login)
-        if profile["estado"] != "APROBADO":
-            # Devolvemos un 403 Forbidden o un ok con flag
-            # if profile.get("estado") == "PENDIENTE":
-            #     raise HTTPException(status_code=403, detail="Su usuario se encuentra PENDIENTE. Contacte a la Administración.")
+        if profile["estado"] not in ["APROBADO", "RESTRINGIDO"]:
             raise HTTPException(status_code=403, detail=f"Su usuario se encuentra {profile['estado']}. Contacte a la Administración.")
 
         # Validación: PRIMER LOGIN OBLIGATORIO SI USA PASS POR DEFECTO O FUE RESTABLECIDA POR ADMIN
