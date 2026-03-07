@@ -77,15 +77,26 @@ export default function MetricasOverview() {
                         <div className="absolute bottom-0 left-0 h-1 bg-admin-active w-1/3 rounded-r-md"></div>
                     </div>
 
-                    {/* PENDIENTES */}
+                    {/* PENDIENTES (NUEVOS USUARIOS) */}
                     <div className="flex flex-col justify-between h-32 rounded-2xl p-5 border border-admin-border bg-admin-card shadow-sm hover:shadow-lg hover:-translate-y-1 admin-transition relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-admin-pending/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
                         <div className="flex items-center justify-between z-10 w-full mb-2">
-                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Pendientes</p>
-                            <span className="material-symbols-outlined text-admin-pending/80 text-xl">pending_actions</span>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Solicitudes Altas</p>
+                            <span className="material-symbols-outlined text-admin-pending/80 text-xl">person_add</span>
                         </div>
                         <p className="text-admin-pending tracking-tight text-3xl font-black z-10 mt-auto">{metrics.total_pendientes}</p>
                         <div className="absolute bottom-0 left-0 h-1 bg-admin-pending w-1/3 rounded-r-md"></div>
+                    </div>
+
+                    {/* PAGOS POR VALIDAR */}
+                    <div className="flex flex-col justify-between h-32 rounded-2xl p-5 border border-admin-border bg-[#10b981]/5 bg-admin-card shadow-sm hover:shadow-lg hover:-translate-y-1 admin-transition relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#10b981]/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                        <div className="flex items-center justify-between z-10 w-full mb-2">
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Pagos por Validar</p>
+                            <span className="material-symbols-outlined text-[#10b981]/80 text-xl">fact_check</span>
+                        </div>
+                        <p className="text-[#10b981] tracking-tight text-3xl font-black z-10 mt-auto">{(metrics as any).validaciones_pendientes || 0}</p>
+                        <div className="absolute bottom-0 left-0 h-1 bg-[#10b981] w-1/3 rounded-r-md"></div>
                     </div>
                 </div>
             )}

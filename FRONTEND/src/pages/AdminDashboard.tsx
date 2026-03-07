@@ -6,6 +6,7 @@ import NuevoComercio from './NuevoComercio';
 import PanelAuditoria from '../components/admin/PanelAuditoria';
 import GestionEventos from '../components/admin/GestionEventos';
 import NotificationBell from '../components/NotificationBell';
+import ValidacionPagos from '../components/admin/ValidacionPagos';
 
 export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
@@ -203,18 +204,7 @@ export default function AdminDashboard() {
           {activeTab === 'eventos' && <GestionEventos />}
           {activeTab === 'auditoria' && <PanelAuditoria />}
 
-          {activeTab === 'pagos' && (
-            <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto relative z-10">
-              <div className="size-24 rounded-3xl bg-admin-card border border-admin-border flex items-center justify-center mb-6 shadow-2xl relative overflow-hidden group">
-                <div className="absolute inset-0 bg-admin-accent/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-                <span className="material-symbols-outlined text-5xl text-admin-accent relative z-10">credit_card</span>
-              </div>
-              <h3 className="font-bold text-2xl text-admin-text mb-2 tracking-tight">Módulo Transaccional</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                Este segmento interactuará con la API de MercadoPago / Stripe. Se encuentra actualmente en estado arquitectónico.
-              </p>
-            </div>
-          )}
+          {activeTab === 'pagos' && <ValidacionPagos />}
         </div>
       </main>
     </div>

@@ -950,12 +950,20 @@ def get_metrics_overview(admin_user = Depends(get_current_admin)):
         total_socios = sum(1 for p in profiles if p.get("rol") == "SOCIO" and p.get("estado") == "APROBADO")
         total_comercios = sum(1 for p in profiles if p.get("rol") == "COMERCIO" and p.get("estado") == "APROBADO")
         total_pendientes = sum(1 for p in profiles if p.get("estado") == "PENDIENTE")
+
+        # Conteo de validaciones de pago pendientes 2.0
+        pagos_res = supabase.table("pagos_cuotas") \
+            .select("id", count="exact") \
+            .eq("estado_pago", "PENDIENTE_VALIDACION") \
+            .execute()
+        validaciones_pendientes = pagos_res.count if pagos_res.count is not None else 0
         
         return {
             "metrics": {
                 "total_socios": total_socios,
                 "total_comercios": total_comercios,
                 "total_pendientes": total_pendientes,
+                "validaciones_pendientes": validaciones_pendientes,
                 "ingresos_mes": 0 # TODO: Conectar con Stripe/MercadoPago luego
             }
         }
@@ -1982,6 +1990,297 @@ def test_send_notification(current_user = Depends(get_current_admin)):
         link_url="/"
     )
     return {"message": "Notificación disparada."}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 12. MÓDULO CONTABLE 2.0: PAGOS, VALIDACIÓN Y AUTOMATIZACIÓN
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SubirComprobanteRequest(BaseModel):
+    mes: int
+    anio: int
+
+class AprobarPagoRequest(BaseModel):
+    pago_id: str
+
+class RechazarPagoRequest(BaseModel):
+    pago_id: str
+    motivo: str
+
+# 12.1 SOCIO: Subir comprobante de pago
+@app.post("/api/pagos/subir-comprobante")
+async def subir_comprobante(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    mes: int = Form(...),
+    anio: int = Form(...),
+    file: UploadFile = File(...),
+    current_user = Depends(get_current_user)
+):
+    try:
+        # 1. Leer y subir archivo a Storage
+        file_content = await file.read()
+        file_ext = file.filename.split(".")[-1]
+        filename = f"{current_user.id}/{anio}_{mes}_{uuid4().hex}.{file_ext}"
+        
+        supabase.storage.from_("comprobantes-pagos").upload(
+            path=filename,
+            file=file_content,
+            file_options={"content-type": file.content_type, "upsert": "true"}
+        )
+        
+        comprobante_url = f"{SUPABASE_URL}/storage/v1/object/authenticated/comprobantes-pagos/{filename}"
+        
+        # 2. Registrar/Actualizar en pagos_cuotas
+        # Buscamos si ya existe un registro para ese mes/anio/socio
+        pago_existente = supabase.table("pagos_cuotas") \
+            .select("id") \
+            .eq("socio_id", current_user.id) \
+            .eq("fecha_vencimiento", f"{anio}-{mes:02d}-10") \
+            .execute()
+            
+        pago_data = {
+            "socio_id": current_user.id,
+            "estado_pago": "PENDIENTE_VALIDACION",
+            "comprobante_url": comprobante_url,
+            "fecha_envio_comprobante": datetime.now().isoformat()
+        }
+        
+        if pago_existente.data:
+            pago_id = pago_existente.data[0]["id"]
+            supabase.table("pagos_cuotas").update(pago_data).eq("id", pago_id).execute()
+        else:
+            # Si no existe, creamos uno nuevo (monto por defecto si no hay deuda previa registrada)
+            pago_data["monto"] = 0 # El admin lo corregirá o vendrá de la mora detectada
+            pago_data["fecha_vencimiento"] = f"{anio}-{mes:02d}-10"
+            res = supabase.table("pagos_cuotas").insert(pago_data).execute()
+            pago_id = res.data[0]["id"]
+
+        # 3. Registrar Log de Actividad
+        log_entry = {
+            "socio_id": current_user.id,
+            "tipo_evento": "COMPROBANTE_SUBIDO",
+            "descripcion": f"El socio subió comprobante para la cuota {mes}/{anio}",
+            "usuario_id": current_user.id
+        }
+        supabase.table("activity_log").insert(log_entry).execute()
+        
+        # 4. Auditoría
+        background_tasks.add_task(registrar_auditoria, 
+            usuario_id=current_user.id,
+            email_usuario=current_user.email,
+            rol_usuario="SOCIO",
+            accion="UPLOAD",
+            tabla="pagos_cuotas",
+            registro_id=pago_id,
+            datos_anteriores=None,
+            datos_nuevos=pago_data,
+            modulo="Finanzas",
+            request=request
+        )
+        
+        return {"message": "Comprobante enviado correctamente. Pendiente de validación administrativa.", "pago_id": pago_id}
+        
+    except Exception as e:
+        logger.error(f"Error en subir_comprobante: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al subir comprobante: {str(e)}")
+
+# 12.2 ADMIN: Bandeja de pagos pendientes
+@app.get("/api/admin/pagos/pendientes")
+def get_pagos_pendientes(admin_user = Depends(get_current_admin)):
+    try:
+        res = supabase.table("pagos_cuotas") \
+            .select("*, profiles!socio_id(nombre_apellido, dni, email)") \
+            .eq("estado_pago", "PENDIENTE_VALIDACION") \
+            .order("fecha_envio_comprobante", desc=False) \
+            .execute()
+        return {"pendientes": res.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 12.3 ADMIN: Aprobar Pago
+@app.post("/api/admin/pagos/aprobar")
+def aprobar_pago(
+    req: AprobarPagoRequest, 
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    admin_user = Depends(get_current_admin)
+):
+    try:
+        # 1. Obtener datos del pago y socio
+        pago_res = supabase.table("pagos_cuotas").select("socio_id, monto").eq("id", req.pago_id).execute()
+        if not pago_res.data:
+            raise HTTPException(status_code=404, detail="Pago no encontrado")
+        
+        socio_id = pago_res.data[0]["socio_id"]
+        
+        # 2. Actualizar pago
+        supabase.table("pagos_cuotas").update({
+            "estado_pago": "PAGADO",
+            "fecha_validacion": datetime.now().isoformat(),
+            "admin_validador_id": admin_user.id
+        }).eq("id", req.pago_id).execute()
+        
+        # 3. Reactivar Socio
+        supabase.table("profiles").update({
+            "estado": "APROBADO",
+            "motivo": None
+        }).eq("id", socio_id).execute()
+        
+        # 4. Registrar Log y Notificación
+        supabase.table("activity_log").insert({
+            "socio_id": socio_id,
+            "tipo_evento": "PAGO_APROBADO",
+            "descripcion": "Pago validado por Administración. Socio reactivado.",
+            "usuario_id": admin_user.id
+        }).execute()
+        
+        # 5. Auditoría
+        background_tasks.add_task(registrar_auditoria, 
+            usuario_id=admin_user.id,
+            email_usuario=admin_user.email,
+            rol_usuario="ADMIN",
+            accion="APPROVE_PAYMENT",
+            tabla="pagos_cuotas",
+            registro_id=req.pago_id,
+            datos_anteriores=None,
+            datos_nuevos={"estado_pago": "PAGADO"},
+            modulo="Finanzas",
+            request=request
+        )
+        
+        # 6. Notificación App interna
+        enviar_notificacion_push_inapp(
+            socio_id, 
+            "Pago Aprobado ✅", 
+            "Tu pago ha sido validado correctamente. Tu carnet está activo nuevamente.",
+            "/cuotas"
+        )
+        
+        return {"message": "Pago aprobado y socio reactivado correctamente."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 12.4 ADMIN: Rechazar Pago
+@app.post("/api/admin/pagos/rechazar")
+def rechazar_pago(
+    req: RechazarPagoRequest, 
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    admin_user = Depends(get_current_admin)
+):
+    try:
+        pago_res = supabase.table("pagos_cuotas").select("socio_id").eq("id", req.pago_id).execute()
+        if not pago_res.data:
+            raise HTTPException(status_code=404, detail="Pago no encontrado")
+        
+        socio_id = pago_res.data[0]["socio_id"]
+        
+        supabase.table("pagos_cuotas").update({
+            "estado_pago": "RECHAZADO"
+        }).eq("id", req.pago_id).execute()
+        
+        supabase.table("activity_log").insert({
+            "socio_id": socio_id,
+            "tipo_evento": "PAGO_RECHAZADO",
+            "descripcion": f"Comprobante rechazado: {req.motivo}",
+            "usuario_id": admin_user.id
+        }).execute()
+        
+        enviar_notificacion_push_inapp(
+            socio_id, 
+            "Pago Rechazado ❌", 
+            f"No pudimos validar tu comprobante. Motivo: {req.motivo}",
+            "/cuotas"
+        )
+        
+        return {"message": "Pago rechazado."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 12.5 AUTOMACIÓN: Detección de Mora (Cron)
+@app.post("/api/cron/detectar-mora")
+def detectar_mora(request: Request):
+    # Validar que sea una petición autorizada (ej. Token compartido con el Cron Job externo)
+    # Por ahora permitimos si tiene el header correcto o simplemente lo dejamos público para pruebas
+    
+    hoy = datetime.now()
+    if hoy.day < 10:
+        return {"message": "Aún no es fecha de mora (esperar al día 11)"}
+        
+    try:
+        # 1. Buscar socios que NO tengan pago para el mes actual
+        mes_actual = hoy.month
+        anio_actual = hoy.year
+        fecha_venci = f"{anio_actual}-{mes_actual:02d}-10"
+        
+        # Obtenemos todos los socios aprobados
+        socios_res = supabase.table("profiles").select("id, nombre_apellido, telefono").eq("rol", "SOCIO").eq("estado", "APROBADO").execute()
+        socios = socios_res.data
+        
+        detectados = 0
+        for socio in socios:
+            # Verificar si existe pago PAGADO o PENDIENTE_VALIDACION para este mes
+            pago_check = supabase.table("pagos_cuotas") \
+                .select("id") \
+                .eq("socio_id", socio["id"]) \
+                .eq("fecha_vencimiento", fecha_venci) \
+                .in_("estado_pago", ["PAGADO", "PENDIENTE_VALIDACION"]) \
+                .execute()
+                
+            if not pago_check.data:
+                # Marcar como moroso (RESTRINGIDO)
+                supabase.table("profiles").update({
+                    "estado": "RESTRINGIDO",
+                    "motivo": f"Mora automática cuota {mes_actual}/{anio_actual}"
+                }).eq("id", socio["id"]).execute()
+                
+                # Crear deuda en pagos_cuotas si no existe
+                supabase.table("pagos_cuotas").upsert({
+                    "socio_id": socio["id"],
+                    "monto": 5000, # Monto base ejemplo, debería venir de una config
+                    "fecha_vencimiento": fecha_venci,
+                    "estado_pago": "PENDIENTE"
+                }, on_conflict="socio_id,fecha_vencimiento").execute()
+                
+                # Log Actividad
+                supabase.table("activity_log").insert({
+                    "socio_id": socio["id"],
+                    "tipo_evento": "MORA_DETECTADA",
+                    "descripcion": f"Detección automática de mora para cuota {mes_actual}/{anio_actual}",
+                    "usuario_id": None # Sistema
+                }).execute()
+                
+                detectados += 1
+                
+        return {"message": f"Proceso completado. Socios detectados en mora: {detectados}"}
+        
+    except Exception as e:
+        logger.error(f"Error en detectar_mora: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/mis-pagos")
+def get_mis_pagos(current_user = Depends(get_current_user)):
+    try:
+        res = supabase.table("pagos_cuotas") \
+            .select("*") \
+            .eq("socio_id", current_user.id) \
+            .order("fecha_vencimiento", desc=True) \
+            .execute()
+        return {"pagos": res.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/users/{user_id}/activity")
+def get_user_activity(user_id: str, admin_user = Depends(get_current_admin)):
+    try:
+        res = supabase.table("activity_log") \
+            .select("*") \
+            .eq("socio_id", user_id) \
+            .order("fecha", desc=True) \
+            .execute()
+        return {"activity": res.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ─────────────────────────────────────────────────────────────────────────────
 
