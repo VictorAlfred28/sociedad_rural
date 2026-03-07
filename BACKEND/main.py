@@ -2252,13 +2252,16 @@ def rechazar_pago(
 
 # 12.5 AUTOMACIÓN: Detección de Mora (Cron)
 @app.post("/api/cron/detectar-mora")
-def detectar_mora(request: Request):
-    # Validar que sea una petición autorizada (ej. Token compartido con el Cron Job externo)
-    # Por ahora permitimos si tiene el header correcto o simplemente lo dejamos público para pruebas
-    
+def detectar_mora(request: Request, background_tasks: BackgroundTasks, admin_user = Depends(get_current_admin_optional)):
+    """
+    Motor de detección de mora. 
+    Ejecución automática compatible con Cron o manual por Admin.
+    """
     hoy = datetime.now()
-    if hoy.day < 10:
-        return {"message": "Aún no es fecha de mora (esperar al día 11)"}
+    
+    # Si NO es admin, validar que sea después del día 10 (regla automática)
+    if not admin_user and hoy.day < 10:
+        return {"message": "Aún no es fecha de mora automática (esperar al día 11)"}
         
     try:
         # 1. Buscar socios que NO tengan pago para el mes actual

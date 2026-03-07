@@ -201,6 +201,7 @@ export default function GestionUsuarios() {
                         <option value="TODOS">Est: Todos</option>
                         <option value="APROBADO">Aprobados</option>
                         <option value="PENDIENTE">Pendientes</option>
+                        <option value="RESTRINGIDO">Restringidos (Mora)</option>
                         <option value="SUSPENDIDO">Suspendidos</option>
                     </select>
                 </div>
@@ -234,6 +235,12 @@ export default function GestionUsuarios() {
                                     <div className="flex flex-col overflow-hidden">
                                         <p className="font-bold text-sm truncate text-admin-text">{user.nombre_apellido || user.email}</p>
                                         <p className="text-xs text-slate-400 truncate">{user.rol} • {user.dni}</p>
+                                        {user.telefono && (
+                                            <div className="flex items-center gap-1 text-[10px] text-admin-accent font-bold mt-0.5">
+                                                <span className="material-symbols-outlined text-[12px]">call</span>
+                                                {user.telefono}
+                                            </div>
+                                        )}
                                         {user.motivo && (
                                             <p className="text-[10px] font-bold text-[#E57373] mt-0.5 truncate uppercase">Motivo: {user.motivo}</p>
                                         )}

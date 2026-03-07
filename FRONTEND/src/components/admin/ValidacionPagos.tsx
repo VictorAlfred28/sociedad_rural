@@ -91,15 +91,46 @@ export default function ValidacionPagos() {
         }
     };
 
+    const handleSyncMora = async () => {
+        if (!confirm('¿Deseas ejecutar el proceso de detección de mora ahora? Esto restringirá a los socios con deudas y enviará avisos por WhatsApp.')) return;
+        setIsProcessing(true);
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/cron/detectar-mora`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                alert(data.message || 'Sincronización completada con éxito.');
+                fetchPendientes();
+            } else {
+                alert('Error al sincronizar: ' + (data.detail || 'Error desconocido'));
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error crítico de conexión.');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-admin-text tracking-tight">Validación de Comprobantes</h2>
-                    <p className="text-slate-400 text-sm">Revisa y aprueba los pagos enviados por los socios.</p>
+                    <p className="text-slate-400 text-sm">Revisa pagos y sincroniza estados de mora.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-admin-accent/10 text-admin-accent rounded-full text-xs font-bold border border-admin-accent/20">
+                    <button
+                        onClick={handleSyncMora}
+                        disabled={isProcessing}
+                        className="flex items-center gap-2 px-4 py-2 bg-admin-accent/20 text-admin-accent border border-admin-accent/30 rounded-xl font-bold hover:bg-admin-accent/30 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        <span className="material-symbols-outlined text-sm">sync</span>
+                        <span className="text-xs uppercase tracking-wider">Sincronizar Morosos</span>
+                    </button>
+                    <span className="px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-xs font-bold border border-admin-border">
                         {pendientes.length} Pendientes
                     </span>
                     <button
