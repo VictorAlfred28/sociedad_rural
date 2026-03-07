@@ -1991,6 +1991,43 @@ def test_send_notification(current_user = Depends(get_current_admin)):
     )
     return {"message": "Notificación disparada."}
 
+def enviar_whatsapp(telefono: str, mensaje: str):
+    """
+    Función utilitaria para enviar mensajes de WhatsApp vía Evolution API.
+    Se recomienda usar números con formato internacional (ej: 549...).
+    """
+    try:
+        url_base = os.getenv("WHATSAPP_URL")
+        instance = os.getenv("WHATSAPP_INSTANCE")
+        apikey = os.getenv("WHATSAPP_API_KEY")
+
+        if not all([url_base, instance, apikey]):
+            print("Configuración de WhatsApp incompleta. Verifique WHATSAPP_URL, INSTANCE y API_KEY.")
+            return
+
+        url = f"{url_base}/message/sendText/{instance}"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": apikey
+        }
+        
+        # Limpiar el teléfono (solo dígitos)
+        numero_limpio = "".join(filter(str.isdigit, telefono))
+        
+        payload = {
+            "number": numero_limpio,
+            "text": mensaje,
+            "delay": 1200,
+            "linkPreview": True
+        }
+        
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code not in [200, 201]:
+            print(f"Error Evolution API: {response.status_code} - {response.text}")
+            
+    except Exception as e:
+        print(f"Error crítico enviando WhatsApp: {str(e)}")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 12. MÓDULO CONTABLE 2.0: PAGOS, VALIDACIÓN Y AUTOMATIZACIÓN
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2148,13 +2185,19 @@ def aprobar_pago(
             request=request
         )
         
-        # 6. Notificación App interna
+        # 6. Notificación App interna y WhatsApp
         enviar_notificacion_push_inapp(
             socio_id, 
             "Pago Aprobado ✅", 
             "Tu pago ha sido validado correctamente. Tu carnet está activo nuevamente.",
             "/cuotas"
         )
+        
+        # Obtener teléfono para WhatsApp
+        perfil_res = supabase.table("profiles").select("telefono").eq("id", socio_id).execute()
+        if perfil_res.data and perfil_res.data[0].get("telefono"):
+            mensaje_wa = "¡Tu pago ha sido validado! ✅ Tu carnet de la Sociedad Rural ya está activo. Podés verlo en la app: https://agentech.ar"
+            background_tasks.add_task(enviar_whatsapp, perfil_res.data[0]["telefono"], mensaje_wa)
         
         return {"message": "Pago aprobado y socio reactivado correctamente."}
     except Exception as e:
@@ -2192,6 +2235,12 @@ def rechazar_pago(
             f"No pudimos validar tu comprobante. Motivo: {req.motivo}",
             "/cuotas"
         )
+        
+        # WhatsApp de rechazo
+        perfil_res = supabase.table("profiles").select("telefono").eq("id", socio_id).execute()
+        if perfil_res.data and perfil_res.data[0].get("telefono"):
+            mensaje_wa = f"Hola, hubo un problema con la validación de tu pago. ❌ Motivo: {req.motivo}. Por favor revisalo en la app."
+            background_tasks.add_task(enviar_whatsapp, perfil_res.data[0]["telefono"], mensaje_wa)
         
         return {"message": "Pago rechazado."}
     except Exception as e:
@@ -2249,8 +2298,17 @@ def detectar_mora(request: Request):
                     "descripcion": f"Detección automática de mora para cuota {mes_actual}/{anio_actual}",
                     "usuario_id": None # Sistema
                 }).execute()
-                
-                detectados += 1
+
+                # Notificación WhatsApp de Mora
+                if socio.get("telefono"):
+                    mensaje_wa = (
+                        f"Hola {socio['nombre_apellido']}! 👋 "
+                        f"Detectamos un atraso en el pago de tu cuota ({mes_actual}/{anio_actual}). "
+                        "Podés regularizarlo subiendo tu comprobante aquí: https://agentech.ar/cuotas"
+                    )
+                    # Usamos delay para no saturar la API si son muchos
+                    enviar_whatsapp(socio["telefono"], mensaje_wa)
+                    detectados += 1
                 
         return {"message": f"Proceso completado. Socios detectados en mora: {detectados}"}
         
