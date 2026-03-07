@@ -240,7 +240,7 @@ export default function Perfil() {
           </Link>
         </div>
 
-        <GestionDependientes />
+        {user?.rol !== 'COMERCIO' && <GestionDependientes />}
 
 
         <div className="mt-8 px-2">
