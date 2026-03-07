@@ -62,7 +62,7 @@ export default function Login() {
       setSuccessMsg(`¡Bienvenido! Rol asignado: ${data.socio?.rol || 'USUARIO'}`);
 
       // Guardado de sesión básica con Global Context
-      login(data.token, data.socio);
+      login(data.token, data.socio, data.refresh_token);
 
       // Pequeño delay para que se vea el successMsg
       setTimeout(() => {

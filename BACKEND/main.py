@@ -483,7 +483,8 @@ def login(credentials: LoginRequest, request: Request):
             "tipo_identificacion_detectado": tipo_identificacion,
             "necesita_cambio_password": necesita_cambio_password,
             "socio": profile,
-            "token": session.access_token # JWT real de Supabase devuelto al front
+            "token": session.access_token, # JWT real de Supabase devuelto al front
+            "refresh_token": session.refresh_token # Para renovación automática del token
         }
         
     except Exception as e:
