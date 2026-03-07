@@ -2044,6 +2044,16 @@ def enviar_whatsapp(telefono: str, mensaje: str):
         # Limpiar el teléfono (solo dígitos)
         numero_limpio = "".join(filter(str.isdigit, telefono))
         
+        # Lógica para Argentina: Si tiene 10 dígitos (ej: 3794xxxxxx), anteponer 549
+        if len(numero_limpio) == 10:
+            numero_limpio = f"549{numero_limpio}"
+        # Si tiene 11 dígitos y empieza con 15 (común en AR), corregir a 549 + area + resto
+        elif len(numero_limpio) == 11 and numero_limpio.startswith("15"):
+             # Este es un caso borde, mejor dejarlo pasar o intentar normalizarlo si conocemos el area
+             pass
+        # Si empieza con 379 y tiene 10 digitos ya fue cubierto arriba. 
+        # Si tiene 13 y empieza con 549, ya está correcto.
+        
         payload = {
             "number": numero_limpio,
             "text": mensaje,
