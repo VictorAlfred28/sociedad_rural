@@ -517,6 +517,30 @@ def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(securi
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=401, detail="Error verificando permisos")
 
+async def get_current_admin_optional(request: Request):
+    """
+    Versión opcional del middleware de admin. 
+    Si hay token válido de admin, lo retorna. Si no, retorna None sin fallar.
+    Útil para endpoints mixtos (públicos/cron vs admin manual).
+    """
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    
+    token = auth_header.split(" ")[1]
+    try:
+        user_res = supabase.auth.get_user(token)
+        if not user_res or not user_res.user:
+            return None
+            
+        profile_res = supabase.table("profiles").select("rol").eq("id", user_res.user.id).execute()
+        if not profile_res.data or profile_res.data[0].get("rol") != "ADMIN":
+            return None
+            
+        return user_res.user
+    except Exception:
+        return None
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
