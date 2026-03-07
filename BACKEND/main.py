@@ -1997,13 +1997,17 @@ def enviar_whatsapp(telefono: str, mensaje: str):
     Se recomienda usar números con formato internacional (ej: 549...).
     """
     try:
-        url_base = os.getenv("WHATSAPP_URL")
-        instance = os.getenv("WHATSAPP_INSTANCE")
-        apikey = os.getenv("WHATSAPP_API_KEY")
+        url_base = os.getenv("EVOLUTION_API_URL")
+        instance = os.getenv("INSTANCE_NAME")
+        apikey = os.getenv("EVOLUTION_API_TOKEN")
 
         if not all([url_base, instance, apikey]):
-            print("Configuración de WhatsApp incompleta. Verifique WHATSAPP_URL, INSTANCE y API_KEY.")
+            print("Configuración de WhatsApp incompleta. Verifique EVOLUTION_API_URL, INSTANCE_NAME y EVOLUTION_API_TOKEN.")
             return
+
+        # Asegurar que la URL tenga el protocolo correcto
+        if url_base and not url_base.startswith(("http://", "https://")):
+            url_base = f"https://{url_base}"
 
         url = f"{url_base}/message/sendText/{instance}"
         headers = {
