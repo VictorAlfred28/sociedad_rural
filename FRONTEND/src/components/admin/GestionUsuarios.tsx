@@ -272,6 +272,11 @@ export default function GestionUsuarios() {
                                         Reactivar
                                     </button>
                                 )}
+                                {user.estado === 'RESTRINGIDO' && (
+                                    <button onClick={() => handleStatusChange(user.id, 'APROBADO')} className="flex-1 bg-[#10b981]/20 text-[#10b981] hover:bg-[#10b981] hover:text-white rounded-lg h-9 text-xs font-bold active:scale-95 admin-transition">
+                                        Reactivar
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => confirmReset(user.id, user.nombre_apellido || user.email)}
                                     title="Restablecer Contraseña"
