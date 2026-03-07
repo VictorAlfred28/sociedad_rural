@@ -16,10 +16,6 @@ export default function BottomNav() {
           <span className="text-[10px] font-bold">INICIO</span>
         </Link>
 
-        <Link to="/eventos" className={`flex flex-col items-center gap-1 ${path === '/eventos' ? 'text-primary' : 'text-slate-400'}`}>
-          <span className="material-symbols-outlined" style={path === '/eventos' ? { fontVariationSettings: "'FILL' 1" } : {}}>calendar_month</span>
-          <span className="text-[10px] font-bold">EVENTOS</span>
-        </Link>
 
         {isComercio ? (
           <Link to="/mi-negocio" className={`flex flex-col items-center gap-1 ${path === '/mi-negocio' ? 'text-primary' : 'text-slate-400'}`}>
