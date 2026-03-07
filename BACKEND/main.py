@@ -2490,6 +2490,101 @@ def exportar_socios_pdf(admin_user = Depends(get_current_admin)):
         raise HTTPException(status_code=500, detail="Error al generar reporte PDF")
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 14. WEBHOOK WHATSAPP (Chatbot de Consulta Automática)
+@app.post("/api/whatsapp/webhook")
+async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
+    """
+    Recibe eventos de Evolution API para responder consultas de socios de forma automática.
+    """
+    try:
+        # 1. Validar Token de Seguridad (si está configurado)
+        secret_header = request.headers.get("webhook-secret")
+        env_secret = os.getenv("WEBHOOK_SECRET_TOKEN")
+        if env_secret and secret_header != env_secret:
+             return {"status": "unauthorized"}
+
+        data = await request.json()
+        event = data.get("event")
+        
+        # Solo procesamos la creación de nuevos mensajes
+        if event != "messages.upsert":
+            return {"status": "event-ignored"}
+
+        message_data = data.get("data", {})
+        key = message_data.get("key", {})
+        
+        if key.get("fromMe"):
+            return {"status": "self-message-ignored"}
+
+        remote_jid = key.get("remoteJid", "")
+        if not remote_jid.endswith("@s.whatsapp.net"):
+            return {"status": "group-ignored"}
+
+        numero_sender = remote_jid.split("@")[0] # ej: 5493794330172
+        
+        # Extraer texto del mensaje (soporta texto simple y mensajes con respuesta)
+        msg_obj = message_data.get("message", {})
+        msg_text = ""
+        if "conversation" in msg_obj:
+            msg_text = msg_obj["conversation"]
+        elif "extendedTextMessage" in msg_obj:
+            msg_text = msg_obj["extendedTextMessage"].get("text", "")
+        
+        msg_text = msg_text.strip().upper()
+        # Palabras clave que activan el bot
+        keywords = ["DEUDA", "ESTADO", "PAGOS", "VENCIMIENTO", "CUOTAS", "SALDO", "VENCIMIENTOS"]
+
+        if any(kw in msg_text for kw in keywords):
+            # Identificar al socio por los últimos 10 dígitos (formato Argentina)
+            diez_digitos = "".join(filter(str.isdigit, numero_sender))[-10:]
+            
+            res_user = supabase.table("profiles") \
+                .select("id, nombre_apellido, estado") \
+                .ilike("telefono", f"%{diez_digitos}%") \
+                .execute()
+            
+            if not res_user.data:
+                # Si no lo encontramos, no respondemos para no spamear o podemos responder algo genérico
+                return {"status": "user-not-found"}
+
+            socio = res_user.data[0]
+            
+            # Buscar cuotas en estado PENDIENTE
+            res_pagos = supabase.table("pagos_cuotas") \
+                .select("monto, fecha_vencimiento") \
+                .eq("socio_id", socio["id"]) \
+                .eq("estado_pago", "PENDIENTE") \
+                .order("fecha_vencimiento") \
+                .execute()
+            
+            if not res_pagos.data:
+                msg_ok = f"¡Hola {socio['nombre_apellido']}! 👋 No registramos cuotas pendientes a tu nombre. Tu cuenta está al día. ¡Muchas gracias!"
+                background_tasks.add_task(enviar_whatsapp, numero_sender, msg_ok)
+            else:
+                total = sum(float(p["monto"]) for p in res_pagos.data)
+                detalle = ""
+                for p in res_pagos.data:
+                    # Formatear fecha YYYY-MM-DD a MM/YYYY
+                    fv = p["fecha_vencimiento"].split("-")
+                    detalle += f"• Cuota {fv[1]}/{fv[0]}: ${float(p['monto']):,.0f}\n"
+                
+                msg_deuda = (
+                    f"Hola {socio['nombre_apellido']}! 👋\n\n"
+                    f"Tu estado de cuenta actual registra:\n\n"
+                    f"{detalle}\n"
+                    f"*Total adeudado: ${total:,.0f}*\n\n"
+                    "Podés abonar y subir tu comprobante de transferencia siguiendo este link:\n"
+                    "https://agentech.ar/cuotas\n\n"
+                    "_Muchas gracias! Sociedad Rural del Norte de Corrientes._"
+                )
+                background_tasks.add_task(enviar_whatsapp, numero_sender, msg_deuda)
+                
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Error procesando Webhook WhatsApp: {str(e)}")
+        return {"status": "error"}
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import uvicorn
