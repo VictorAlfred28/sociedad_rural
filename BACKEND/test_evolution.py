@@ -104,7 +104,7 @@ mensaje = (
     "Este es un mensaje de *PRUEBA* del sistema automático.\n\n"
     "Registramos una cuota pendiente de *Marzo 2026*.\n\n"
     "Podés abonar y subir tu comprobante en:\n"
-    "https://agentech.ar/cuotas\n\n"
+    "https://sociedadruraldelnorte.agentech.ar/cuotas\n\n"
     "_Sociedad Rural del Norte de Corrientes_"
 )
 

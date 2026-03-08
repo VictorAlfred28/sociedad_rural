@@ -99,7 +99,7 @@ def tarea_automatica_mora():
                     mensaje_wa = (
                         f"Hola {socio['nombre_apellido']}! 👋 "
                         f"Detectamos un atraso en el pago de tu cuota ({mes_actual}/{anio_actual}). "
-                        "Podés regularizarlo subiendo tu comprobante aquí: https://agentech.ar/cuotas"
+                        "Podés regularizarlo subiendo tu comprobante aquí: https://sociedadruraldelnorte.agentech.ar/cuotas"
                     )
                     enviar_whatsapp(socio["telefono"], mensaje_wa)
                     detectados += 1
@@ -499,10 +499,20 @@ def register(socio: RegisterRequest, request: Request, background_tasks: Backgro
         }
         
     except Exception as e:
-        # Manejo basico de error (ej: Email o DNI ya existente en Supabase)
+        err_msg = str(e).lower()
+        # Identificamos el tipo de error (usualmente de Supabase Auth o restricciones Unique)
+        if "user already registered" in err_msg or "already exists" in err_msg and "email" in err_msg:
+            friendly_detail = "El correo electrónico indicado ya se encuentra registrado."
+        elif "duplicate key value" in err_msg and "dni" in err_msg:
+            friendly_detail = "El DNI/CUIT ingresado ya se encuentra registrado en el sistema. Por favor verificá tus datos o iniciá sesión."
+        elif "duplicate key value" in err_msg:
+            friendly_detail = "Algunos de los datos brindados ya se encuentran registrados."
+        else:
+            friendly_detail = f"Error al procesar el registro: Verifique sus datos y vuelva a intentar."
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error al registrar: {str(e)}"
+            detail=friendly_detail
         )
 
 
@@ -2330,7 +2340,7 @@ def aprobar_pago(
         # Obtener teléfono para WhatsApp
         perfil_res = supabase.table("profiles").select("telefono").eq("id", socio_id).execute()
         if perfil_res.data and perfil_res.data[0].get("telefono"):
-            mensaje_wa = "¡Tu pago ha sido validado! ✅ Tu carnet de la Sociedad Rural ya está activo. Podés verlo en la app: https://agentech.ar"
+            mensaje_wa = "¡Tu pago ha sido validado! ✅ Tu carnet de la Sociedad Rural ya está activo. Podés verlo en la app: https://sociedadruraldelnorte.agentech.ar"
             background_tasks.add_task(enviar_whatsapp, perfil_res.data[0]["telefono"], mensaje_wa)
         
         return {"message": "Pago aprobado y socio reactivado correctamente."}
@@ -2441,7 +2451,7 @@ def detectar_mora(request: Request, background_tasks: BackgroundTasks, admin_use
                     mensaje_wa = (
                         f"Hola {socio['nombre_apellido']}! 👋 "
                         f"Detectamos un atraso en el pago de tu cuota ({mes_actual}/{anio_actual}). "
-                        "Podés regularizarlo subiendo tu comprobante aquí: https://agentech.ar/cuotas"
+                        "Podés regularizarlo subiendo tu comprobante aquí: https://sociedadruraldelnorte.agentech.ar/cuotas"
                     )
                     # Usamos delay para no saturar la API si son muchos
                     enviar_whatsapp(socio["telefono"], mensaje_wa)
@@ -2691,7 +2701,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
                     f"{detalle}\n"
                     f"*Total adeudado: ${total:,.0f}*\n\n"
                     "Podés abonar y subir tu comprobante de transferencia siguiendo este link:\n"
-                    "https://agentech.ar/cuotas\n\n"
+                    "https://sociedadruraldelnorte.agentech.ar/cuotas\n\n"
                     "_Muchas gracias! Sociedad Rural del Norte de Corrientes._"
                 )
                 background_tasks.add_task(enviar_whatsapp, numero_sender, msg_deuda)
