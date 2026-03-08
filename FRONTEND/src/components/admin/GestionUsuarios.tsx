@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth, Socio } from '../../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GestionUsuarios() {
     const { token } = useAuth();
@@ -341,49 +342,68 @@ export default function GestionUsuarios() {
             )}
 
             {/* MODAL ACTIVIDAD */}
-            {viewingUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/40 backdrop-blur-sm">
-                    <div className="bg-admin-card border-l border-admin-border w-full max-w-lg h-full shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300 flex flex-col">
-                        <div className="p-6 border-b border-admin-border flex items-center justify-between bg-admin-bg/50">
-                            <div>
-                                <h3 className="text-xl font-bold text-admin-text tracking-tight">Hoja de Ruta Institucional</h3>
-                                <p className="text-xs text-slate-500 font-medium">Socio: {viewingUser.nombre_apellido}</p>
+            <AnimatePresence>
+                {viewingUser && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setViewingUser(null)}
+                        className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm cursor-pointer"
+                    >
+                        <motion.div
+                            initial={{ x: "100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-admin-card border-l border-admin-border w-full max-w-lg h-full shadow-2xl flex flex-col cursor-auto relative"
+                        >
+                            <div className="p-6 border-b border-admin-border flex items-center justify-between bg-admin-bg/50">
+                                <div>
+                                    <h3 className="text-xl font-bold text-admin-text tracking-tight">Hoja de Ruta Institucional</h3>
+                                    <p className="text-xs text-slate-500 font-medium">Socio: {viewingUser.nombre_apellido}</p>
+                                </div>
+                                <button
+                                    onClick={() => setViewingUser(null)}
+                                    className="size-10 rounded-full bg-slate-800 hover:bg-[#ef4444] text-slate-400 hover:text-white flex items-center justify-center transition-all shadow-md active:scale-90 border border-slate-700 hover:border-[#ef4444]"
+                                    title="Cerrar modal"
+                                >
+                                    <span className="material-symbols-outlined font-bold">close</span>
+                                </button>
                             </div>
-                            <button onClick={() => setViewingUser(null)} className="size-10 rounded-full hover:bg-admin-card flex items-center justify-center text-slate-400">
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 admin-scroll">
-                            {loadingActivity ? (
-                                <div className="flex flex-col items-center justify-center h-full gap-3">
-                                    <div className="size-8 border-2 border-admin-accent border-t-transparent rounded-full animate-spin"></div>
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Cronología...</p>
-                                </div>
-                            ) : selectedUserActivity.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-600 opacity-50">
-                                    <span className="material-symbols-outlined text-4xl mb-2">history_toggle_off</span>
-                                    <p className="text-sm">Sin actividad registrada aún.</p>
-                                </div>
-                            ) : (
-                                <div className="relative border-l-2 border-slate-800 ml-3 pl-8 space-y-8">
-                                    {selectedUserActivity.map((log) => (
-                                        <div key={log.id} className="relative">
-                                            <div className="absolute -left-[39px] top-1 size-4 rounded-full border-2 border-slate-800 bg-admin-bg flex items-center justify-center">
-                                                <div className={`size-1.5 rounded-full ${log.tipo_evento.includes('RECHAZADO') ? 'bg-red-500' : log.tipo_evento.includes('APROBADO') ? 'bg-green-500' : 'bg-admin-accent'}`}></div>
+                            <div className="flex-1 overflow-y-auto p-6 admin-scroll">
+                                {loadingActivity ? (
+                                    <div className="flex flex-col items-center justify-center h-full gap-3">
+                                        <div className="size-8 border-2 border-admin-accent border-t-transparent rounded-full animate-spin"></div>
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Cronología...</p>
+                                    </div>
+                                ) : selectedUserActivity.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-600 opacity-50">
+                                        <span className="material-symbols-outlined text-4xl mb-2">history_toggle_off</span>
+                                        <p className="text-sm">Sin actividad registrada aún.</p>
+                                    </div>
+                                ) : (
+                                    <div className="relative border-l-2 border-slate-800 ml-3 pl-8 space-y-8">
+                                        {selectedUserActivity.map((log) => (
+                                            <div key={log.id} className="relative">
+                                                <div className="absolute -left-[39px] top-1 size-4 rounded-full border-2 border-slate-800 bg-admin-bg flex items-center justify-center">
+                                                    <div className={`size-1.5 rounded-full ${log.tipo_evento.includes('RECHAZADO') ? 'bg-red-500' : log.tipo_evento.includes('APROBADO') ? 'bg-green-500' : 'bg-admin-accent'}`}></div>
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-tighter">{new Date(log.fecha).toLocaleString()}</span>
+                                                    <h5 className={`font-bold text-sm ${log.tipo_evento.includes('RECHAZADO') ? 'text-red-400' : log.tipo_evento.includes('APROBADO') ? 'text-green-400' : 'text-admin-text'}`}>{log.tipo_evento.replace(/_/g, ' ')}</h5>
+                                                    <p className="text-xs text-slate-500 leading-relaxed bg-white/5 p-2 rounded-lg border border-white/5">{log.descripcion}</p>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-[10px] font-black uppercase text-slate-500 tracking-tighter">{new Date(log.fecha).toLocaleString()}</span>
-                                                <h5 className={`font-bold text-sm ${log.tipo_evento.includes('RECHAZADO') ? 'text-red-400' : log.tipo_evento.includes('APROBADO') ? 'text-green-400' : 'text-admin-text'}`}>{log.tipo_evento.replace(/_/g, ' ')}</h5>
-                                                <p className="text-xs text-slate-500 leading-relaxed bg-white/5 p-2 rounded-lg border border-white/5">{log.descripcion}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
