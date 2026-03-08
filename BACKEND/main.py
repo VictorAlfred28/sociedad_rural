@@ -97,9 +97,9 @@ def tarea_automatica_mora():
                 if socio.get("telefono"):
                     from urllib.parse import quote
                     mensaje_wa = (
-                        f"Hola {socio['nombre_apellido']}! 👋 "
-                        f"Detectamos un atraso en el pago de tu cuota ({mes_actual}/{anio_actual}). "
-                        "Podés regularizarlo subiendo tu comprobante aquí: https://sociedadruraldelnorte.agentech.ar/cuotas"
+                        f"Hola {socio['nombre_apellido']}! 👋\n"
+                        f"Detectamos un atraso en el pago de tu cuota de la Sociedad Rural ({mes_actual}/{anio_actual}).\n\n"
+                        "¿Deseás regularizar tu situación? Respondé *SÍ*, *ACEPTO* o *PAGAR* para enviarte el detalle de tu deuda y el link de pago."
                     )
                     enviar_whatsapp(socio["telefono"], mensaje_wa)
                     detectados += 1
@@ -2450,9 +2450,9 @@ def detectar_mora(request: Request, background_tasks: BackgroundTasks, admin_use
                 # Notificación WhatsApp de Mora
                 if socio.get("telefono"):
                     mensaje_wa = (
-                        f"Hola {socio['nombre_apellido']}! 👋 "
-                        f"Detectamos un atraso en el pago de tu cuota ({mes_actual}/{anio_actual}). "
-                        "Podés regularizarlo subiendo tu comprobante aquí: https://sociedadruraldelnorte.agentech.ar/cuotas"
+                        f"Hola {socio['nombre_apellido']}! 👋\n"
+                        f"Detectamos un atraso en el pago de tu cuota de la Sociedad Rural ({mes_actual}/{anio_actual}).\n\n"
+                        "¿Deseás regularizar tu situación? Respondé *SÍ*, *ACEPTO* o *PAGAR* para enviarte el detalle de tu deuda y el link de pago."
                     )
                     # Usamos delay para no saturar la API si son muchos
                     enviar_whatsapp(socio["telefono"], mensaje_wa)
@@ -2658,11 +2658,19 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         elif "extendedTextMessage" in msg_obj:
             msg_text = msg_obj["extendedTextMessage"].get("text", "")
         
+        import re
         msg_text = msg_text.strip().upper()
-        # Palabras clave que activan el bot
-        keywords = ["DEUDA", "ESTADO", "PAGOS", "VENCIMIENTO", "CUOTAS", "SALDO", "VENCIMIENTOS"]
+        # Palabras clave que activan el bot (petición de estado)
+        keywords_estado = ["DEUDA", "ESTADO", "PAGOS", "VENCIMIENTO", "CUOTAS", "SALDO", "VENCIMIENTOS"]
+        
+        # Palabras clave afirmativas (respuestas a la notificación de mora)
+        # Usamos regex para asegurar que sean palabras completas (evita coincidir con "SIEMPRE" o "SILLA")
+        keywords_afirmacion = [r"\bSI\b", r"\bSÍ\b", r"\bACEPTO\b", r"\bPAGAR\b", r"\bQUIERO PAGAR\b", r"\bDALE\b", r"\bOK\b", r"\bOKAY\b"]
+        
+        match_estado = any(kw in msg_text for kw in keywords_estado)
+        match_afirmacion = any(re.search(pat, msg_text) for pat in keywords_afirmacion)
 
-        if any(kw in msg_text for kw in keywords):
+        if match_estado or match_afirmacion:
             # Identificar al socio por los últimos 10 dígitos (formato Argentina)
             diez_digitos = "".join(filter(str.isdigit, numero_sender))[-10:]
             
