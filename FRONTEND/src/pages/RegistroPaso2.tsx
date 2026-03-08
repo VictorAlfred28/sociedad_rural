@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function RegistroPaso2() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -71,6 +73,8 @@ export default function RegistroPaso2() {
 
       if (!resp.ok) throw new Error(data.detail || 'Error al completar el registro');
 
+      // Limpiar cualquier sesión previa (ej: Admin registrando socio) para evitar confusión de roles
+      logout();
       navigate('/registro-exitoso');
     } catch (err: any) {
       setErrorMsg(err.message);

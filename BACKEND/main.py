@@ -2638,9 +2638,10 @@ def exportar_socios_pdf(admin_user = Depends(get_current_admin)):
     """Genera un reporte PDF con diseño institucional de los socios."""
     try:
         from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib import colors
+        from reportlab.lib.units import cm
         
         res = supabase.table("profiles") \
             .select("nombre_apellido, dni, estado, telefono, municipio, rol") \
@@ -2650,10 +2651,19 @@ def exportar_socios_pdf(admin_user = Depends(get_current_admin)):
         data = res.data
         
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), topMargin=30)
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), topMargin=20)
         elements = []
         
         styles = getSampleStyleSheet()
+        
+        # Logo Centrado
+        logo_path = "logo.jpg"
+        if os.path.exists(logo_path):
+            img = Image(logo_path, width=4*cm, height=4*cm)
+            img.hAlign = 'CENTER'
+            elements.append(img)
+            elements.append(Spacer(1, 10))
+
         # Título
         elements.append(Paragraph("<b>SOCIEDAD RURAL DEL NORTE DE CORRIENTES</b>", styles['Title']))
         elements.append(Paragraph("<b>INFORME ESTATUTARIO DE SOCIOS</b>", styles['Heading2']))
