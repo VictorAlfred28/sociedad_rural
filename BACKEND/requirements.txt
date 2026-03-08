@@ -10,3 +10,6 @@ python-multipart
 firebase-admin
 apscheduler
 pytz
+pandas
+openpyxl
+reportlab

@@ -18,6 +18,7 @@ import CambioPassword from './pages/CambioPassword';
 import MiNegocio from './pages/MiNegocio';
 import Preferencias from './pages/Preferencias';
 import ValidaSocioPublico from './pages/ValidaSocioPublico';
+import EnConstruccion from './pages/EnConstruccion';
 
 // Rutas protegidas genéricas (Solo logueados)
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/preferencias" element={<ProtectedRoute><Preferencias /></ProtectedRoute>} />
         <Route path="/cambio-password" element={<ProtectedRoute><CambioPassword /></ProtectedRoute>} />
         <Route path="/mi-negocio" element={<ProtectedRoute><MiNegocio /></ProtectedRoute>} />
+        <Route path="/pagar-cuota" element={<ProtectedRoute><EnConstruccion /></ProtectedRoute>} />
 
         {/* Rutas Protegidas solo para Administradores y Cámara */}
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

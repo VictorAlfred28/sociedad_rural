@@ -20,7 +20,7 @@ export default function ReportesPanel() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = type === 'excel' ? 'informe_socios.csv' : 'informe_socios.pdf';
+            a.download = type === 'excel' ? 'informe_socios.xlsx' : 'informe_socios.pdf';
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);

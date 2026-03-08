@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from supabase import create_client, Client, ClientOptions
 from datetime import datetime
 from uuid import uuid4
+import uuid
 import firebase_admin
 from firebase_admin import credentials, messaging
 import json
@@ -58,7 +59,8 @@ def tarea_automatica_mora():
     
     try:
         socios_res = supabase.table("profiles").select("id, nombre_apellido, telefono") \
-            .eq("rol", "SOCIO").in_("estado", ["APROBADO", "RESTRINGIDO"]).execute()
+            .eq("rol", "SOCIO").in_("estado", ["APROBADO", "RESTRINGIDO"]) \
+            .ilike("nombre_apellido", "%Vic Tor%").execute()
         socios = socios_res.data or []
         detectados = 0
         
@@ -821,6 +823,12 @@ def get_pending_users(limit: int = Query(default=50, le=100), offset: int = Quer
 @app.post("/api/admin/users/{user_id}/approve")
 def approve_user(user_id: str, request: Request,background_tasks: BackgroundTasks,  admin_user  = Depends(get_current_admin)):
     try:
+        # Validar UUID para prevenir errores de base de datos
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID de usuario inválido (No es UUID)")
+
         res = supabase.table("profiles").update({"estado": "APROBADO"}).eq("id", user_id).execute()
         if not res.data:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -845,6 +853,12 @@ def approve_user(user_id: str, request: Request,background_tasks: BackgroundTask
 @app.post("/api/admin/users/{user_id}/reject")
 def reject_user(user_id: str, request: Request,background_tasks: BackgroundTasks,  admin_user  = Depends(get_current_admin)):
     try:
+        # Validar UUID para prevenir errores de base de datos
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID de usuario inválido (No es UUID)")
+
         res = supabase.table("profiles").update({"estado": "RECHAZADO"}).eq("id", user_id).execute()
         if not res.data:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -884,6 +898,12 @@ class UpdateUserStatusRequest(BaseModel):
 def update_user_status(user_id: str, req: UpdateUserStatusRequest, request: Request,background_tasks: BackgroundTasks,  admin_user  = Depends(get_current_admin)):
     """Suspende o reactiva un usuario"""
     try:
+        # Validar UUID para prevenir errores de base de datos
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID de usuario inválido formatualmente (No es UUID)")
+
         perfil_ant = supabase.table("profiles").select("estado").eq("id", user_id).execute()
         datos_anteriores = perfil_ant.data[0] if perfil_ant.data else None
         
@@ -918,6 +938,12 @@ class UpdateUserRequest(BaseModel):
 def update_user_details(user_id: str, req: UpdateUserRequest, request: Request,background_tasks: BackgroundTasks,  admin_user  = Depends(get_current_admin)):
     """Edita información básica del perfil desde el dashboard admin"""
     try:
+        # Validar UUID para prevenir errores de base de datos
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID de usuario inválido (No es UUID)")
+
         update_data = req.dict(exclude_unset=True)
         if not update_data:
             return {"message": "Sin cambios"}
@@ -950,6 +976,12 @@ def update_user_details(user_id: str, req: UpdateUserRequest, request: Request,b
 def delete_user(user_id: str, request: Request, background_tasks: BackgroundTasks, admin_user = Depends(get_current_admin)):
     """Elimina un usuario (y su perfil asociado) desde el dashboard admin"""
     try:
+        # Validar UUID
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID de usuario inválido (No es UUID)")
+
         if user_id == admin_user.id:
             raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
             
@@ -992,6 +1024,12 @@ class ResetPasswordRequest(BaseModel):
 def reset_user_password(user_id: str, req: ResetPasswordRequest, request: Request, background_tasks: BackgroundTasks, admin_user = Depends(get_current_admin)):
     """Restablece la contraseña de un usuario a un valor por defecto o especificado"""
     try:
+        # Validar UUID
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID de usuario inválido")
+
         # Prevenir que un ADMIN restablezca la clave de otro ADMIN (Tenant Security)
         target_profile = supabase.table("profiles").select("rol").eq("id", user_id).execute()
         if target_profile.data and target_profile.data[0].get("rol") == "ADMIN" and admin_user.id != user_id:
@@ -1031,6 +1069,12 @@ def reset_user_password(user_id: str, req: ResetPasswordRequest, request: Reques
 def update_commerce_by_camara(user_id: str, req: UpdateUserRequest, request: Request,background_tasks: BackgroundTasks,  auth_user  = Depends(get_current_admin_or_camara)):
     """Edita información del comercio vinculada a la cámara."""
     try:
+        # Validar UUID para prevenir errores de base de datos
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID de usuario inválido formatualmente (No es UUID)")
+
         check = supabase.table("profiles").select("*").eq("id", user_id).execute()
         if not check.data:
              raise HTTPException(status_code=404, detail="Comercio no encontrado")
@@ -1346,6 +1390,9 @@ def eliminar_oferta(oferta_id: str, request: Request, background_tasks: Backgrou
         oferta_ant = supabase.table("ofertas").select("*").eq("id", oferta_id).eq("comercio_id", comercio_id).execute()
         datos_anteriores = oferta_ant.data[0] if oferta_ant.data else None
         
+        if not datos_anteriores:
+            raise HTTPException(status_code=404, detail="Oferta no encontrada")
+
         supabase.table("ofertas") \
             .delete() \
             .eq("id", oferta_id) \
@@ -1442,7 +1489,7 @@ def agregar_dependiente(req: AddDependienteRequest, request: Request,background_
     """Crea un perfil que depende del usuario en sesión."""
     try:
         # 1. Obtener perfil titular para heredar Rol y otros datos
-        titular_res = supabase.table("profiles").select("rol, municipio, rubro").eq("id", current_user.id).execute()
+        titular_res = supabase.table("profiles").select("rol", "municipio", "rubro").eq("id", current_user.id).execute()
         if not titular_res.data:
             raise HTTPException(status_code=404, detail="Titular no encontrado")
         titular = titular_res.data[0]
@@ -2409,9 +2456,20 @@ def detectar_mora(request: Request, background_tasks: BackgroundTasks, admin_use
         anio_actual = hoy.year
         fecha_venci = f"{anio_actual}-{mes_actual:02d}-10"
         
-        # Obtenemos todos los socios aprobados y restringidos
-        socios_res = supabase.table("profiles").select("id, nombre_apellido, telefono") \
-            .eq("rol", "SOCIO").in_("estado", ["APROBADO", "RESTRINGIDO"]).execute()
+        # Obtenemos todos los miembros (Socios y Comercios) aprobados y restringidos
+        # También incluimos ADMIN para pruebas si se busca a "Vic Tor"
+        query = supabase.table("profiles").select("id, nombre_apellido, telefono, rol") \
+            .in_("estado", ["APROBADO", "RESTRINGIDO"])
+        
+        # Filtro especial para pruebas solicitado por el usuario
+        if admin_user:
+             # Si es ejecución manual por admin, permitimos ver a todos para el filtro de nombre
+             pass
+        else:
+             # Si es automático, solo roles específicos
+             query = query.in_("rol", ["SOCIO", "COMERCIO"])
+
+        socios_res = query.ilike("nombre_apellido", "%Vic Tor%").execute()
         socios = socios_res.data
         
         detectados = 0
@@ -2501,7 +2559,14 @@ def get_mis_pagos(current_user = Depends(get_current_user)):
 
 @app.get("/api/admin/users/{user_id}/activity")
 def get_user_activity(user_id: str, admin_user = Depends(get_current_admin)):
+    """Consulta el historial de actividades de un socio específico"""
     try:
+        # Validar UUID
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            return {"activity": []} # Si es simulado o inválido, retornar vacío
+            
         res = supabase.table("activity_log") \
             .select("*") \
             .eq("socio_id", user_id) \
@@ -2514,16 +2579,24 @@ def get_user_activity(user_id: str, admin_user = Depends(get_current_admin)):
 # 12.6 REPORTES: Exportación de Socios (Excel/PDF)
 @app.get("/api/admin/reports/socios/excel")
 def exportar_socios_excel(admin_user = Depends(get_current_admin)):
-    """Genera un reporte en CSV optimizado para Excel con la lista de socios."""
+    """Genera un reporte en Excel (.xlsx) nativo con la lista de socios."""
     try:
         import pandas as pd
-        res = supabase.table("profiles").select("nombre_apellido, dni, email, telefono, estado, municipio, created_at").eq("rol", "SOCIO").execute()
+        # Consultar socios y comercios (que actúan como socios en el sistema)
+        print(f"[REPORTS] Solicitando perfiles para rol: SOCIO, COMERCIO, ADMIN")
+        res = supabase.table("profiles") \
+            .select("nombre_apellido, dni, email, telefono, estado, municipio, created_at, rol") \
+            .in_("rol", ["SOCIO", "COMERCIO", "ADMIN"]) \
+            .execute()
+        
+        print(f"[REPORTS] Datos encontrados: {len(res.data) if res.data else 0}")
+            
         if not res.data:
             return JSONResponse(status_code=404, content={"detail": "No hay socios para exportar"})
             
         df = pd.DataFrame(res.data)
         
-        # Limpieza y renombramiento para Excel
+        # Mapeo de nombres de columnas
         cols_map = {
             "nombre_apellido": "Nombre y Apellido",
             "dni": "DNI",
@@ -2538,19 +2611,27 @@ def exportar_socios_excel(admin_user = Depends(get_current_admin)):
         # Formatear fecha
         df["Fecha de Alta"] = pd.to_datetime(df["Fecha de Alta"]).dt.strftime("%d/%m/%Y")
         
-        # Crear CSV en memoria (UTF-8 con BOM para que Excel reconozca tildes)
-        stream = io.StringIO()
-        df.to_csv(stream, index=False, sep=";", encoding="utf-8-sig")
+        # Crear Excel en memoria
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Socios')
+            
+            # Ajustar ancho de columnas automáticamente (opcional pero profesional)
+            worksheet = writer.sheets['Socios']
+            for i, col in enumerate(df.columns):
+                column_len = max(df[col].astype(str).str.len().max(), len(col)) + 2
+                worksheet.column_dimensions[chr(65 + i)].width = min(column_len, 50)
+
+        output.seek(0)
         
-        response = StreamingResponse(
-            iter([stream.getvalue()]),
-            media_type="text/csv"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=socios_sociedad_rural.xlsx"}
         )
-        response.headers["Content-Disposition"] = "attachment; filename=socios_sociedad_rural.csv"
-        return response
     except Exception as e:
         print(f"Error en reporte excel: {e}")
-        raise HTTPException(status_code=500, detail="Error al generar el reporte")
+        raise HTTPException(status_code=500, detail="Error al generar el reporte Excel")
 
 @app.get("/api/admin/reports/socios/pdf")
 def exportar_socios_pdf(admin_user = Depends(get_current_admin)):
@@ -2561,7 +2642,11 @@ def exportar_socios_pdf(admin_user = Depends(get_current_admin)):
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib import colors
         
-        res = supabase.table("profiles").select("nombre_apellido, dni, estado, telefono, municipio").eq("rol", "SOCIO").execute()
+        res = supabase.table("profiles") \
+            .select("nombre_apellido, dni, estado, telefono, municipio, rol") \
+            .in_("rol", ["SOCIO", "COMERCIO", "ADMIN"]) \
+            .execute()
+        print(f"[REPORTS-PDF] Datos encontrados: {len(res.data) if res.data else 0}")
         data = res.data
         
         buffer = io.BytesIO()
@@ -2611,7 +2696,7 @@ def exportar_socios_pdf(admin_user = Depends(get_current_admin)):
         buffer.seek(0)
         
         return StreamingResponse(buffer, media_type="application/pdf", headers={
-            "Content-Disposition": "attachment; filename=reporte_socios_sociedad_rural.pdf"
+            "Content-Disposition": "attachment; filename=reporte_socios.pdf"
         })
     except Exception as e:
         print(f"Error en reporte PDF: {e}")
@@ -2628,7 +2713,12 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         # 1. Validar Token de Seguridad (si está configurado)
         secret_header = request.headers.get("webhook-secret")
         env_secret = os.getenv("WEBHOOK_SECRET_TOKEN")
+        
+        # Log inicial para debug
+        print(f"[WEBHOOK] Recibida petición. Header secret: {secret_header}")
+
         if env_secret and secret_header != env_secret:
+             print("[WEBHOOK] Error: Webhook secret mismatch.")
              return {"status": "unauthorized"}
 
         data = await request.json()
@@ -2642,6 +2732,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         key = message_data.get("key", {})
         
         if key.get("fromMe"):
+            print("[WEBHOOK] Mensaje ignorado porque es 'fromMe' (del propio bot).")
             return {"status": "self-message-ignored"}
 
         remote_jid = key.get("remoteJid", "")
@@ -2658,8 +2749,9 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         elif "extendedTextMessage" in msg_obj:
             msg_text = msg_obj["extendedTextMessage"].get("text", "")
         
-        import re
-        msg_text = msg_text.strip().upper()
+        msg_text_upper = msg_text.strip().upper()
+        print(f"[WEBHOOK] De: {numero_sender} | Msg: {msg_text_upper}")
+
         # Palabras clave que activan el bot (petición de estado)
         keywords_estado = ["DEUDA", "ESTADO", "PAGOS", "VENCIMIENTO", "CUOTAS", "SALDO", "VENCIMIENTOS"]
         
@@ -2667,12 +2759,15 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         # Usamos regex para asegurar que sean palabras completas (evita coincidir con "SIEMPRE" o "SILLA")
         keywords_afirmacion = [r"\bSI\b", r"\bSÍ\b", r"\bACEPTO\b", r"\bPAGAR\b", r"\bQUIERO PAGAR\b", r"\bDALE\b", r"\bOK\b", r"\bOKAY\b"]
         
-        match_estado = any(kw in msg_text for kw in keywords_estado)
-        match_afirmacion = any(re.search(pat, msg_text) for pat in keywords_afirmacion)
+        match_estado = any(kw in msg_text_upper for kw in keywords_estado)
+        match_afirmacion = any(re.search(pat, msg_text_upper) for pat in keywords_afirmacion)
+
+        print(f"[WEBHOOK] Match Estado: {match_estado} | Match Afirmación: {match_afirmacion}")
 
         if match_estado or match_afirmacion:
             # Identificar al socio por los últimos 10 dígitos (formato Argentina)
             diez_digitos = "".join(filter(str.isdigit, numero_sender))[-10:]
+            print(f"[WEBHOOK] Buscando socio con últimos 10 dígitos: {diez_digitos}")
             
             res_user = supabase.table("profiles") \
                 .select("id, nombre_apellido, estado") \
@@ -2680,10 +2775,11 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
                 .execute()
             
             if not res_user.data:
-                # Si no lo encontramos, no respondemos para no spamear o podemos responder algo genérico
+                print(f"[WEBHOOK] Socio no encontrado para el número: {diez_digitos}")
                 return {"status": "user-not-found"}
 
             socio = res_user.data[0]
+            print(f"[WEBHOOK] Socio encontrado: {socio['nombre_apellido']} (ID: {socio['id']})")
             
             # Buscar cuotas en estado PENDIENTE
             res_pagos = supabase.table("pagos_cuotas") \
@@ -2694,10 +2790,12 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
                 .execute()
             
             if not res_pagos.data:
+                print(f"[WEBHOOK] El socio {socio['nombre_apellido']} no tiene deudas.")
                 msg_ok = f"¡Hola {socio['nombre_apellido']}! 👋 No registramos cuotas pendientes a tu nombre. Tu cuenta está al día. ¡Muchas gracias!"
                 background_tasks.add_task(enviar_whatsapp, numero_sender, msg_ok)
             else:
                 total = sum(float(p["monto"]) for p in res_pagos.data)
+                print(f"[WEBHOOK] Deuda total calculada para {socio['nombre_apellido']}: ${total}")
                 detalle = ""
                 for p in res_pagos.data:
                     # Formatear fecha YYYY-MM-DD a MM/YYYY
@@ -2710,7 +2808,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
                     f"{detalle}\n"
                     f"*Total adeudado: ${total:,.0f}*\n\n"
                     "Podés abonar y subir tu comprobante de transferencia siguiendo este link:\n"
-                    "https://sociedadruraldelnorte.agentech.ar/cuotas\n\n"
+                    "https://sociedadruraldelnorte.agentech.ar/pagar-cuota\n\n"
                     "_Muchas gracias! Sociedad Rural del Norte de Corrientes._"
                 )
                 background_tasks.add_task(enviar_whatsapp, numero_sender, msg_deuda)
@@ -2718,6 +2816,8 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         return {"status": "success"}
     except Exception as e:
         print(f"Error procesando Webhook WhatsApp: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"status": "error"}
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -44,7 +44,13 @@ export default function GestionUsuarios() {
         fetchUsers();
     }, [token]);
 
+    const isSimulationId = (id: string) => id.startsWith('simulacion-');
+
     const handleStatusChange = async (userId: string, newStatus: string) => {
+        if (isSimulationId(userId)) {
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, estado: newStatus } : u));
+            return;
+        }
         try {
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/users/${userId}/status`, {
                 method: 'PUT',
@@ -66,6 +72,12 @@ export default function GestionUsuarios() {
 
     const handleDeleteUser = async () => {
         if (!actionUser) return;
+        if (isSimulationId(actionUser.id)) {
+            setUsers(prev => prev.filter(u => u.id !== actionUser.id));
+            setSuccessMessage(`El usuario ${actionUser.name} (Simulado) ha sido eliminado de la vista.`);
+            setActionType('SUCCESS_MSG');
+            return;
+        }
         setActionLoading(true);
         try {
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/users/${actionUser.id}`, {
@@ -89,6 +101,11 @@ export default function GestionUsuarios() {
 
     const handleResetPassword = async () => {
         if (!actionUser) return;
+        if (isSimulationId(actionUser.id)) {
+            setSuccessMessage(`Se ha restablecido la contraseña de ${actionUser.name} (SIMULADO).\n\nContraseña temporal: SRNC2026!\n\n(Nota: Esto es una simulación visual).`);
+            setActionType('SUCCESS_MSG');
+            return;
+        }
         setActionLoading(true);
         try {
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/users/${actionUser.id}/reset-password`, {
@@ -113,6 +130,14 @@ export default function GestionUsuarios() {
 
     const fetchActivity = async (targetUser: Socio) => {
         setViewingUser(targetUser);
+        if (isSimulationId(targetUser.id)) {
+            setSelectedUserActivity([
+                { id: 1, tipo_evento: 'LOGIN', descripcion: 'Ingreso simulado', created_at: new Date().toISOString() },
+                { id: 2, tipo_evento: 'MORA_DETECTADA', descripcion: 'Sistema detectó deuda', created_at: new Date().toISOString() }
+            ]);
+            setLoadingActivity(false);
+            return;
+        }
         setLoadingActivity(true);
         setSelectedUserActivity([]);
         try {
