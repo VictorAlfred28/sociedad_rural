@@ -58,7 +58,7 @@ def tarea_automatica_mora():
     
     try:
         socios_res = supabase.table("profiles").select("id, nombre_apellido, telefono") \
-            .eq("rol", "SOCIO").eq("estado", "APROBADO").execute()
+            .eq("rol", "SOCIO").in_("estado", ["APROBADO", "RESTRINGIDO"]).execute()
         socios = socios_res.data or []
         detectados = 0
         
@@ -2409,8 +2409,9 @@ def detectar_mora(request: Request, background_tasks: BackgroundTasks, admin_use
         anio_actual = hoy.year
         fecha_venci = f"{anio_actual}-{mes_actual:02d}-10"
         
-        # Obtenemos todos los socios aprobados
-        socios_res = supabase.table("profiles").select("id, nombre_apellido, telefono").eq("rol", "SOCIO").eq("estado", "APROBADO").execute()
+        # Obtenemos todos los socios aprobados y restringidos
+        socios_res = supabase.table("profiles").select("id, nombre_apellido, telefono") \
+            .eq("rol", "SOCIO").in_("estado", ["APROBADO", "RESTRINGIDO"]).execute()
         socios = socios_res.data
         
         detectados = 0
