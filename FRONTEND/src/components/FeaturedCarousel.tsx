@@ -46,7 +46,7 @@ const DEFAULT_ITEMS = [
 
 export default function FeaturedCarousel({ promociones, onViewPromotion }: FeaturedCarouselProps) {
     const [index, setIndex] = useState(0);
-    const items = promociones.length > 0 ? promociones : DEFAULT_ITEMS;
+    const items = promociones && promociones.length > 0 ? promociones : DEFAULT_ITEMS;
 
     useEffect(() => {
         if (items.length <= 1) return;
@@ -65,7 +65,7 @@ export default function FeaturedCarousel({ promociones, onViewPromotion }: Featu
     const cfg = TIPO_CFG[current.tipo as keyof typeof TIPO_CFG] || TIPO_CFG.promocion;
 
     return (
-        <div className="relative w-full h-44 overflow-hidden rounded-[32px] bg-slate-200 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none">
+        <div className="relative w-full h-44 overflow-hidden rounded-[32px] bg-slate-900 border border-slate-200/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none isolate">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={current.id}
@@ -73,52 +73,58 @@ export default function FeaturedCarousel({ promociones, onViewPromotion }: Featu
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
-                    className={`absolute inset-0 bg-gradient-to-br ${cfg.color} p-6 flex flex-col justify-center text-white`}
+                    className="absolute inset-0 p-6 flex flex-col justify-center text-white"
                 >
-                    {/* Background Image if exists */}
-                    {current.imagen_url && (
-                        <div className="absolute inset-0 opacity-20 pointer-events-none">
-                            <img src={current.imagen_url} alt="" className="w-full h-full object-cover" />
+                    {/* Background Layer */}
+                    {current.imagen_url ? (
+                        <div className="absolute inset-0 -z-10 bg-slate-900">
+                            <img src={current.imagen_url} alt="" className="w-full h-full object-cover opacity-70" />
+                            {/* Dark gradient overlay para asegurar contraste en textos */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-transparent" />
                         </div>
+                    ) : (
+                        <div className={`absolute inset-0 -z-10 bg-gradient-to-br ${cfg.color}`} />
                     )}
 
-                    <div className="flex items-center gap-5 relative z-10">
-                        <div className="size-16 rounded-[22px] bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg overflow-hidden shrink-0">
-                            {current.imagen_url ? (
-                                <img src={current.imagen_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
+                    {/* Contenido (Textos, Iconos, Botón) */}
+                    <div className="flex items-center gap-5 relative z-10 w-full pr-16 text-left">
+                        {/* Contenedor Izquierdo: Icono (solo si no hay imagen de fondo) */}
+                        {!current.imagen_url && (
+                            <div className="size-16 rounded-[22px] bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg shrink-0">
                                 <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>
                                     {cfg.icon}
                                 </span>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-white/10 text-white px-2.5 py-1 rounded-full backdrop-blur-md border border-white/20 shadow-sm">
                                     {current.comercio?.nombre_apellido || 'S.R.N.C'}
                                 </span>
                                 {current.descuento_porcentaje && (
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-white text-slate-900 px-2 py-0.5 rounded-full">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-primary text-slate-900 px-2.5 py-1 rounded-full shadow-[0_0_15px_rgba(255,200,0,0.6)]">
                                         -{current.descuento_porcentaje}%
                                     </span>
                                 )}
                             </div>
-                            <h3 className="text-lg font-black tracking-tight leading-tight mb-1 uppercase italic truncate">
+                            <h3 className="text-xl font-black tracking-tight leading-tight mb-1.5 uppercase italic truncate text-white drop-shadow-md">
                                 {current.titulo}
                             </h3>
-                            <p className="text-white/90 text-xs font-medium leading-snug line-clamp-2 max-w-[220px]">
+                            <p className="text-white/80 text-xs font-medium leading-snug line-clamp-2 max-w-[240px]">
                                 {current.descripcion}
                             </p>
                         </div>
                     </div>
 
                     {/* Action Button */}
-                    <div className="absolute top-6 right-6 z-20">
+                    <div className="absolute top-5 right-5 z-20">
                         <button
                             onClick={() => onViewPromotion(current.comercio)}
-                            className="bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/40 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                            className="bg-primary hover:bg-primary/90 text-slate-900 pl-4 pr-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-primary/30 flex items-center justify-center gap-1 border border-primary/20 backdrop-blur-sm"
                         >
-                            Ver Promo
+                            Ver
+                            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                         </button>
                     </div>
 
@@ -128,17 +134,20 @@ export default function FeaturedCarousel({ promociones, onViewPromotion }: Featu
                             {items.map((_, i) => (
                                 <div
                                     key={i}
-                                    className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? 'w-6 bg-white' : 'w-1.5 bg-white/40'}`}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? 'w-6 bg-primary shadow-[0_0_8px_rgba(255,200,0,0.6)]' : 'w-1.5 bg-white/30'}`}
                                 />
                             ))}
                         </div>
                     )}
 
-                    <div className="absolute bottom-0 right-0 p-4 opacity-10 pointer-events-none translate-x-1/4 translate-y-1/4">
-                        <span className="material-symbols-outlined text-[120px] leading-none" style={{ fontVariationSettings: "'FILL' 1" }}>
-                            {cfg.icon}
-                        </span>
-                    </div>
+                    {/* Decoración Icono (solo si no hay imagen de fondo) */}
+                    {!current.imagen_url && (
+                        <div className="absolute bottom-0 right-0 p-4 opacity-10 pointer-events-none translate-x-1/4 translate-y-1/4 -z-10">
+                            <span className="material-symbols-outlined text-[120px] leading-none" style={{ fontVariationSettings: "'FILL' 1" }}>
+                                {cfg.icon}
+                            </span>
+                        </div>
+                    )}
                 </motion.div>
             </AnimatePresence>
         </div>
