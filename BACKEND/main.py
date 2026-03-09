@@ -1594,7 +1594,7 @@ async def upload_foto(file: UploadFile = File(...), current_user = Depends(get_c
         res_storage = supabase.storage.from_("business-logos").upload(
             path=file_path,
             file=file_content,
-            file_options={"content-type": file.content_type, "upsert": True}
+            file_options={"content-type": file.content_type, "upsert": "true"}
         )
         
         # 3. Obtener URL pública
@@ -1624,7 +1624,7 @@ async def upload_oferta_foto(file: UploadFile = File(...), current_user = Depend
             supabase.storage.from_("business-logos").upload(
                 path=filename,
                 file=file_content,
-                file_options={"content-type": file.content_type, "upsert": True}
+                file_options={"content-type": file.content_type, "upsert": "true"}
             )
         except Exception as storage_err:
             # Si el bucket no existe en el primer intento, loggeamos el error
