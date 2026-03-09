@@ -12,6 +12,7 @@ interface Oferta {
   tipo: 'promocion' | 'descuento' | 'beneficio';
   descuento_porcentaje: number | null;
   fecha_fin: string | null;
+  imagen_url: string | null;
   comercio?: { nombre_apellido: string; rubro: string; municipio: string };
 }
 interface Comercio {
@@ -337,17 +338,31 @@ export default function Promociones() {
 
                       <div className="p-6">
                         <div className="flex items-start gap-5">
-                          <div className={`size-16 shrink-0 rounded-[22px] bg-gradient-to-br ${cfg.gradFrom} ${cfg.gradTo} p-0.5 shadow-lg shadow-primary/10`}>
-                            <div className="w-full h-full rounded-[20px] bg-white/10 flex flex-col items-center justify-center text-white backdrop-blur-sm">
-                              {oferta.descuento_porcentaje ? (
-                                <>
-                                  <span className="text-2xl font-black">-{oferta.descuento_porcentaje}</span>
-                                  <span className="text-[10px] font-bold opacity-80 mt-[-4px]">%</span>
-                                </>
-                              ) : (
-                                <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>{cfg.icon}</span>
-                              )}
-                            </div>
+                          {/* Contenedor de Imagen o Icono */}
+                          <div className={`size-16 shrink-0 rounded-[22px] bg-gradient-to-br ${cfg.gradFrom} ${cfg.gradTo} p-0.5 shadow-lg shadow-primary/10 overflow-hidden`}>
+                            {oferta.imagen_url ? (
+                              <img
+                                src={oferta.imagen_url}
+                                alt={oferta.titulo}
+                                className="w-full h-full object-cover rounded-[20px]"
+                                onError={(e) => {
+                                  // Fallback si la imagen falla
+                                  (e.target as HTMLImageElement).src = '';
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full rounded-[20px] bg-white/10 flex flex-col items-center justify-center text-white backdrop-blur-sm">
+                                {oferta.descuento_porcentaje ? (
+                                  <>
+                                    <span className="text-2xl font-black">-{oferta.descuento_porcentaje}</span>
+                                    <span className="text-[10px] font-bold opacity-80 mt-[-4px]">%</span>
+                                  </>
+                                ) : (
+                                  <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>{cfg.icon}</span>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex-1 min-w-0">
