@@ -58,8 +58,8 @@ CREATE TABLE public.user_roles (
     UNIQUE(user_id, role_id)
 );
 
--- auditoria (Reemplaza a auditoria_logs para simplificar frontend/backend roles)
-CREATE TABLE public.auditoria (
+-- auditoria_logs
+CREATE TABLE public.auditoria_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id UUID,
     email_usuario VARCHAR,
@@ -72,7 +72,7 @@ CREATE TABLE public.auditoria (
     modulo VARCHAR,
     ip_address TEXT,
     user_agent TEXT,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    fecha TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- comercios
@@ -237,6 +237,15 @@ CREATE TABLE public.activity_log (
     descripcion TEXT,
     usuario_id UUID REFERENCES public.profiles(id),
     fecha TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- push_tokens
+CREATE TABLE public.push_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    plataforma TEXT DEFAULT 'web',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 
