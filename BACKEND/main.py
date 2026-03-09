@@ -284,6 +284,9 @@ class UpdateProfileRequest(BaseModel):
     email: Optional[str] = None
     direccion: Optional[str] = None
 
+class ChangePasswordRequest(BaseModel):
+    new_password: str
+
 class CreateAdminRequest(BaseModel):
     username: str
     email: EmailStr
@@ -1816,7 +1819,74 @@ def update_profile(req: UpdateProfileRequest, request: Request,background_tasks:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=f"Error al editar usuario: {str(e)}")
 
-# ── ENDPOINTS GESTIÓN DE DEPENDIENTES (ADHERENTES / EMPLEADOS) ────────────────
+@app.post("/api/perfil/cambiar-password")
+def change_my_password(req: ChangePasswordRequest, request: Request, background_tasks: BackgroundTasks, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Permite al usuario autenticado cambiar su propia contraseña.
+    Detecta si es el Superadmin en modo bypass para usar privilegios de admin.
+    """
+    token = credentials.credentials
+    try:
+        user_id = None
+        user_email = None
+        
+        # 1. Identificar usuario (con soporte para bypass)
+        if token == SUPABASE_SERVICE_KEY:
+             # Modo Bypass Superadmin
+             res = supabase.table("profiles").select("id, email").eq("email", "victoralfredo2498@gmail.com").execute()
+             if res.data:
+                 user_id = res.data[0]["id"]
+                 user_email = res.data[0]["email"]
+        else:
+            # Modo standard
+            user_res = supabase.auth.get_user(token)
+            if not user_res or not user_res.user:
+                raise HTTPException(status_code=401, detail="Token inválido")
+            user_id = user_res.user.id
+            user_email = user_res.user.email
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Usuario no identificado")
+
+        # 2. Validar contraseña
+        if len(req.new_password) < 6:
+            raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres")
+
+        # 3. Aplicar cambio
+        if token == SUPABASE_SERVICE_KEY:
+            # El superadmin (bypass) usa admin privileges para auto-cambiarse
+            supabase.auth.admin.update_user_by_id(user_id, {"password": req.new_password})
+        else:
+            # Usuario normal usa su propio token mediante un cliente auth local
+            # NOTA: supabase-py auth.update_user requiere el token en el cliente
+            auth_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY if SUPABASE_ANON_KEY else SUPABASE_SERVICE_KEY)
+            auth_client.posthash = token # Hack para pasar el user token al cliente si es necesario, 
+            # pero mejor usamos el método standard de supabase-py:
+            # supabase.auth.set_session(access_token, refresh_token)
+            # Para simplificar y dado que tenemos la SERVICE_KEY:
+            supabase.auth.admin.update_user_by_id(user_id, {"password": req.new_password})
+
+        # 4. Marcar como cambiada en profile
+        supabase.table("profiles").update({"password_changed": True}).eq("id", user_id).execute()
+
+        # 5. Auditoría
+        background_tasks.add_task(registrar_auditoria, 
+            usuario_id=user_id,
+            email_usuario=user_email,
+            rol_usuario=None,
+            accion="SELF_CHANGE_PASSWORD",
+            tabla="auth.users",
+            registro_id=user_id,
+            datos_anteriores=None,
+            datos_nuevos={"status": "Contraseña actualizada por el usuario"},
+            modulo="Perfil",
+            request=request
+        )
+
+        return {"message": "Contraseña actualizada correctamente"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=f"Error al cambiar contraseña: {str(e)}")
 @app.get("/api/mis-dependientes")
 def get_mis_dependientes(current_user = Depends(get_current_user)):
     """Retorna los adherentes/empleados del usuario actual."""
