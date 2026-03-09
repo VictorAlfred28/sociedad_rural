@@ -594,10 +594,12 @@ def login(credentials: LoginRequest, request: Request):
             raise HTTPException(status_code=500, detail="Perfil no encontrado en base de datos")
             
         profile = profile_res.data[0]
+        print(f"User profile state: {profile.get('estado')}")
         
         # Validar si está pendiente o suspendido (Bloquear aquí en el login)
-        if profile["estado"] not in ["APROBADO", "RESTRINGIDO"]:
-            raise HTTPException(status_code=403, detail=f"Su usuario se encuentra {profile['estado']}. Contacte a la Administración.")
+        if profile.get("estado") not in ["APROBADO", "RESTRINGIDO"]:
+            print(f"Login blocked due to state: {profile.get('estado')}")
+            raise HTTPException(status_code=403, detail=f"Su usuario se encuentra {profile.get('estado')}. Contacte a la Administración.")
 
         # Validación: PRIMER LOGIN OBLIGATORIO SI USA PASS POR DEFECTO O FUE RESTABLECIDA POR ADMIN
         necesita_cambio_password = False
@@ -607,12 +609,20 @@ def login(credentials: LoginRequest, request: Request):
             
         # Auditoría de Login para Administradores
         # Verificamos si tiene rol SUPERADMIN o ADMINISTRADOR (o si su rol base es ADMIN)
+        print("Fetching user roles...")
         roles_res = supabase.table("user_roles").select("roles(nombre)").eq("user_id", user.id).execute()
         user_roles_list = []
         if roles_res.data:
-            user_roles_list = [item["roles"]["nombre"] for item in roles_res.data if item.get("roles")]
+            print(f"Raw roles data: {roles_res.data}")
+            for item in roles_res.data:
+                role_obj = item.get("roles")
+                if isinstance(role_obj, dict):
+                    user_roles_list.append(role_obj.get("nombre"))
+                elif isinstance(role_obj, list) and len(role_obj) > 0:
+                    user_roles_list.append(role_obj[0].get("nombre"))
             
         profile["user_roles"] = user_roles_list
+        print(f"Roles assigned: {user_roles_list}")
         
         # Si es admin de algún tipo, registrar el acceso
         if profile.get("rol") == "ADMIN" or "SUPERADMIN" in user_roles_list or "ADMINISTRADOR" in user_roles_list:
