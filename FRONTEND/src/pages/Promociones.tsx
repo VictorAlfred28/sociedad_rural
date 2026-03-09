@@ -428,19 +428,38 @@ export default function Promociones() {
                         <div className="h-px bg-slate-100 dark:bg-slate-800 my-4" />
 
                         <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3 overflow-hidden">
-                            <div className={`size-9 rounded-xl ${RUBRO_COLOR[oferta.comercio?.rubro || 'otro']} flex items-center justify-center text-white shrink-0`}>
-                              <span className="material-symbols-outlined text-lg">{RUBRO_ICON[oferta.comercio?.rubro || 'otro']}</span>
-                            </div>
-                            <div className="min-w-0">
+                          <div className="flex items-center gap-3 overflow-hidden flex-1">
+                            {/* Interactive Category Icon */}
+                            <button
+                              onClick={() => {
+                                setFiltroRubro(oferta.comercio?.rubro || 'otro');
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className={`size-10 rounded-xl ${RUBRO_COLOR[oferta.comercio?.rubro || 'otro']} flex items-center justify-center text-white shrink-0 shadow-lg shadow-current/20 hover:scale-110 active:scale-95 transition-all group/rubro relative`}
+                              title={`Filtrar por ${RUBRO_LABELS[oferta.comercio?.rubro || 'otro']}`}
+                            >
+                              <span className="material-symbols-outlined text-xl">{RUBRO_ICON[oferta.comercio?.rubro || 'otro']}</span>
+                              {/* Tooltip simple */}
+                              <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover/rubro:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 font-bold">
+                                {RUBRO_LABELS[oferta.comercio?.rubro || 'otro']}
+                              </span>
+                            </button>
+
+                            <div className="min-w-0 flex-1">
                               <p className="text-xs font-black truncate text-slate-800 dark:text-white uppercase tracking-tight">{oferta.comercio?.nombre_apellido}</p>
                               <div className="flex items-center gap-2">
-                                <p className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                                  <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                  {oferta.comercio?.municipio}
-                                </p>
+                                <button
+                                  onClick={() => {
+                                    setFiltroMunicipio(oferta.comercio?.municipio || 'todos');
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  className="text-[10px] text-slate-400 hover:text-primary flex items-center gap-0.5 transition-colors group/muni"
+                                >
+                                  <span className="material-symbols-outlined text-[12px] group-hover/muni:animate-bounce">location_on</span>
+                                  <span className="border-b border-transparent group-hover/muni:border-primary/50">{oferta.comercio?.municipio}</span>
+                                </button>
                                 {oferta.comercio?.municipio === user?.municipio && (
-                                  <span className="text-[8px] font-black uppercase text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">Cerca</span>
+                                  <span className="text-[8px] font-black uppercase text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded shadow-sm border border-emerald-500/20">Cerca</span>
                                 )}
                               </div>
                             </div>
@@ -448,7 +467,7 @@ export default function Promociones() {
 
                           <button
                             onClick={() => handleOpenMap(oferta.comercio)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 transition-all border border-slate-100 dark:border-slate-700 shrink-0 text-[10px] font-black uppercase tracking-widest"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 text-primary hover:bg-slate-800 dark:hover:bg-slate-700 transition-all border border-slate-800 dark:border-slate-700 shrink-0 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
                           >
                             <span className="material-symbols-outlined text-lg">explore</span>
                             Ver
