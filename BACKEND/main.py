@@ -3385,28 +3385,30 @@ def emergency_fix_superadmin():
     y asegura que su perfil tenga el DNI y roles correctos.
     """
     target_email = "victoralfredo2498@gmail.com"
-    new_password = "x3n3iz3@41"
+    new_password = "Admin1234!" # Contraseña simplificada para evitar errores de tipeo
     target_dni = "31435789"
     
     try:
-        # 1. Buscar el ID del usuario por email en profiles
-        # (Supabase Python Admin no tiene directo get_user_by_email, usamos profile id)
+        # 1. Buscar en profiles para obtener el ID real
         res_prof = supabase.table("profiles").select("id").eq("email", target_email).execute()
         if not res_prof.data:
-            return {"status": "error", "message": f"Usuario {target_email} no encontrado en profiles."}
+            return {"status": "error", "message": f"No existe el perfil con email {target_email} en la tabla profiles."}
         
         user_id = res_prof.data[0]["id"]
         
-        # 2. Actualizar contraseña en Supabase Auth
-        supabase.auth.admin.update_user_by_id(
-            user_id,
-            {
-                "password": new_password,
-                "email_confirm": True
-            }
-        )
+        # 2. Intentar actualizar en Auth
+        try:
+            supabase.auth.admin.update_user_by_id(
+                user_id,
+                {
+                    "password": new_password,
+                    "email_confirm": True
+                }
+            )
+        except Exception as auth_err:
+            return {"status": "error", "message": f"Error actualizando Auth User ID {user_id}: {str(auth_err)}"}
         
-        # 3. Asegurar DNI y roles en Base de Datos (Por si acaso falló el SQL previo)
+        # 3. Asegurar datos en public.profiles
         supabase.table("profiles").update({
             "dni": target_dni,
             "username": "Superadmin",
@@ -3415,7 +3417,7 @@ def emergency_fix_superadmin():
             "password_changed": True
         }).eq("id", user_id).execute()
         
-        # 4. Asignar roles SUPERADMIN y SOCIO en user_roles
+        # 4. Asegurar Roles
         role_res = supabase.table("roles").select("id, nombre").execute()
         roles_dict = {r["nombre"]: r["id"] for r in role_res.data}
         
@@ -3433,10 +3435,15 @@ def emergency_fix_superadmin():
 
         return {
             "status": "success", 
-            "message": f"Acceso para {target_email} (DNI: {target_dni}) restaurado con éxito. Ya puede loguearse."
+            "message": f"Cuenta restaurada. Intente entrar con {target_email} y la contraseña: {new_password}",
+            "diagnostics": {
+                "user_id": user_id,
+                "dni_assigned": target_dni,
+                "roles_verified": True
+            }
         }
     except Exception as e:
-        return {"status": "error", "message": f"Error en restauración: {str(e)}"}
+        return {"status": "error", "message": f"Fallo crítico: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
