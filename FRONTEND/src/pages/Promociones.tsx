@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import BottomNav from '../components/BottomNav';
 import { Link } from 'react-router-dom';
 import FeaturedCarousel from '../components/FeaturedCarousel';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../context/AuthContext';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface Oferta {
@@ -13,6 +14,7 @@ interface Oferta {
   descuento_porcentaje: number | null;
   fecha_fin: string | null;
   imagen_url: string | null;
+  created_at?: string;
   comercio?: { nombre_apellido: string; rubro: string; municipio: string };
 }
 interface Comercio {
@@ -74,6 +76,7 @@ type Tab = 'ofertas' | 'comercios';
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 export default function Promociones() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('ofertas');
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [comercios, setComercios] = useState<Comercio[]>([]);
@@ -116,6 +119,26 @@ export default function Promociones() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Lógica de Priorización para Banners
+  const ofertasDestacadas = useMemo(() => {
+    let filtradas = ofertas;
+
+    // 1. Prioridad: Municipio del socio
+    const delMunicipio = ofertas.filter(o => o.comercio?.municipio === user?.municipio);
+
+    if (delMunicipio.length > 0) {
+      filtradas = delMunicipio;
+    }
+
+    // 2. Ordenar por fecha y luego descuento
+    return [...filtradas].sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (dateB !== dateA) return dateB - dateA;
+      return (b.descuento_porcentaje || 0) - (a.descuento_porcentaje || 0);
+    }).slice(0, 5); // Tomar las mejores 5
+  }, [ofertas, user?.municipio]);
+
   const handleOpenMap = (comercio?: Comercio | any) => {
     const term = comercio
       ? `${comercio.nombre_apellido || comercio.nombre_comercio} ${comercio.municipio || ''}`
@@ -127,7 +150,16 @@ export default function Promociones() {
 
   const ofertasFiltradas = ofertas.filter(o => {
     const matchRubro = filtroRubro === 'todos' || o.comercio?.rubro === filtroRubro;
-    const matchMun = filtroMunicipio === 'todos' || o.comercio?.municipio === filtroMunicipio;
+
+    // Si filtroMunicipio es 'todos', mostramos las que NO son del municipio del socio (sección inferior)
+    // Pero si el usuario seleccionó un municipio específico en el dropdown, mostramos ese.
+    let matchMun = false;
+    if (filtroMunicipio === 'todos') {
+      matchMun = o.comercio?.municipio !== user?.municipio;
+    } else {
+      matchMun = o.comercio?.municipio === filtroMunicipio;
+    }
+
     return matchRubro && matchMun;
   });
 
@@ -208,7 +240,7 @@ export default function Promociones() {
           </div>
         </div>
 
-        {/* ── Nuevo Selector de Municipio Dropdown XL ── */}
+        {/* ── Selector de Municipio ── */}
         <div className="px-4 pb-4 flex gap-2">
           <div className="relative flex-1" ref={dropdownRef}>
             <button
@@ -217,7 +249,9 @@ export default function Promociones() {
             >
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-                <span className="truncate max-w-[150px]">{filtroMunicipio === 'todos' ? 'Todas las Localidades' : filtroMunicipio}</span>
+                <span className="truncate max-w-[150px]">
+                  {filtroMunicipio === 'todos' ? 'Otros Municipios' : filtroMunicipio}
+                </span>
               </div>
               <span className={`material-symbols-outlined text-slate-400 transition-transform duration-300 ${showMunDropdown ? 'rotate-180' : ''}`}>expand_more</span>
             </button>
@@ -235,7 +269,7 @@ export default function Promociones() {
                     className={`w-full flex items-center gap-3 p-3 rounded-2xl text-left text-sm font-bold transition-all ${filtroMunicipio === 'todos' ? 'bg-primary/10 text-primary' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
                   >
                     <span className="material-symbols-outlined text-lg">public</span>
-                    Toda la Provincia
+                    Ver Otros
                   </button>
                   <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2" />
                   {municipios.map(m => (
@@ -266,12 +300,23 @@ export default function Promociones() {
       {/* ══ CONTENIDO ═══════════════════════════════════════════════════════ */}
       <main className="flex-1 pb-28">
 
-        {/* Banner Carousel */}
+        {/* Banner Carousel dinámico */}
         <div className="p-4">
-          <FeaturedCarousel />
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-primary animate-ping"></span>
+              Promociones Locales
+            </h2>
+            {user?.municipio && (
+              <span className="text-[10px] font-black uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-lg border border-primary/20">
+                {user.municipio}
+              </span>
+            )}
+          </div>
+          <FeaturedCarousel promociones={ofertasDestacadas} onViewPromotion={handleOpenMap} />
         </div>
 
-        {/* ── Filtro rubro (Pills estilizadas) ── */}
+        {/* ── Filtro rubro ── */}
         <div className="px-4 pb-6 overflow-x-auto scrollbar-hide">
           <div className="flex gap-3">
             {RUBROS.map(r => (
@@ -311,13 +356,19 @@ export default function Promociones() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               className="flex flex-col gap-5 px-4"
             >
+              <div className="px-1">
+                <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  Otras Promociones
+                </h2>
+              </div>
+
               {ofertasFiltradas.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="size-24 rounded-[40px] bg-slate-100 dark:bg-slate-900 flex items-center justify-center mb-6">
                     <span className="material-symbols-outlined text-6xl text-slate-300">sentiment_dissatisfied</span>
                   </div>
-                  <h3 className="text-xl font-black text-slate-800 dark:text-white">Sin promociones</h3>
-                  <p className="text-slate-400 text-sm mt-2 max-w-[250px]">No encontramos ofertas para los filtros seleccionados.</p>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-white">Sin ofertas</h3>
+                  <p className="text-slate-400 text-sm mt-2 max-w-[250px]">No hay ofertas adicionales en esta ubicación.</p>
                 </div>
               ) : (
                 ofertasFiltradas.map((oferta, idx) => {
@@ -329,7 +380,7 @@ export default function Promociones() {
                       whileInView={{ opacity: 1, scale: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ delay: idx * 0.05 }}
-                      className="group relative rounded-[32px] overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none active:scale-[0.98] transition-transform"
+                      className="group relative rounded-[32px] overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none active:scale-[0.98] transition-all"
                     >
                       {/* Badge lateral tipo */}
                       <div className={`absolute top-0 right-0 px-5 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-[0.2em] shadow-sm z-10 ${cfg.badge}`}>
@@ -346,7 +397,6 @@ export default function Promociones() {
                                 alt={oferta.titulo}
                                 className="w-full h-full object-cover rounded-[20px]"
                                 onError={(e) => {
-                                  // Fallback si la imagen falla
                                   (e.target as HTMLImageElement).src = '';
                                   (e.target as HTMLImageElement).style.display = 'none';
                                 }}
@@ -384,18 +434,24 @@ export default function Promociones() {
                             </div>
                             <div className="min-w-0">
                               <p className="text-xs font-black truncate text-slate-800 dark:text-white uppercase tracking-tight">{oferta.comercio?.nombre_apellido}</p>
-                              <p className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                                <span className="material-symbols-outlined text-[10px]">location_on</span>
-                                {oferta.comercio?.municipio}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                                  <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                  {oferta.comercio?.municipio}
+                                </p>
+                                {oferta.comercio?.municipio === user?.municipio && (
+                                  <span className="text-[8px] font-black uppercase text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">Cerca</span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
                           <button
                             onClick={() => handleOpenMap(oferta.comercio)}
-                            className="size-10 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 transition-all border border-slate-100 dark:border-slate-700 shrink-0"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary hover:bg-primary/10 transition-all border border-slate-100 dark:border-slate-700 shrink-0 text-[10px] font-black uppercase tracking-widest"
                           >
-                            <span className="material-symbols-outlined text-xl">explore</span>
+                            <span className="material-symbols-outlined text-lg">explore</span>
+                            Ver
                           </button>
                         </div>
                       </div>
