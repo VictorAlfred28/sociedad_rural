@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
@@ -45,6 +45,17 @@ const AdminRoute = ({ children, roles = ['ADMIN', 'CAMARA'] }: { children: React
 
 import { Chatbot } from './components/Chatbot';
 
+const ConditionalChatbot = () => {
+  const { isAuthenticated, user } = useAuth();
+  const location = useLocation();
+  const publicRoutes = ['/login', '/registro', '/registro-paso-2', '/registro-exitoso'];
+
+  if (!isAuthenticated || publicRoutes.includes(location.pathname)) return null;
+  if (user?.rol === 'ADMIN' || user?.rol === 'CAMARA') return null;
+
+  return <Chatbot />;
+};
+
 export default function App() {
   const { isAuthenticated, user } = useAuth();
 
@@ -79,7 +90,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {isAuthenticated && user?.rol !== 'ADMIN' && user?.rol !== 'CAMARA' && <Chatbot />}
+      <ConditionalChatbot />
     </Router>
   );
 }
