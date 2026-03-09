@@ -535,7 +535,7 @@ def register(socio: RegisterRequest, request: Request, background_tasks: Backgro
 # 4. ENDPOINT LOGIN (Diferenciación de DNI y Email con Auth en Supabase)
 @app.post("/api/login")
 @limiter.limit("5/minute")
-def login(credentials: LoginRequest, request: Request):
+def login(credentials: LoginRequest, request: Request, background_tasks: BackgroundTasks):
     identificador_limpio = credentials.identificador.strip()
     password = credentials.password
     
