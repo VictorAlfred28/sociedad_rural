@@ -2,7 +2,7 @@ import os
 import re
 import requests
 import pytz
-from fastapi import FastAPI, HTTPException, status, Request, BackgroundTasks, Query, Form, File, UploadFile
+from fastapi import FastAPI, HTTPException, status, Request, BackgroundTasks, Query, Form, File, UploadFile, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any
@@ -1285,24 +1285,14 @@ class OfertaUpdateRequest(BaseModel):
     descripcion: Optional[str] = None
     imagen_url: Optional[str] = None
 
-# ── Función auxiliar para obtener el comercio_id del JWT ─────────────────────
-def get_current_user_id(authorization: str) -> str:
-    """Extrae el user_id del JWT de Supabase."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token requerido")
-    token = authorization.replace("Bearer ", "")
-    try:
-        user = supabase.auth.get_user(token)
-        return user.user.id
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
 
 # ── ENDPOINTS OFERTAS ─────────────────────────────────────────────────────────
 
 @app.get("/api/ofertas")
-def listar_ofertas(authorization: str = ""):
+def listar_ofertas(user: Any = Depends(get_current_user)):
     """Lista las ofertas del comercio autenticado."""
-    comercio_id = get_current_user_id(authorization)
+    comercio_id = user.id
     try:
         result = supabase.table("ofertas") \
             .select("*") \
@@ -1314,9 +1304,9 @@ def listar_ofertas(authorization: str = ""):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/ofertas", status_code=201)
-def crear_oferta(oferta: OfertaRequest, request: Request, background_tasks: BackgroundTasks, authorization: str = ""):
+def crear_oferta(oferta: OfertaRequest, request: Request, background_tasks: BackgroundTasks, user: Any = Depends(get_current_user)):
     """Crea una nueva oferta para el comercio autenticado."""
-    comercio_id = get_current_user_id(authorization)
+    comercio_id = user.id
     if oferta.tipo not in ["promocion", "descuento", "beneficio"]:
         raise HTTPException(status_code=400, detail="Tipo inválido. Usar: promocion, descuento, beneficio")
     try:
@@ -1350,9 +1340,9 @@ def crear_oferta(oferta: OfertaRequest, request: Request, background_tasks: Back
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.patch("/api/ofertas/{oferta_id}")
-def actualizar_oferta(oferta_id: str, update: OfertaUpdateRequest, request: Request, background_tasks: BackgroundTasks, authorization: str = ""):
+def actualizar_oferta(oferta_id: str, update: OfertaUpdateRequest, request: Request, background_tasks: BackgroundTasks, user: Any = Depends(get_current_user)):
     """Actualiza (activo, título, descripción) de una oferta del comercio autenticado."""
-    comercio_id = get_current_user_id(authorization)
+    comercio_id = user.id
     try:
         oferta_ant = supabase.table("ofertas").select("*").eq("id", oferta_id).eq("comercio_id", comercio_id).execute()
         datos_anteriores = oferta_ant.data[0] if oferta_ant.data else None
@@ -1386,9 +1376,9 @@ def actualizar_oferta(oferta_id: str, update: OfertaUpdateRequest, request: Requ
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/ofertas/{oferta_id}", status_code=204)
-def eliminar_oferta(oferta_id: str, request: Request, background_tasks: BackgroundTasks, authorization: str = ""):
+def eliminar_oferta(oferta_id: str, request: Request, background_tasks: BackgroundTasks, user: Any = Depends(get_current_user)):
     """Elimina una oferta del comercio autenticado."""
-    comercio_id = get_current_user_id(authorization)
+    comercio_id = user.id
     try:
         oferta_ant = supabase.table("ofertas").select("*").eq("id", oferta_id).eq("comercio_id", comercio_id).execute()
         datos_anteriores = oferta_ant.data[0] if oferta_ant.data else None
