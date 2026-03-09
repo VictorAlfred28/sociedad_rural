@@ -699,7 +699,12 @@ def get_municipios():
         {"id": "ituzaingo", "nombre": "Ituzaingó"},
         {"id": "gobernador-virasoro", "nombre": "Gobernador Virasoro"},
         {"id": "esquina", "nombre": "Esquina"},
-        {"id": "monte-caseros", "nombre": "Monte Caseros"}
+        {"id": "monte-caseros", "nombre": "Monte Caseros"},
+        {"id": "empedrado", "nombre": "Empedrado"},
+        {"id": "el-sombrero", "nombre": "El Sombrero"},
+        {"id": "itati", "nombre": "Itatí"},
+        {"id": "santa-ana", "nombre": "Santa Ana"},
+        {"id": "san-cosme", "nombre": "San Cosme"}
     ]
     return {"municipios": municipios}
 
