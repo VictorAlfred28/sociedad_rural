@@ -91,6 +91,10 @@ export default function MiNegocio() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [updatingLogo, setUpdatingLogo] = useState(false);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [offerPreview, setOfferPreview] = useState<string | null>(null);
+    const [statusMsg, setStatusMsg] = useState({ type: '', text: '' });
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -146,6 +150,9 @@ export default function MiNegocio() {
                 if (uploadResp.ok) {
                     const uploadData = await uploadResp.json();
                     imagen_url = uploadData.imagen_url;
+                } else {
+                    const data = await uploadResp.json();
+                    throw new Error(data.detail || 'Error al subir imagen de oferta');
                 }
             }
 
@@ -209,10 +216,30 @@ export default function MiNegocio() {
     };
 
     const handleLogoUpload = async (file: File) => {
+        // Validar formato
+        const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+        if (!allowed.includes(file.type)) {
+            setStatusMsg({ type: 'error', text: 'Formato no permitido. Use PNG, JPG o WEBP.' });
+            return;
+        }
+        // Validar tamaño (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            setStatusMsg({ type: 'error', text: 'La imagen es demasiado grande (máx 5MB).' });
+            return;
+        }
+
+        setLogoFile(file);
+        setLogoPreview(URL.createObjectURL(file));
+        setStatusMsg({ type: 'info', text: 'Vista previa cargada. Haga clic en el avatar para confirmar.' });
+    };
+
+    const confirmLogoUpload = async () => {
+        if (!logoFile) return;
         setUpdatingLogo(true);
+        setStatusMsg({ type: 'info', text: 'Subiendo logo...' });
         try {
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', logoFile);
 
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/perfil/foto`, {
                 method: 'POST',
@@ -220,12 +247,17 @@ export default function MiNegocio() {
                 body: formData,
             });
 
-            if (!resp.ok) throw new Error('Error al subir logo');
+            if (!resp.ok) {
+                const data = await resp.json();
+                throw new Error(data.detail || 'Error al subir logo');
+            }
 
-            // Recargar la página o el usuario de auth para ver el cambio
-            window.location.reload();
+            setStatusMsg({ type: 'success', text: '✔ Logo actualizado correctamente' });
+            setLogoPreview(null);
+            setLogoFile(null);
+            setTimeout(() => window.location.reload(), 1500);
         } catch (err: any) {
-            setError(err.message);
+            setStatusMsg({ type: 'error', text: err.message });
         } finally {
             setUpdatingLogo(false);
         }
@@ -309,18 +341,21 @@ export default function MiNegocio() {
                     <div className="flex items-center gap-4">
                         <NotificationBell />
                         <div
-                            onClick={() => logoInputRef.current?.click()}
-                            className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-all relative group overflow-hidden"
+                            onClick={() => logoPreview ? confirmLogoUpload() : logoInputRef.current?.click()}
+                            className={`w-14 h-14 rounded-2xl flex items-center justify-center cursor-pointer transition-all relative group overflow-hidden ${logoPreview ? 'ring-4 ring-primary ring-offset-2 ring-offset-slate-900 shadow-[0_0_20px_rgba(255,200,0,0.5)]' : 'bg-white/10 hover:bg-white/20'}`}
+                            title={logoPreview ? "Click para confirmar subida" : "Cambiar logo"}
                         >
                             {updatingLogo ? (
                                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                            ) : logoPreview ? (
+                                <img src={logoPreview} alt="Preview" className="w-full h-full object-cover animate-pulse" />
                             ) : user?.foto_url ? (
                                 <img src={user.foto_url} alt="Logo" className="w-full h-full object-cover" />
                             ) : (
                                 <span className="material-symbols-outlined text-3xl text-white">storefront</span>
                             )}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <span className="material-symbols-outlined text-sm text-white">edit</span>
+                                <span className="material-symbols-outlined text-sm text-white">{logoPreview ? 'check_circle' : 'edit'}</span>
                             </div>
                         </div>
                         <input
@@ -335,6 +370,18 @@ export default function MiNegocio() {
                         />
                     </div>
                 </div>
+
+                {statusMsg.text && (
+                    <div className={`mt-2 p-3 rounded-xl text-xs font-bold animate-in fade-in slide-in-from-top-2 flex items-center gap-2 ${statusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                        statusMsg.type === 'error' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                            'bg-primary/20 text-primary-light border border-primary/30'
+                        }`}>
+                        <span className="material-symbols-outlined text-sm">
+                            {statusMsg.type === 'success' ? 'check_circle' : statusMsg.type === 'error' ? 'info' : 'sync'}
+                        </span>
+                        {statusMsg.text}
+                    </div>
+                )}
 
                 {/* Stats row */}
                 <div className="grid grid-cols-3 gap-3 mt-4">

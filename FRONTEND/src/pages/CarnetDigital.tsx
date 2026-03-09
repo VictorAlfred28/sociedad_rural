@@ -35,7 +35,7 @@ export default function CarnetDigital() {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${qrData}`;
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark overflow-hidden mx-auto max-w-[430px] shadow-2xl pb-20">
+    <div className="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark overflow-hidden mx-auto max-w-[430px] shadow-2xl pb-28">
       <div className="flex items-center p-6 pb-2 justify-between z-10">
         <Link to="/home" className="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center rounded-full bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-slate-200 dark:border-slate-700">
           <span className="material-symbols-outlined text-xl">arrow_back_ios_new</span>

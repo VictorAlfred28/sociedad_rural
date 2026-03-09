@@ -19,8 +19,10 @@ export default function Perfil() {
     municipio: user?.municipio || '',
     email: user?.email || ''
   });
-  const [statusMsg, setStatusMsg] = useState('');
+  const [statusMsg, setStatusMsg] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Cargar municipios al entrar en modo edición
   React.useEffect(() => {
@@ -47,15 +49,35 @@ export default function Perfil() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validar formato
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setStatusMsg({ type: 'error', text: 'Formato no permitido.' });
+      return;
+    }
+    // Validar tamaño (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setStatusMsg({ type: 'error', text: 'Imagen muy pesada (máx 5MB).' });
+      return;
+    }
+
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+    setStatusMsg({ type: 'info', text: 'Vista previa lista. Click en el círculo para confirmar.' });
+  };
+
+  const handleFileChange = async () => {
+    if (!logoFile) return;
+
     setLoading(true);
-    setStatusMsg('Subiendo foto...');
+    setStatusMsg({ type: 'info', text: 'Subiendo foto...' });
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', logoFile);
 
     try {
       const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/perfil/foto`, {
@@ -70,10 +92,12 @@ export default function Perfil() {
       if (!resp.ok) throw new Error(data.detail || 'Error al subir foto');
 
       updateUser(data.user || { ...user, foto_url: data.foto_url });
-      setStatusMsg('Foto actualizada con éxito');
-      setTimeout(() => setStatusMsg(''), 3000);
+      setStatusMsg({ type: 'success', text: '✔ Foto actualizada con éxito' });
+      setLogoPreview(null);
+      setLogoFile(null);
+      setTimeout(() => setStatusMsg({ type: '', text: '' }), 3000);
     } catch (err: any) {
-      setStatusMsg(`Error: ${err.message}`);
+      setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
     } finally {
       setLoading(false);
     }
@@ -131,26 +155,31 @@ export default function Perfil() {
         <div className="flex w-full flex-col gap-6 items-center">
           <div className="flex gap-4 flex-col items-center">
             <div className="relative group">
-              <input
-                type="file"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*"
-              />
-              <div className="bg-primary/20 bg-center bg-no-repeat aspect-square bg-cover rounded-full border-4 border-white dark:border-slate-800 shadow-lg min-h-32 w-32 overflow-hidden flex items-center justify-center text-primary text-5xl font-bold uppercase">
-                {user?.foto_url ? (
+              <div className="hidden">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept="image/*"
+                />
+              </div>
+              <div
+                onClick={() => logoPreview ? handleFileChange() : handlePencilClick()}
+                className={`bg-primary/20 bg-center bg-no-repeat aspect-square bg-cover rounded-full border-4 shadow-lg min-h-32 w-32 overflow-hidden flex items-center justify-center text-primary text-5xl font-bold uppercase transition-all cursor-pointer ${logoPreview ? 'ring-4 ring-primary ring-offset-4 ring-offset-white dark:ring-offset-slate-900 shadow-primary/30' : 'border-white dark:border-slate-800'}`}>
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Preview" className="w-full h-full object-cover animate-pulse" />
+                ) : user?.foto_url ? (
                   <img src={user.foto_url} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   user?.nombre_apellido ? user.nombre_apellido.charAt(0) : 'S'
                 )}
               </div>
               <button
-                onClick={handlePencilClick}
+                onClick={logoPreview ? handleFileChange : handlePencilClick}
                 disabled={loading}
-                className="absolute bottom-0 right-0 bg-primary text-slate-900 p-2 rounded-full shadow-md border-2 border-white dark:border-slate-800 flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                className={`absolute bottom-0 right-0 p-2 rounded-full shadow-md border-2 border-white dark:border-slate-800 flex items-center justify-center active:scale-90 transition-all cursor-pointer ${logoPreview ? 'bg-emerald-500 text-white' : 'bg-primary text-slate-900'}`}
               >
-                <span className="material-symbols-outlined text-sm">edit</span>
+                <span className="material-symbols-outlined text-sm">{logoPreview ? 'check' : 'edit'}</span>
               </button>
             </div>
 
@@ -254,9 +283,12 @@ export default function Perfil() {
               )}
             </div>
           </div>
-          {statusMsg && (
-            <div className={`text-center text-sm px-4 py-2 rounded-lg ${statusMsg.startsWith('Error') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
-              {statusMsg}
+          {statusMsg.text && (
+            <div className={`mt-2 p-3 rounded-xl text-xs font-bold text-center animate-in fade-in slide-in-from-top-2 border ${statusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+              statusMsg.type === 'error' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
+                'bg-primary/20 text-primary-light border-primary/30'
+              }`}>
+              {statusMsg.text}
             </div>
           )}
         </div>

@@ -1590,15 +1590,15 @@ async def upload_foto(file: UploadFile = File(...), current_user = Depends(get_c
         file_ext = file.filename.split(".")[-1]
         file_path = f"{current_user.id}/profile.{file_ext}"
         
-        # 2. Subir a Supabase Storage
-        res_storage = supabase.storage.from_("perfiles").upload(
+        # 2. Subir a Supabase Storage (Migrado a bucket único 'business-logos')
+        res_storage = supabase.storage.from_("business-logos").upload(
             path=file_path,
             file=file_content,
             file_options={"content-type": file.content_type, "upsert": True}
         )
         
         # 3. Obtener URL pública
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/perfiles/{file_path}"
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/business-logos/{file_path}"
         
         # 4. Actualizar en la tabla profiles
         supabase.table("profiles").update({"foto_url": public_url}).eq("id", current_user.id).execute()
@@ -1619,20 +1619,19 @@ async def upload_oferta_foto(file: UploadFile = File(...), current_user = Depend
         # Usamos UUID para evitar colisiones si el mismo comercio sube varias ofertas
         filename = f"{current_user.id}/{uuid4().hex}.{file_ext}"
         
-        # Subir a Supabase Storage (bucket 'ofertas')
+        # Subir a Supabase Storage (bucket 'business-logos')
         try:
-            supabase.storage.from_("ofertas").upload(
+            supabase.storage.from_("business-logos").upload(
                 path=filename,
                 file=file_content,
                 file_options={"content-type": file.content_type, "upsert": True}
             )
         except Exception as storage_err:
             # Si el bucket no existe en el primer intento, loggeamos el error
-            # En entorno real, el bucket 'ofertas' debe ser creado manualmente en el dashboard de Supabase
-            print(f"Error en Storage (asegurese que el bucket 'ofertas' sea publico): {storage_err}")
+            print(f"Error en Storage (asegurese que el bucket 'business-logos' sea publico): {storage_err}")
             raise storage_err
         
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/ofertas/{filename}"
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/business-logos/{filename}"
         
         return {"message": "Imagen de oferta subida", "imagen_url": public_url}
         
