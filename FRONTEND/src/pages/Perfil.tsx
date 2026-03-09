@@ -112,7 +112,7 @@ export default function Perfil() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setStatusMsg('Actualizando perfil...');
+    setStatusMsg({ type: 'info', text: 'Actualizando perfil...' });
 
     try {
       const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/perfil`, {
@@ -134,7 +134,7 @@ export default function Perfil() {
       setIsEditing(false);
 
       if (editData.email && editData.email !== user?.email) {
-        setStatusMsg('Email actualizado. Redirigiendo al login...');
+        setStatusMsg({ type: 'info', text: 'Email actualizado. Redirigiendo al login...' });
         setTimeout(() => {
           logout();
           navigate('/login');
@@ -142,10 +142,10 @@ export default function Perfil() {
         return;
       }
 
-      setStatusMsg('Perfil actualizado');
-      setTimeout(() => setStatusMsg(''), 3000);
+      setStatusMsg({ type: 'success', text: 'Perfil actualizado' });
+      setTimeout(() => setStatusMsg({ type: '', text: '' }), 3000);
     } catch (err: any) {
-      setStatusMsg(`Error: ${err.message}`);
+      setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
     } finally {
       setLoading(false);
     }
