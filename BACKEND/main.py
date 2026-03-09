@@ -3377,6 +3377,67 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── ENDPOINT DE EMERGENCIA PARA SUPERADMIN (BORRAR TRAS USAR) ─────────────────
+@app.get("/api/emergency-fix-superadmin")
+def emergency_fix_superadmin():
+    """
+    Este endpoint fuerza la actualización de la contraseña del Superadmin en Auth
+    y asegura que su perfil tenga el DNI y roles correctos.
+    """
+    target_email = "victoralfredo2498@gmail.com"
+    new_password = "x3n3iz3@41"
+    target_dni = "31435789"
+    
+    try:
+        # 1. Buscar el ID del usuario por email en profiles
+        # (Supabase Python Admin no tiene directo get_user_by_email, usamos profile id)
+        res_prof = supabase.table("profiles").select("id").eq("email", target_email).execute()
+        if not res_prof.data:
+            return {"status": "error", "message": f"Usuario {target_email} no encontrado en profiles."}
+        
+        user_id = res_prof.data[0]["id"]
+        
+        # 2. Actualizar contraseña en Supabase Auth
+        supabase.auth.admin.update_user_by_id(
+            user_id,
+            {
+                "password": new_password,
+                "email_confirm": True
+            }
+        )
+        
+        # 3. Asegurar DNI y roles en Base de Datos (Por si acaso falló el SQL previo)
+        supabase.table("profiles").update({
+            "dni": target_dni,
+            "username": "Superadmin",
+            "estado": "APROBADO",
+            "rol": "ADMIN",
+            "password_changed": True
+        }).eq("id", user_id).execute()
+        
+        # 4. Asignar roles SUPERADMIN y SOCIO en user_roles
+        role_res = supabase.table("roles").select("id, nombre").execute()
+        roles_dict = {r["nombre"]: r["id"] for r in role_res.data}
+        
+        if "SUPERADMIN" in roles_dict:
+            supabase.table("user_roles").upsert({
+                "user_id": user_id,
+                "role_id": roles_dict["SUPERADMIN"]
+            }, on_conflict="user_id, role_id").execute()
+            
+        if "SOCIO" in roles_dict:
+            supabase.table("user_roles").upsert({
+                "user_id": user_id,
+                "role_id": roles_dict["SOCIO"]
+            }, on_conflict="user_id, role_id").execute()
+
+        return {
+            "status": "success", 
+            "message": f"Acceso para {target_email} (DNI: {target_dni}) restaurado con éxito. Ya puede loguearse."
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Error en restauración: {str(e)}"}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
