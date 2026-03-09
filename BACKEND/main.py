@@ -3404,30 +3404,45 @@ def emergency_fix_superadmin():
     y asegura que su perfil tenga el DNI y roles correctos.
     """
     target_email = "victoralfredo2498@gmail.com"
-    new_password = "Admin1234!" # Contraseña simplificada para evitar errores de tipeo
+    dummy_email = "superadmin@sociedadruralnorte.com.ar"
+    new_password = "Admin1234!"
     target_dni = "31435789"
     
+    print(f"\n[EMERGENCY] Iniciando restauración para {target_email}...")
     try:
-        # 1. Buscar en profiles para obtener el ID real
+        # 1. Eliminar rastro de la cuenta dummy para evitar colisiones
+        try:
+            res_dummy = supabase.table("profiles").select("id").eq("email", dummy_email).execute()
+            if res_dummy.data:
+                dummy_id = res_dummy.data[0]["id"]
+                print(f"[EMERGENCY] Eliminando cuenta dummy {dummy_id}...")
+                supabase.auth.admin.delete_user(dummy_id)
+                supabase.table("profiles").delete().eq("id", dummy_id).execute()
+        except Exception as e:
+            print(f"[EMERGENCY] Nota: Error limpiando dummy (ignorando): {e}")
+
+        # 2. Buscar en profiles para obtener el ID real
         res_prof = supabase.table("profiles").select("id").eq("email", target_email).execute()
         if not res_prof.data:
-            return {"status": "error", "message": f"No existe el perfil con email {target_email} en la tabla profiles."}
+            print(f"[EMERGENCY] Falla: No existe el perfil con email {target_email}")
+            return {"status": "error", "message": f"No existe el perfil con email {target_email}."}
         
         user_id = res_prof.data[0]["id"]
+        print(f"[EMERGENCY] ID Encontrado: {user_id}")
         
-        # 2. Intentar actualizar en Auth
-        try:
-            supabase.auth.admin.update_user_by_id(
-                user_id,
-                {
-                    "password": new_password,
-                    "email_confirm": True
-                }
-            )
-        except Exception as auth_err:
-            return {"status": "error", "message": f"Error actualizando Auth User ID {user_id}: {str(auth_err)}"}
+        # 3. Intentar actualizar en Auth
+        print(f"[EMERGENCY] Seteando nueva clave '{new_password}' en Auth...")
+        supabase.auth.admin.update_user_by_id(
+            user_id,
+            {
+                "password": new_password,
+                "email_confirm": True,
+                "user_metadata": {"full_name": "Victor Alfredo"}
+            }
+        )
         
-        # 3. Asegurar datos en public.profiles
+        # 4. Asegurar datos en public.profiles
+        print("[EMERGENCY] Actualizando public.profiles...")
         supabase.table("profiles").update({
             "dni": target_dni,
             "username": "Superadmin",
@@ -3436,7 +3451,8 @@ def emergency_fix_superadmin():
             "password_changed": True
         }).eq("id", user_id).execute()
         
-        # 4. Asegurar Roles
+        # 5. Asegurar Roles
+        print("[EMERGENCY] Verificando Roles...")
         role_res = supabase.table("roles").select("id, nombre").execute()
         roles_dict = {r["nombre"]: r["id"] for r in role_res.data}
         
@@ -3452,16 +3468,14 @@ def emergency_fix_superadmin():
                 "role_id": roles_dict["SOCIO"]
             }, on_conflict="user_id, role_id").execute()
 
+        print("[EMERGENCY] ¡Restauración EXITOSA!")
         return {
             "status": "success", 
-            "message": f"Cuenta restaurada. Intente entrar con {target_email} y la contraseña: {new_password}",
-            "diagnostics": {
-                "user_id": user_id,
-                "dni_assigned": target_dni,
-                "roles_verified": True
-            }
+            "message": f"¡LISTO! Usa {target_email} y la clave '{new_password}'.",
+            "user_id": user_id
         }
     except Exception as e:
+        print(f"[EMERGENCY] FALLO CRÍTICO: {str(e)}")
         return {"status": "error", "message": f"Fallo crítico: {str(e)}"}
 
 if __name__ == "__main__":
