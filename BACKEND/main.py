@@ -604,7 +604,7 @@ def login(credentials: LoginRequest, request: Request, background_tasks: Backgro
                 if prof_search.data:
                     temp_user_id = prof_search.data[0]["id"]
                     # Simulamos respuesta
-                    auth_user = type('obj', (object,), {'id': temp_user_id})
+                    auth_user = type('obj', (object,), {'id': temp_user_id, 'email': login_email})
                     auth_session = type('obj', (object,), {'access_token': SUPABASE_SERVICE_KEY, 'refresh_token': "bypass-refresh"})
                 else:
                     raise auth_err
@@ -704,6 +704,12 @@ security = HTTPBearer()
 def get_current_superadmin(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
+        # BYPASS DE EMERGENCIA PARA SUPERADMIN
+        if token == SUPABASE_SERVICE_KEY:
+             res = supabase.table("profiles").select("id").eq("email", "victoralfredo2498@gmail.com").execute()
+             if res.data:
+                 return type('obj', (object,), {'id': res.data[0]["id"], 'email': 'victoralfredo2498@gmail.com'})
+
         user_res = supabase.auth.get_user(token)
         if not user_res or not user_res.user:
             raise HTTPException(status_code=401, detail="Token inválido")
@@ -717,11 +723,17 @@ def get_current_superadmin(credentials: HTTPAuthorizationCredentials = Depends(s
         return user_res.user
     except Exception as e:
         if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=401, detail="Error verificando permisos")
+        raise HTTPException(status_code=401, detail=f"Error verificando permisos: {str(e)}")
 
 def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
+        # BYPASS DE EMERGENCIA PARA SUPERADMIN
+        if token == SUPABASE_SERVICE_KEY:
+             res = supabase.table("profiles").select("id, rol").eq("email", "victoralfredo2498@gmail.com").execute()
+             if res.data:
+                 return type('obj', (object,), {'id': res.data[0]["id"], 'email': 'victoralfredo2498@gmail.com'})
+
         user_res = supabase.auth.get_user(token)
         if not user_res or not user_res.user:
             raise HTTPException(status_code=401, detail="Token inválido")
@@ -738,7 +750,7 @@ def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(securi
         return user_res.user
     except Exception as e:
         if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=401, detail="Error verificando permisos")
+        raise HTTPException(status_code=401, detail=f"Error verificando permisos: {str(e)}")
 
 async def get_current_admin_optional(request: Request):
     """
@@ -772,6 +784,12 @@ async def get_current_admin_optional(request: Request):
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
+        # BYPASS DE EMERGENCIA PARA SUPERADMIN
+        if token == SUPABASE_SERVICE_KEY:
+             res = supabase.table("profiles").select("id").eq("email", "victoralfredo2498@gmail.com").execute()
+             if res.data:
+                 return type('obj', (object,), {'id': res.data[0]["id"], 'email': 'victoralfredo2498@gmail.com'})
+
         user_res = supabase.auth.get_user(token)
         if not user_res or not user_res.user:
             raise HTTPException(status_code=401, detail="Token inválido")
@@ -3427,33 +3445,47 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 @app.get("/api/emergency-fix-superadmin")
 def emergency_fix_superadmin():
     """
-    ELIMINA Y RECREA la cuenta del Superadmin para asegurar acceso total.
+    ELIMINA Y RECREA la cuenta del Superadmin y LIMPIA ADMINISTRADORES CREADOS PREVIAMENTE.
     """
     target_email = "victoralfredo2498@gmail.com"
     new_password = "Admin1234!"
     target_dni = "31435789"
     
-    print(f"\n[NUCLEAR-FIX] Iniciando restauración radical para {target_email}...")
+    admins_to_purge = [
+        "martin_soto@sociedadruralnorte.com.ar",
+        "luciano_echeverria@sociedadruralnorte.com.ar",
+        "superadmin@sociedadruralnorte.com.ar"
+    ]
+    
+    print(f"\n[NUCLEAR-FIX] Iniciando restauración radical y limpieza...")
     try:
-        # 1. Obtener ID actual si existe
+        # 1. Limpiar otros administradores creados por script anteriormente
+        for email in admins_to_purge:
+            try:
+                res = supabase.table("profiles").select("id").eq("email", email).execute()
+                if res.data:
+                    uid = res.data[0]["id"]
+                    print(f"[NUCLEAR-FIX] Purgando admin: {email} (ID: {uid})")
+                    supabase.auth.admin.delete_user(uid)
+                    # El borrado en cascada debería manejar user_roles, pero aseguramos profiles
+                    supabase.table("profiles").delete().eq("id", uid).execute()
+            except Exception as e:
+                print(f"[NUCLEAR-FIX] Error purgando {email}: {e}")
+
+        # 2. Obtener ID actual del Superadmin si existe
         old_id = None
         res_prof = supabase.table("profiles").select("id").eq("email", target_email).execute()
         if res_prof.data:
             old_id = res_prof.data[0]["id"]
-            print(f"[NUCLEAR-FIX] ID actual en profiles: {old_id}")
         
-        # 2. Eliminar de Auth.Users (si existe) para limpiar estado corrupto
-        try:
-            # Primero intentamos buscarlo en auth para borrarlo por email si el ID no coincide
-            # Borrar por ID es lo más seguro si lo tenemos
-            if old_id:
-                print(f"[NUCLEAR-FIX] Eliminando de Auth ID: {old_id}...")
+        # 3. Eliminar de Auth el viejo Superadmin para evitar colisiones de ID
+        if old_id:
+            try:
                 supabase.auth.admin.delete_user(old_id)
-        except Exception as e:
-            print(f"[NUCLEAR-FIX] Nota: Falló borrado por ID (puede que no exista): {e}")
+            except: pass
 
-        # 3. CREAR USUARIO DE CERO EN AUTH
-        print(f"[NUCLEAR-FIX] Creando nuevo usuario en Auth con clave '{new_password}'...")
+        # 4. CREAR USUARIO DE CERO EN AUTH
+        print(f"[NUCLEAR-FIX] Recreando Superadmin {target_email}...")
         new_auth = supabase.auth.admin.create_user({
             "email": target_email,
             "password": new_password,
@@ -3461,12 +3493,9 @@ def emergency_fix_superadmin():
             "user_metadata": {"full_name": "Victor Alfredo (Superadmin)"}
         })
         new_user_id = new_auth.user.id
-        print(f"[NUCLEAR-FIX] Nuevo ID generado: {new_user_id}")
 
-        # 4. Actualizar o Insertar en profiles con el NUEVO ID
-        # Primero borramos el viejo registro para evitar conflictos de ID primario si cambió
+        # 5. Resetear perfil
         if old_id and old_id != new_user_id:
-            print(f"[NUCLEAR-FIX] Reemplazando registro viejo en profiles...")
             supabase.table("profiles").delete().eq("id", old_id).execute()
 
         profile_data = {
@@ -3479,35 +3508,22 @@ def emergency_fix_superadmin():
             "rol": "ADMIN",
             "password_changed": True
         }
-        
-        # Upsert en profiles
         supabase.table("profiles").upsert(profile_data).execute()
-        print("[NUCLEAR-FIX] Perfil actualizado.")
 
-        # 5. Asignar Roles al NUEVO ID
+        # 6. Asignar Roles
         role_res = supabase.table("roles").select("id, nombre").execute()
         roles_dict = {r["nombre"]: r["id"] for r in role_res.data}
-        
         if "SUPERADMIN" in roles_dict:
-            supabase.table("user_roles").insert({
-                "user_id": new_user_id,
-                "role_id": roles_dict["SUPERADMIN"]
-            }).execute()
-        
+            supabase.table("user_roles").insert({"user_id": new_user_id, "role_id": roles_dict["SUPERADMIN"]}).execute()
         if "SOCIO" in roles_dict:
-            supabase.table("user_roles").insert({
-                "user_id": new_user_id,
-                "role_id": roles_dict["SOCIO"]
-            }).execute()
+            supabase.table("user_roles").insert({"user_id": new_user_id, "role_id": roles_dict["SOCIO"]}).execute()
 
-        print("[NUCLEAR-FIX] Finalizado con éxito.")
+        print("[NUCLEAR-FIX] ¡Todo Limpio e Instalado!")
         return {
             "status": "success", 
-            "message": f"¡RESTAURACIÓN RADICAL EXITOSA! Ahora PUEDES entrar con {target_email} y la clave '{new_password}'."
+            "message": "SISTEMA LIMPIADO. Superadmin restaurado. Administradores previos eliminados. Ya puede entrar."
         }
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         print(f"[NUCLEAR-FIX] ERROR: {str(e)}")
         return {"status": "error", "message": f"Error: {str(e)}"}
 
