@@ -77,10 +77,10 @@ export default function FeaturedCarousel({ promociones, onViewPromotion }: Featu
                 >
                     {/* Background Layer */}
                     {current.imagen_url ? (
-                        <div className="absolute inset-0 -z-10 bg-slate-900">
-                            <img src={current.imagen_url} alt="" className="w-full h-full object-cover opacity-70" />
-                            {/* Dark gradient overlay para asegurar contraste en textos */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-transparent" />
+                        <div className="absolute inset-0 -z-10 bg-slate-800">
+                            <img src={current.imagen_url} alt="" className="w-full h-full object-cover opacity-90" />
+                            {/* Gradient overlay para asegurar contraste en textos pero más claro */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/70 via-slate-900/10 to-transparent flex" />
                         </div>
                     ) : (
                         <div className={`absolute inset-0 -z-10 bg-gradient-to-br ${cfg.color}`} />
