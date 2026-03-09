@@ -115,6 +115,15 @@ export default function Perfil() {
     setStatusMsg('Actualizando perfil...');
 
     try {
+      const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/perfil`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(editData)
+      });
+
       const data = await resp.json();
       if (!resp.ok) {
         if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
