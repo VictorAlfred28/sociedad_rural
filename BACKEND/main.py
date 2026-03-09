@@ -3400,83 +3400,89 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 @app.get("/api/emergency-fix-superadmin")
 def emergency_fix_superadmin():
     """
-    Este endpoint fuerza la actualización de la contraseña del Superadmin en Auth
-    y asegura que su perfil tenga el DNI y roles correctos.
+    ELIMINA Y RECREA la cuenta del Superadmin para asegurar acceso total.
     """
     target_email = "victoralfredo2498@gmail.com"
-    dummy_email = "superadmin@sociedadruralnorte.com.ar"
     new_password = "Admin1234!"
     target_dni = "31435789"
     
-    print(f"\n[EMERGENCY] Iniciando restauración para {target_email}...")
+    print(f"\n[NUCLEAR-FIX] Iniciando restauración radical para {target_email}...")
     try:
-        # 1. Eliminar rastro de la cuenta dummy para evitar colisiones
-        try:
-            res_dummy = supabase.table("profiles").select("id").eq("email", dummy_email).execute()
-            if res_dummy.data:
-                dummy_id = res_dummy.data[0]["id"]
-                print(f"[EMERGENCY] Eliminando cuenta dummy {dummy_id}...")
-                supabase.auth.admin.delete_user(dummy_id)
-                supabase.table("profiles").delete().eq("id", dummy_id).execute()
-        except Exception as e:
-            print(f"[EMERGENCY] Nota: Error limpiando dummy (ignorando): {e}")
-
-        # 2. Buscar en profiles para obtener el ID real
+        # 1. Obtener ID actual si existe
+        old_id = None
         res_prof = supabase.table("profiles").select("id").eq("email", target_email).execute()
-        if not res_prof.data:
-            print(f"[EMERGENCY] Falla: No existe el perfil con email {target_email}")
-            return {"status": "error", "message": f"No existe el perfil con email {target_email}."}
+        if res_prof.data:
+            old_id = res_prof.data[0]["id"]
+            print(f"[NUCLEAR-FIX] ID actual en profiles: {old_id}")
         
-        user_id = res_prof.data[0]["id"]
-        print(f"[EMERGENCY] ID Encontrado: {user_id}")
-        
-        # 3. Intentar actualizar en Auth
-        print(f"[EMERGENCY] Seteando nueva clave '{new_password}' en Auth...")
-        supabase.auth.admin.update_user_by_id(
-            user_id,
-            {
-                "password": new_password,
-                "email_confirm": True,
-                "user_metadata": {"full_name": "Victor Alfredo"}
-            }
-        )
-        
-        # 4. Asegurar datos en public.profiles
-        print("[EMERGENCY] Actualizando public.profiles...")
-        supabase.table("profiles").update({
+        # 2. Eliminar de Auth.Users (si existe) para limpiar estado corrupto
+        try:
+            # Primero intentamos buscarlo en auth para borrarlo por email si el ID no coincide
+            # Borrar por ID es lo más seguro si lo tenemos
+            if old_id:
+                print(f"[NUCLEAR-FIX] Eliminando de Auth ID: {old_id}...")
+                supabase.auth.admin.delete_user(old_id)
+        except Exception as e:
+            print(f"[NUCLEAR-FIX] Nota: Falló borrado por ID (puede que no exista): {e}")
+
+        # 3. CREAR USUARIO DE CERO EN AUTH
+        print(f"[NUCLEAR-FIX] Creando nuevo usuario en Auth con clave '{new_password}'...")
+        new_auth = supabase.auth.admin.create_user({
+            "email": target_email,
+            "password": new_password,
+            "email_confirm": True,
+            "user_metadata": {"full_name": "Victor Alfredo (Superadmin)"}
+        })
+        new_user_id = new_auth.user.id
+        print(f"[NUCLEAR-FIX] Nuevo ID generado: {new_user_id}")
+
+        # 4. Actualizar o Insertar en profiles con el NUEVO ID
+        # Primero borramos el viejo registro para evitar conflictos de ID primario si cambió
+        if old_id and old_id != new_user_id:
+            print(f"[NUCLEAR-FIX] Reemplazando registro viejo en profiles...")
+            supabase.table("profiles").delete().eq("id", old_id).execute()
+
+        profile_data = {
+            "id": new_user_id,
             "dni": target_dni,
+            "email": target_email,
+            "nombre_apellido": "Victor Alfredo",
             "username": "Superadmin",
             "estado": "APROBADO",
             "rol": "ADMIN",
             "password_changed": True
-        }).eq("id", user_id).execute()
+        }
         
-        # 5. Asegurar Roles
-        print("[EMERGENCY] Verificando Roles...")
+        # Upsert en profiles
+        supabase.table("profiles").upsert(profile_data).execute()
+        print("[NUCLEAR-FIX] Perfil actualizado.")
+
+        # 5. Asignar Roles al NUEVO ID
         role_res = supabase.table("roles").select("id, nombre").execute()
         roles_dict = {r["nombre"]: r["id"] for r in role_res.data}
         
         if "SUPERADMIN" in roles_dict:
-            supabase.table("user_roles").upsert({
-                "user_id": user_id,
+            supabase.table("user_roles").insert({
+                "user_id": new_user_id,
                 "role_id": roles_dict["SUPERADMIN"]
-            }, on_conflict="user_id, role_id").execute()
-            
+            }).execute()
+        
         if "SOCIO" in roles_dict:
-            supabase.table("user_roles").upsert({
-                "user_id": user_id,
+            supabase.table("user_roles").insert({
+                "user_id": new_user_id,
                 "role_id": roles_dict["SOCIO"]
-            }, on_conflict="user_id, role_id").execute()
+            }).execute()
 
-        print("[EMERGENCY] ¡Restauración EXITOSA!")
+        print("[NUCLEAR-FIX] Finalizado con éxito.")
         return {
             "status": "success", 
-            "message": f"¡LISTO! Usa {target_email} y la clave '{new_password}'.",
-            "user_id": user_id
+            "message": f"¡RESTAURACIÓN RADICAL EXITOSA! Ahora PUEDES entrar con {target_email} y la clave '{new_password}'."
         }
     except Exception as e:
-        print(f"[EMERGENCY] FALLO CRÍTICO: {str(e)}")
-        return {"status": "error", "message": f"Fallo crítico: {str(e)}"}
+        import traceback
+        traceback.print_exc()
+        print(f"[NUCLEAR-FIX] ERROR: {str(e)}")
+        return {"status": "error", "message": f"Error: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
