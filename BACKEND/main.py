@@ -656,8 +656,12 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         return user_res.user
     except Exception as e:
         if isinstance(e, HTTPException): raise e
-        print(f"Error verificando sesión en get_current_user: {str(e)}")
-        raise HTTPException(status_code=401, detail=f"Error verificando sesión: {str(e)}")
+        err_msg = str(e).lower()
+        print(f"Auth error in get_current_user: {err_msg}")
+        # Detectar token expirado según mensaje común de GoTrue/Supabase
+        if "expired" in err_msg:
+            raise HTTPException(status_code=401, detail="Token expirado")
+        raise HTTPException(status_code=401, detail=f"No autorizado: {str(e)}")
 
 def get_current_admin_or_camara(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
@@ -1591,11 +1595,13 @@ async def upload_foto(file: UploadFile = File(...), current_user = Depends(get_c
         file_path = f"{current_user.id}/profile.{file_ext}"
         
         # 2. Subir a Supabase Storage (Migrado a bucket único 'business-logos')
+        print(f"Uploading profile photo. Bucket: business-logos, Path: {file_path}")
         res_storage = supabase.storage.from_("business-logos").upload(
             path=file_path,
             file=file_content,
             file_options={"content-type": file.content_type, "upsert": "true"}
         )
+        print(f"Profile upload result: {res_storage}")
         
         # 3. Obtener URL pública
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/business-logos/{file_path}"
@@ -1606,6 +1612,7 @@ async def upload_foto(file: UploadFile = File(...), current_user = Depends(get_c
         return {"message": "Foto actualizada", "foto_url": public_url}
         
     except Exception as e:
+        print(f"Error subiendo foto de perfil: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error subiendo foto: {str(e)}")
 
 @app.post("/api/ofertas/foto")
@@ -1620,14 +1627,15 @@ async def upload_oferta_foto(file: UploadFile = File(...), current_user = Depend
         filename = f"{current_user.id}/{uuid4().hex}.{file_ext}"
         
         # Subir a Supabase Storage (bucket 'business-logos')
+        print(f"Uploading offer image. Bucket: business-logos, Path: {filename}")
         try:
-            supabase.storage.from_("business-logos").upload(
+            res_storage = supabase.storage.from_("business-logos").upload(
                 path=filename,
                 file=file_content,
                 file_options={"content-type": file.content_type, "upsert": "true"}
             )
+            print(f"Offer image upload result: {res_storage}")
         except Exception as storage_err:
-            # Si el bucket no existe en el primer intento, loggeamos el error
             print(f"Error en Storage (asegurese que el bucket 'business-logos' sea publico): {storage_err}")
             raise storage_err
         
@@ -1636,6 +1644,7 @@ async def upload_oferta_foto(file: UploadFile = File(...), current_user = Depend
         return {"message": "Imagen de oferta subida", "imagen_url": public_url}
         
     except Exception as e:
+        print(f"Error en endpoint /api/ofertas/foto: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error subiendo imagen de oferta: {str(e)}")
 
 @app.post("/api/notificar-olvido-password")
@@ -1872,13 +1881,24 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
     Endpoint para recibir publicaciones de Make.com (Instagram/Facebook).
     Procesa el texto, guarda la imagen en Storage y persiste en la tabla eventos_sociales.
     """
-    # 1. Validar Token de seguridad
+    # 1. Validar Token de seguridad o Webhook Secret
     token = request.headers.get("X-Webhook-Token")
+    secret_header = request.headers.get("x-webhook-secret")
+    
+    # Prioridad al secreto definido en el SPEC para Make.com
+    webhook_secret = os.getenv("WEBHOOK_SECRET", "make_webhook_secret_2026")
     secret_token = os.getenv("WEBHOOK_SECRET_TOKEN")
     
-    if not token or token != secret_token:
+    authorized = False
+    if secret_header and secret_header == webhook_secret:
+        authorized = True
+    elif token and secret_token and token == secret_token:
+        authorized = True
+        
+    if not authorized:
         logger.warning(f"Intento de acceso no autorizado al webhook desde IP {request.client.host if request.client else 'unknown'}")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token de webhook no válido o ausente")
+        print(f"Webhook mismatch. Recibido secret: {secret_header}, Recibido token: {token}")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Webhook secret mismatch o token no válido")
 
     try:
         # 2. Procesar Texto con Regex

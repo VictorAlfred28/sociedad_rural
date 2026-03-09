@@ -151,6 +151,7 @@ export default function MiNegocio() {
                     const uploadData = await uploadResp.json();
                     imagen_url = uploadData.imagen_url;
                 } else {
+                    if (uploadResp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
                     const data = await uploadResp.json();
                     throw new Error(data.detail || 'Error al subir imagen de oferta');
                 }
@@ -172,6 +173,7 @@ export default function MiNegocio() {
                 }),
             });
             if (!resp.ok) {
+                if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
                 const data = await resp.json();
                 throw new Error(data.detail || 'Error al crear oferta');
             }
@@ -248,6 +250,7 @@ export default function MiNegocio() {
             });
 
             if (!resp.ok) {
+                if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
                 const data = await resp.json();
                 throw new Error(data.detail || 'Error al subir logo');
             }

@@ -132,8 +132,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         setIsLoading(false);
 
+        // Listener para errores 401 globales (Token expirado o inválido)
+        const handleUnauthorized = () => {
+            console.warn("Sesión expirada o no autorizada. Redirigiendo...");
+            doLogout();
+        };
+        window.addEventListener('auth-unauthorized', handleUnauthorized);
+
         return () => {
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+            window.removeEventListener('auth-unauthorized', handleUnauthorized);
         };
     }, []);
 

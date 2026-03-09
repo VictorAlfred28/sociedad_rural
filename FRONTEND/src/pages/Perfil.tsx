@@ -89,7 +89,10 @@ export default function Perfil() {
       });
 
       const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Error al subir foto');
+      if (!resp.ok) {
+        if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
+        throw new Error(data.detail || 'Error al subir foto');
+      }
 
       updateUser(data.user || { ...user, foto_url: data.foto_url });
       setStatusMsg({ type: 'success', text: '✔ Foto actualizada con éxito' });
@@ -98,6 +101,9 @@ export default function Perfil() {
       setTimeout(() => setStatusMsg({ type: '', text: '' }), 3000);
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
+      if (err.message.includes("Token expirado")) {
+        // Ya se disparó el evento en el fetch, o podemos dispararlo aquí si no estamos seguros
+      }
     } finally {
       setLoading(false);
     }
@@ -109,17 +115,11 @@ export default function Perfil() {
     setStatusMsg('Actualizando perfil...');
 
     try {
-      const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/perfil`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(editData)
-      });
-
       const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Error al actualizar perfil');
+      if (!resp.ok) {
+        if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
+        throw new Error(data.detail || 'Error al actualizar perfil');
+      }
 
       updateUser(data.user);
       setIsEditing(false);
