@@ -294,6 +294,9 @@ class CreateAdminRequest(BaseModel):
 class UpdateAdminRoleRequest(BaseModel):
     rol: str
 
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
 class AddDependienteRequest(BaseModel):
     nombre_apellido: str
     dni_cuit: str
@@ -2015,10 +2018,76 @@ def get_support_notifications(admin_user = Depends(get_current_admin)):
 def resolve_support_notification(notif_id: str, admin_user = Depends(get_current_admin)):
     """Marca una notificación de soporte como resuelta"""
     try:
-        supabase.table("notificaciones_admin").update({"estado": "RESUELTO"}).eq("id", notif_id).execute()
+        supabase.table("notificaciones_admin").update({
+            "estado": "RESUELTO",
+            "resolved_at": datetime.now().isoformat()
+        }).eq("id", notif_id).execute()
         return {"message": "Solicitud marcada como resuelta"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/notificaciones-soporte/{notif_id}/reset-password")
+def admin_reset_password(notif_id: str, req: ResetPasswordRequest, request: Request, background_tasks: BackgroundTasks, admin_user = Depends(get_current_admin)):
+    """
+    Permite a un administrador resetear la contraseña de un usuario que lo solicitó.
+    1. Obtiene el usuario_id desde la notificación.
+    2. Actualiza la contraseña en Supabase Auth.
+    3. Marca la notificación como RESUELTO.
+    4. Registra en auditoría.
+    """
+    try:
+        # 1. Obtener la notificación
+        notif_res = supabase.table("notificaciones_admin").select("*").eq("id", notif_id).execute()
+        if not notif_res.data:
+            raise HTTPException(status_code=404, detail="Notificación no encontrada")
+        
+        notif = notif_res.data[0]
+        user_id = notif.get("usuario_id")
+        
+        if not user_id:
+            raise HTTPException(status_code=400, detail="La notificación no tiene un usuario_id asociado")
+
+        # 2. Actualizar contraseña en Auth (usando admin privilegios)
+        try:
+            supabase.auth.admin.update_user_by_id(user_id, {
+                "password": req.new_password,
+                "email_confirm": True
+            })
+            
+            # Forzar flag de password_changed a False para que el usuario deba cambiarla al entrar si es política
+            supabase.table("profiles").update({"password_changed": False}).eq("id", user_id).execute()
+            
+        except Exception as auth_err:
+            raise HTTPException(status_code=400, detail=f"Error actualizando contraseña en Auth: {str(auth_err)}")
+
+        # 3. Resolver notificación
+        supabase.table("notificaciones_admin").update({
+            "estado": "RESUELTO",
+            "resolved_at": datetime.now().isoformat()
+        }).eq("id", notif_id).execute()
+
+        # 4. Auditoría
+        perfil_res = supabase.table("profiles").select("email").eq("id", user_id).execute()
+        user_email = perfil_res.data[0]["email"] if perfil_res.data else "unknown"
+        
+        background_tasks.add_task(registrar_auditoria, 
+            usuario_id=admin_user.id,
+            email_usuario=admin_user.email,
+            rol_usuario="ADMIN",
+            accion="RESET_PASSWORD_ADMIN",
+            tabla="auth.users",
+            registro_id=user_id,
+            datos_anteriores={"notif_id": notif_id},
+            datos_nuevos={"user_email": user_email, "status": "Password Reseteado por Admin"},
+            modulo="Soporte",
+            request=request
+        )
+
+        return {"message": "Contraseña actualizada exitosamente y solicitud resuelta."}
+
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=f"Error al resetear contraseña: {str(e)}")
 
 # ── ENDPOINT DE AUDITORÍA (ADMIN) ─────────────────────────────────────────────
 @app.get("/api/admin/auditoria")

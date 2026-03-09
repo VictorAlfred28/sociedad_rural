@@ -9,14 +9,15 @@ import NotificationBell from '../components/NotificationBell';
 import ValidacionPagos from '../components/admin/ValidacionPagos';
 import ReportesPanel from '../components/admin/ReportesPanel';
 import GestionAdministradores from '../components/admin/GestionAdministradores';
+import GestionSoporte from '../components/admin/GestionSoporte';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores'
-  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores'>('panel');
+  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'
+  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'classic' | 'cyber'>(() => {
@@ -57,10 +58,11 @@ export default function AdminDashboard() {
 
   const baseNavItems = [
     { id: 'panel', icon: 'dashboard', label: 'Dashboard' },
-    { id: 'usuarios', icon: 'group', label: 'Gestión Socios', badge: supportCount > 0 ? supportCount : null },
+    { id: 'usuarios', icon: 'group', label: 'Gestión Socios' },
     { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Comercios' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
     { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
+    { id: 'soporte', icon: 'support_agent', label: 'Soporte y Claves', badge: supportCount > 0 ? supportCount : null },
     { id: 'reportes', icon: 'analytics', label: 'Reportes y Cierres' },
   ];
 

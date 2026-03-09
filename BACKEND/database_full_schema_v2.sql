@@ -209,12 +209,13 @@ CREATE TABLE public.empleados_comercios (
 -- notificaciones_admin (Para tickets de soporte y avisos)
 CREATE TABLE public.notificaciones_admin (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    socio_id UUID REFERENCES public.profiles(id),
+    usuario_id UUID REFERENCES public.profiles(id),
     tipo TEXT NOT NULL,
-    mensaje TEXT NOT NULL,
+    descripcion TEXT NOT NULL,
     estado TEXT DEFAULT 'PENDIENTE',
-    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-    fecha_resolucion TIMESTAMP WITH TIME ZONE
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    resolved_at TIMESTAMP WITH TIME ZONE
 );
 
 -- notificaciones_usuarios
