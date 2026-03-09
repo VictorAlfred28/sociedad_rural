@@ -639,15 +639,24 @@ def login(credentials: LoginRequest, request: Request):
         }
         
     except Exception as e:
+        import traceback
+        print(f"ERROR EN LOGIN PARA {login_email}: {str(e)}")
+        traceback.print_exc()
+        
         # Auth api error format fallback
-        if "Invalid login credentials" in str(e) or getattr(e, "status_code", 400) == 400:
+        if "Invalid login credentials" in str(e):
              raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credenciales inválidas"
+                detail="Credenciales inválidas (Usuario o clave incorrecta)"
             )
+        
+        # Si ya es una HTTPException, la relanzamos tal cual para ver el error real (403, 500, etc)
+        if isinstance(e, HTTPException):
+            raise e
+            
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error en login: {str(e)}"
+            detail=f"Error interno en login: {str(e)}"
         )
 
 from fastapi import Depends
