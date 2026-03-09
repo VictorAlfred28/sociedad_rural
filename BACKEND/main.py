@@ -1596,12 +1596,27 @@ async def upload_foto(file: UploadFile = File(...), current_user = Depends(get_c
         
         # 2. Subir a Supabase Storage (Migrado a bucket único 'business-logos')
         print(f"Uploading profile photo. Bucket: business-logos, Path: {file_path}")
-        res_storage = supabase.storage.from_("business-logos").upload(
-            path=file_path,
-            file=file_content,
-            file_options={"content-type": file.content_type, "upsert": "true"}
-        )
-        print(f"Profile upload result: {res_storage}")
+        try:
+            # Asegurarse de que el bucket existe antes de subir
+            try:
+                supabase.storage.get_bucket("business-logos")
+            except Exception:
+                print("Bucket 'business-logos' not found, attempting to create...")
+                try:
+                    supabase.storage.create_bucket("business-logos", options={"public": True})
+                    print("Bucket 'business-logos' created successfully.")
+                except Exception as create_err:
+                    print(f"Critical error: Could not create bucket: {create_err}")
+
+            res_storage = supabase.storage.from_("business-logos").upload(
+                path=file_path,
+                file=file_content,
+                file_options={"content-type": file.content_type, "upsert": "true"}
+            )
+            print(f"Profile upload result: {res_storage}")
+        except Exception as storage_err:
+            print(f"Error subiendo foto al storage: {storage_err}")
+            raise storage_err
         
         # 3. Obtener URL pública
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/business-logos/{file_path}"
@@ -1629,6 +1644,17 @@ async def upload_oferta_foto(file: UploadFile = File(...), current_user = Depend
         # Subir a Supabase Storage (bucket 'business-logos')
         print(f"Uploading offer image. Bucket: business-logos, Path: {filename}")
         try:
+            # Asegurarse de que el bucket existe antes de subir
+            try:
+                supabase.storage.get_bucket("business-logos")
+            except Exception:
+                print("Bucket 'business-logos' not found, attempting to create...")
+                try:
+                    supabase.storage.create_bucket("business-logos", options={"public": True})
+                    print("Bucket 'business-logos' created successfully.")
+                except Exception as create_err:
+                    print(f"Critical error: Could not create bucket: {create_err}")
+
             res_storage = supabase.storage.from_("business-logos").upload(
                 path=filename,
                 file=file_content,
