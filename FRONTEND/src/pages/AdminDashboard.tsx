@@ -8,12 +8,15 @@ import GestionEventos from '../components/admin/GestionEventos';
 import NotificationBell from '../components/NotificationBell';
 import ValidacionPagos from '../components/admin/ValidacionPagos';
 import ReportesPanel from '../components/admin/ReportesPanel';
+import GestionAdministradores from '../components/admin/GestionAdministradores';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
+  const navigate = useNavigate();
 
-  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes'
-  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes'>('panel');
+  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores'
+  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'classic' | 'cyber'>(() => {
@@ -50,15 +53,22 @@ export default function AdminDashboard() {
     }
   }, [token]);
 
-  const navItems = [
+  const isSuperadmin = user?.user_roles?.includes('SUPERADMIN') || false;
+
+  const baseNavItems = [
     { id: 'panel', icon: 'dashboard', label: 'Dashboard' },
     { id: 'usuarios', icon: 'group', label: 'Gestión Socios', badge: supportCount > 0 ? supportCount : null },
     { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Comercios' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
     { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
     { id: 'reportes', icon: 'analytics', label: 'Reportes y Cierres' },
-    { id: 'auditoria', icon: 'policy', label: 'Auditoría Institucional' },
-  ] as const;
+  ];
+
+  const adminNavItems = isSuperadmin ? [
+    ...baseNavItems,
+    { id: 'administradores', icon: 'shield_person', label: 'Especial: Administradores' },
+    { id: 'auditoria', icon: 'policy', label: 'Especial: Auditoría' },
+  ] : baseNavItems;
 
   return (
     <div className={`flex h-screen w-full bg-admin-bg text-admin-text font-display overflow-hidden selection:bg-admin-accent/30 selection:text-white theme-${themeMode}`}>
@@ -96,10 +106,10 @@ export default function AdminDashboard() {
 
         {/* Navigator */}
         <nav className="flex-1 overflow-y-auto admin-scroll py-6 px-4 flex flex-col gap-2">
-          {navItems.map((item) => (
+          {adminNavItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => setActiveTab(item.id as any)}
               className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all w-full text-left relative group ${activeTab === item.id
                 ? 'bg-admin-accent/10 text-admin-text'
                 : 'text-slate-400 hover:bg-admin-card-hover hover:text-admin-text'
@@ -142,7 +152,7 @@ export default function AdminDashboard() {
               <span className="material-symbols-outlined">menu</span>
             </button>
             <h2 className="text-xl font-bold text-admin-text tracking-tight hidden sm:block">
-              {navItems.find(i => i.id === activeTab)?.label}
+              {adminNavItems.find(i => i.id === activeTab)?.label}
             </h2>
           </div>
 
@@ -206,6 +216,19 @@ export default function AdminDashboard() {
                         </span>
                       </button>
 
+                      {/* VISTA SOCIO */}
+                      <button
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-admin-accent hover:bg-admin-accent/10 rounded-lg admin-transition text-left"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          person
+                        </span>
+                        <span className="font-semibold text-sm">
+                          Ir a Vista Socio
+                        </span>
+                      </button>
+
                       <div className="h-px bg-admin-border my-1"></div>
 
                       {/* LOGOUT */}
@@ -230,7 +253,8 @@ export default function AdminDashboard() {
           {activeTab === 'usuarios' && <GestionUsuarios />}
           {activeTab === 'nuevo-comercio' && <NuevoComercio inlineMode={true} onSuccess={() => setActiveTab('usuarios')} />}
           {activeTab === 'eventos' && <GestionEventos />}
-          {activeTab === 'auditoria' && <PanelAuditoria />}
+          {activeTab === 'auditoria' && isSuperadmin && <PanelAuditoria />}
+          {activeTab === 'administradores' && isSuperadmin && <GestionAdministradores />}
 
           {activeTab === 'pagos' && <ValidacionPagos />}
           {activeTab === 'reportes' && <ReportesPanel />}

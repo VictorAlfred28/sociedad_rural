@@ -1,0 +1,412 @@
+﻿diff --git a/BACKEND/main.py b/BACKEND/main.py
+index 3c6d19e..0aff4ea 100644
+--- a/BACKEND/main.py
++++ b/BACKEND/main.py
+@@ -283,6 +283,17 @@ class UpdateProfileRequest(BaseModel):
+     email: Optional[str] = None
+     direccion: Optional[str] = None
+ 
++class CreateAdminRequest(BaseModel):
++    username: str
++    email: EmailStr
++    password: str
++    nombre_apellido: str
++    dni: Optional[str] = None
++    rol: str
++
++class UpdateAdminRoleRequest(BaseModel):
++    rol: str
++
+ class AddDependienteRequest(BaseModel):
+     nombre_apellido: str
+     dni_cuit: str
+@@ -535,7 +546,7 @@ def login(credentials: LoginRequest, request: Request):
+     elif identificador_limpio.isdigit():
+         tipo_identificacion = "dni" # Numerico es DNI o CUIT
+         
+-        # Si es DNI, necesitamos buscar el email en la tabla public.profiles porque Supabase Auth signInWithPassword requiere Email
++        # Si es DNI, necesitamos buscar el email en la tabla public.profiles
+         try:
+             response = supabase.table("profiles").select("email").eq("dni", identificador_limpio).execute()
+             if not response.data or len(response.data) == 0:
+@@ -544,6 +555,16 @@ def login(credentials: LoginRequest, request: Request):
+         except Exception as e:
+             if isinstance(e, HTTPException): raise e
+             raise HTTPException(status_code=500, detail="Error consultando DNI")
++    else:
++        tipo_identificacion = "username" # Alfanum├®rico se asume como nombre de usuario
++        try:
++            response = supabase.table("profiles").select("email").eq("username", identificador_limpio).execute()
++            if not response.data or len(response.data) == 0:
++                raise HTTPException(status_code=401, detail="Credenciales inv├ílidas (Usuario no encontrado)")
++            login_email = response.data[0]["email"]
++        except Exception as e:
++            if isinstance(e, HTTPException): raise e
++            raise HTTPException(status_code=500, detail="Error consultando Usuario")
+             
+     if not login_email:
+         raise HTTPException(status_code=400, detail="Identificador no v├ílido")
+@@ -577,10 +598,34 @@ def login(credentials: LoginRequest, request: Request):
+ 
+         # Validaci├│n: PRIMER LOGIN OBLIGATORIO SI USA PASS POR DEFECTO O FUE RESTABLECIDA POR ADMIN
+         necesita_cambio_password = False
+-        default_passwords = ["comercio1234", "socio1234", "socio123", "SRNC2026!"]
++        default_passwords = ["comercio1234", "socio1234", "socio123", "SRNC2026!", "Admin1234", "x3n3iz3@41"]
+         if password in default_passwords or profile.get("password_changed") is False:
+             necesita_cambio_password = True
+             
++        # Auditor├¡a de Login para Administradores
++        # Verificamos si tiene rol SUPERADMIN o ADMINISTRADOR (o si su rol base es ADMIN)
++        roles_res = supabase.table("user_roles").select("roles(nombre)").eq("user_id", user.id).execute()
++        user_roles_list = []
++        if roles_res.data:
++            user_roles_list = [item["roles"]["nombre"] for item in roles_res.data if item.get("roles")]
++            
++        profile["user_roles"] = user_roles_list
++        
++        # Si es admin de alg├║n tipo, registrar el acceso
++        if profile.get("rol") == "ADMIN" or "SUPERADMIN" in user_roles_list or "ADMINISTRADOR" in user_roles_list:
++            background_tasks.add_task(registrar_auditoria, 
++                usuario_id=user.id,
++                email_usuario=login_email,
++                rol_usuario=" | ".join(user_roles_list) if user_roles_list else profile.get("rol"),
++                accion="LOGIN_ADMIN",
++                tabla="auth.users",
++                registro_id=user.id,
++                datos_anteriores=None,
++                datos_nuevos={"metodo": tipo_identificacion, "roles": user_roles_list},
++                modulo="Autenticaci├│n Administrativa",
++                request=request
++            )
++
+         return {
+             "message": "Login exitoso",
+             "tipo_identificacion_detectado": tipo_identificacion,
+@@ -607,6 +652,24 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+ 
+ security = HTTPBearer()
+ 
++def get_current_superadmin(credentials: HTTPAuthorizationCredentials = Depends(security)):
++    token = credentials.credentials
++    try:
++        user_res = supabase.auth.get_user(token)
++        if not user_res or not user_res.user:
++            raise HTTPException(status_code=401, detail="Token inv├ílido")
++            
++        roles_res = supabase.table("user_roles").select("roles(nombre)").eq("user_id", user_res.user.id).execute()
++        user_roles = [r["roles"]["nombre"] for r in roles_res.data if r.get("roles")] if roles_res.data else []
++        
++        if "SUPERADMIN" not in user_roles:
++            raise HTTPException(status_code=403, detail="Requiere rol de SUPERADMIN")
++            
++        return user_res.user
++    except Exception as e:
++        if isinstance(e, HTTPException): raise e
++        raise HTTPException(status_code=401, detail="Error verificando permisos")
++
+ def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
+     token = credentials.credentials
+     try:
+@@ -615,7 +678,12 @@ def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(securi
+             raise HTTPException(status_code=401, detail="Token inv├ílido")
+             
+         profile_res = supabase.table("profiles").select("rol").eq("id", user_res.user.id).execute()
+-        if not profile_res.data or profile_res.data[0].get("rol") != "ADMIN":
++        roles_res = supabase.table("user_roles").select("roles(nombre)").eq("user_id", user_res.user.id).execute()
++        user_roles = [r["roles"]["nombre"] for r in roles_res.data if r.get("roles")] if roles_res.data else []
++        
++        has_admin_role = "SUPERADMIN" in user_roles or "ADMINISTRADOR" in user_roles or (profile_res.data and profile_res.data[0].get("rol") == "ADMIN")
++        
++        if not has_admin_role:
+             raise HTTPException(status_code=403, detail="Requiere rol de Administrador")
+             
+         return user_res.user
+@@ -640,7 +708,12 @@ async def get_current_admin_optional(request: Request):
+             return None
+             
+         profile_res = supabase.table("profiles").select("rol").eq("id", user_res.user.id).execute()
+-        if not profile_res.data or profile_res.data[0].get("rol") != "ADMIN":
++        roles_res = supabase.table("user_roles").select("roles(nombre)").eq("user_id", user_res.user.id).execute()
++        user_roles = [r["roles"]["nombre"] for r in roles_res.data if r.get("roles")] if roles_res.data else []
++        
++        has_admin_role = "SUPERADMIN" in user_roles or "ADMINISTRADOR" in user_roles or (profile_res.data and profile_res.data[0].get("rol") == "ADMIN")
++        
++        if not has_admin_role:
+             return None
+             
+         return user_res.user
+@@ -671,13 +744,17 @@ def get_current_admin_or_camara(credentials: HTTPAuthorizationCredentials = Depe
+             raise HTTPException(status_code=401, detail="Token inv├ílido")
+             
+         profile_res = supabase.table("profiles").select("rol", "estado").eq("id", user_res.user.id).execute()
++        roles_res = supabase.table("user_roles").select("roles(nombre)").eq("user_id", user_res.user.id).execute()
++        
+         if not profile_res.data:
+             raise HTTPException(status_code=403, detail="Perfil no encontrado")
+             
+         rol = profile_res.data[0].get("rol")
+         estado = profile_res.data[0].get("estado")
++        user_roles = [r["roles"]["nombre"] for r in roles_res.data if r.get("roles")] if roles_res.data else []
++        has_admin_role = "SUPERADMIN" in user_roles or "ADMINISTRADOR" in user_roles or rol == "ADMIN"
+         
+-        if rol not in ["ADMIN", "CAMARA"] or estado != "APROBADO":
++        if not (has_admin_role or rol == "CAMARA") or estado != "APROBADO":
+             raise HTTPException(status_code=403, detail="Requiere rol de Administrador o C├ímara Aprobada")
+             
+         return user_res.user
+@@ -818,6 +895,246 @@ def change_password(req: ChangePasswordRequest, request: Request,background_task
+         if isinstance(e, HTTPException): raise e
+         raise HTTPException(status_code=500, detail=f"Error actualizando la contrase├▒a: {str(e)}")
+ 
++# ÔöÇÔöÇ ENDPOINT ADMIN: AUDITORIA ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
++@app.get("/api/admin/auditoria")
++def get_auditoria(
++    limit: int = Query(default=50, le=100), 
++    offset: int = Query(default=0, ge=0), 
++    usuario_id: Optional[str] = None,
++    accion: Optional[str] = None,
++    tabla_afectada: Optional[str] = None,
++    modulo: Optional[str] = None,
++    admin_user = Depends(get_current_admin) # Asegurar con rol de administrador
++):
++    """Retorna los registros de auditor├¡a, filtrable por usuario, acci├│n, tabla o m├│dulo."""
++    try:
++        query = supabase.table("auditoria").select("*").order("timestamp", desc=True)
++        
++        if usuario_id:
++            query = query.eq("usuario_id", usuario_id)
++        if accion:
++            query = query.eq("accion", accion)
++        if tabla_afectada:
++            query = query.eq("tabla_afectada", tabla_afectada)
++        if modulo:
++            query = query.eq("modulo", modulo)
++            
++        res = query.range(offset, offset + limit - 1).execute()
++        return {"logs": res.data}
++    except Exception as e:
++        raise HTTPException(status_code=500, detail=f"Error consultando auditor├¡a: {str(e)}")
++
++# ÔöÇÔöÇ GESTI├ôN DE ADMINISTRADORES (SOLO SUPERADMIN) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
++class CreateAdminRequest(BaseModel):
++    email: str
++    password: str
++    nombre_apellido: str
++    dni: str
++    username: str
++    rol: str # "SUPERADMIN" o "ADMINISTRADOR"
++
++class UpdateAdminRoleRequest(BaseModel):
++    rol: str # "SUPERADMIN" o "ADMINISTRADOR"
++
++@app.get("/api/admin/administradores")
++def get_all_administradores(superadmin_user = Depends(get_current_superadmin)):
++    try:
++        # Obtenemos usuarios que tengan rol en user_roles con nombre 'SUPERADMIN' o 'ADMINISTRADOR'
++        # Hacemos join directo usando la relaci├│n en supabase
++        res = supabase.table("user_roles").select("user_id, roles!inner(nombre), profiles!inner(id, username, email, nombre_apellido, dni, rol, estado, created_at)").in_("roles.nombre", ["SUPERADMIN", "ADMINISTRADOR"]).execute()
++        
++        # Agrupar por usuario ya que pueden tener multipes roles en user_roles si algo fallo, pero solo nos importa mostrar uno o la lista
++        users = {}
++        for item in (res.data or []):
++            uid = item["user_id"]
++            if uid not in users:
++                users[uid] = item["profiles"]
++                users[uid]["user_roles"] = []
++            
++            users[uid]["user_roles"].append(item["roles"]["nombre"])
++            
++        return {"administradores": list(users.values())}
++    except Exception as e:
++        raise HTTPException(status_code=500, detail=str(e))
++
++@app.post("/api/admin/administradores")
++def create_administrador(
++    req: CreateAdminRequest, 
++    request: Request, 
++    background_tasks: BackgroundTasks, 
++    superadmin_user = Depends(get_current_superadmin)
++):
++    try:
++        rol_asignar = req.rol.upper()
++        if rol_asignar not in ["SUPERADMIN", "ADMINISTRADOR"]:
++            raise HTTPException(status_code=400, detail="Rol inv├ílido")
++            
++        # Get Role IDs
++        roles_res = supabase.table("roles").select("*").execute()
++        roles_map = {r["nombre"]: r["id"] for r in roles_res.data}
++        
++        # Validar Username unico
++        existing = supabase.table("profiles").select("id").eq("username", req.username).execute()
++        if existing.data:
++            raise HTTPException(status_code=400, detail="El nombre de usuario ya existe")
++            
++        # 1. Crear en Auth
++        try:
++            auth_res = supabase.auth.admin.create_user({
++                "email": req.email,
++                "password": req.password,
++                "email_confirm": True
++            })
++            user_id = auth_res.user.id
++        except Exception as e:
++            if "already registered" in str(e).lower() or "already exists" in str(e).lower():
++                raise HTTPException(status_code=400, detail="El correo electr├│nico ya est├í registrado")
++            raise HTTPException(status_code=500, detail=f"Error Auth: {str(e)}")
++            
++        # 2. Crear Perfil
++        profile_data = {
++            "id": user_id,
++            "username": req.username,
++            "dni": req.dni,
++            "email": req.email,
++            "nombre_apellido": req.nombre_apellido,
++            "rol": "ADMIN", # Rol base retrocompatible
++            "estado": "APROBADO",
++            "password_changed": True
++        }
++        
++        try:
++            supabase.table("profiles").insert(profile_data).execute()
++        except Exception as e:
++            supabase.auth.admin.delete_user(user_id)
++            raise HTTPException(status_code=500, detail=f"Error creando perfil: {str(e)}")
++            
++        # 3. Asignar Roles
++        try:
++            # Rol admin solicitado
++            supabase.table("user_roles").insert({"user_id": user_id, "role_id": roles_map[rol_asignar]}).execute()
++            # Todos los admins tambi├®n son SOCIOS
++            supabase.table("user_roles").insert({"user_id": user_id, "role_id": roles_map["SOCIO"]}).execute()
++        except:
++            pass # Si falla no revertimos todo, quizas solo el rol. Lo dejamos as├¡.
++            
++        background_tasks.add_task(registrar_auditoria, 
++            usuario_id=superadmin_user.id,
++            email_usuario=superadmin_user.email,
++            rol_usuario="SUPERADMIN",
++            accion="CREATE_ADMIN",
++            tabla="auth.users",
++            registro_id=user_id,
++            datos_anteriores=None,
++            datos_nuevos=profile_data,
++            modulo="Gesti├│n de Administradores",
++            request=request
++        )
++            
++        return {"message": "Administrador creado exitosamente"}
++    except HTTPException as e:
++        raise e
++    except Exception as e:
++        raise HTTPException(status_code=500, detail=str(e))
++
++@app.put("/api/admin/administradores/{user_id}/role")
++def update_administrador_role(
++    user_id: str,
++    req: UpdateAdminRoleRequest,
++    request: Request,
++    background_tasks: BackgroundTasks,
++    superadmin_user = Depends(get_current_superadmin)
++):
++    try:
++        if user_id == superadmin_user.id and req.rol.upper() != "SUPERADMIN":
++            raise HTTPException(status_code=400, detail="No puedes degradar tu propio rol de Superadmin")
++
++        rol_asignar = req.rol.upper()
++        if rol_asignar not in ["SUPERADMIN", "ADMINISTRADOR"]:
++            raise HTTPException(status_code=400, detail="Rol inv├ílido")
++
++        # Get Role IDs
++        roles_res = supabase.table("roles").select("*").execute()
++        roles_map = {r["nombre"]: r["id"] for r in roles_res.data}
++        target_role_id = roles_map.get(rol_asignar)
++        if not target_role_id:
++            raise HTTPException(status_code=500, detail="Rol no encontrado en la base de datos")
++
++        # Fetch current roles for audit and validation
++        current_user_roles_res = supabase.table("user_roles").select("roles(nombre), role_id").eq("user_id", user_id).in_("roles.nombre", ["SUPERADMIN", "ADMINISTRADOR"]).execute()
++        current_admin_roles = [r["roles"]["nombre"] for r in current_user_roles_res.data if r.get("roles")]
++        current_admin_role_ids = [r["role_id"] for r in current_user_roles_res.data]
++
++        if not current_admin_roles:
++            raise HTTPException(status_code=404, detail="Usuario no es un administrador existente")
++
++        # Determine previous role for audit
++        previous_role = "ADMINISTRADOR" if "ADMINISTRADOR" in current_admin_roles else "SUPERADMIN"
++
++        # Remove existing admin roles
++        for role_id_to_remove in current_admin_role_ids:
++            supabase.table("user_roles").delete().eq("user_id", user_id).eq("role_id", role_id_to_remove).execute()
++
++        # Assign new role
++        supabase.table("user_roles").insert({"user_id": user_id, "role_id": target_role_id}).execute()
++
++        background_tasks.add_task(registrar_auditoria,
++            usuario_id=superadmin_user.id,
++            email_usuario=superadmin_user.email,
++            rol_usuario="SUPERADMIN",
++            accion="UPDATE_ADMIN_ROLE",
++            tabla="user_roles",
++            registro_id=user_id,
++            datos_anteriores={"rol": previous_role},
++            datos_nuevos={"rol": rol_asignar},
++            modulo="Gesti├│n de Administradores",
++            request=request
++        )
++
++        return {"message": f"Rol de administrador actualizado a {rol_asignar}"}
++    except HTTPException as e:
++        raise e
++    except Exception as e:
++        raise HTTPException(status_code=500, detail=str(e))
++
++@app.delete("/api/admin/administradores/{user_id}")
++def delete_administrador(
++    user_id: str, 
++    request: Request, 
++    background_tasks: BackgroundTasks, 
++    superadmin_user = Depends(get_current_superadmin)
++):
++    try:
++        # Prevent self-deletion
++        if user_id == superadmin_user.id:
++            raise HTTPException(status_code=400, detail="No puede eliminarse a s├¡ mismo")
++            
++        # Fetch profile for audit
++        prof_res = supabase.table("profiles").select("*").eq("id", user_id).execute()
++        if not prof_res.data:
++            raise HTTPException(status_code=404, detail="Administrador no encontrado")
++            
++        # Delete from Auth (Cascade)
++        supabase.auth.admin.delete_user(user_id)
++        
++        background_tasks.add_task(registrar_auditoria, 
++            usuario_id=superadmin_user.id,
++            email_usuario=superadmin_user.email,
++            rol_usuario="SUPERADMIN",
++            accion="DELETE_ADMIN",
++            tabla="auth.users",
++            registro_id=user_id,
++            datos_anteriores=prof_res.data[0],
++            datos_nuevos=None,
++            modulo="Gesti├│n de Administradores",
++            request=request
++        )
++        return {"message": "Administrador eliminado permanentemente"}
++    except HTTPException as e:
++        raise e
++    except Exception as e:
++        raise HTTPException(status_code=500, detail=str(e))
++
+ # 5. ENDPOINT ADMIN: LISTAR PENDIENTES
+ @app.get("/api/admin/users/pending")
+ def get_pending_users(limit: int = Query(default=50, le=100), offset: int = Query(default=0, ge=0), admin_user = Depends(get_current_admin)):
+@@ -1747,7 +2064,7 @@ def resolve_support_notification(notif_id: str, admin_user = Depends(get_current
+ @app.get("/api/admin/auditoria")
+ def get_auditoria(
+     request: Request,
+-    admin_user = Depends(get_current_admin),
++    superadmin_user = Depends(get_current_superadmin),
+     usuario_id: Optional[str] = None,
+     accion: Optional[str] = None,
+     tabla_afectada: Optional[str] = None,

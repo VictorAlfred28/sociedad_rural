@@ -16,6 +16,7 @@ export interface Socio {
     foto_url?: string;
     titular_id?: string | null;
     tipo_vinculo?: string | null;
+    user_roles?: string[];
 }
 
 interface AuthContextType {
