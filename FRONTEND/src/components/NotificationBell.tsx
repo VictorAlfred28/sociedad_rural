@@ -165,10 +165,17 @@ export default function NotificationBell() {
                             notifications.map((notif) => (
                                 <div
                                     key={notif.id}
-                                    className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${!notif.leido ? 'bg-primary/5' : ''}`}
+                                    className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${!notif.leido ? 'bg-primary/5' : ''} ${notif.titulo.includes('Soporte') ? 'border-l-4 border-amber-500 bg-amber-500/5' : ''}`}
                                 >
-                                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">{notif.titulo}</p>
-                                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-2 line-clamp-2">{notif.mensaje}</p>
+                                    <div className="flex items-start gap-2">
+                                        {notif.titulo.includes('Soporte') && (
+                                            <span className="material-symbols-outlined text-amber-500 text-sm mt-0.5">priority_high</span>
+                                        )}
+                                        <div className="flex-1">
+                                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">{notif.titulo}</p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-2 line-clamp-2">{notif.mensaje}</p>
+                                        </div>
+                                    </div>
                                     <div className="flex justify-between items-center mt-auto">
                                         <span className="text-[10px] uppercase font-bold text-slate-400">{timeAgo(notif.created_at)}</span>
                                     </div>

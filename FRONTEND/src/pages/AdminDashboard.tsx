@@ -29,9 +29,30 @@ export default function AdminDashboard() {
     setIsSidebarOpen(false);
   }, [activeTab]);
 
+  const [supportCount, setSupportCount] = useState(0);
+
+  useEffect(() => {
+    const fetchSupportCount = async () => {
+      try {
+        const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/notificaciones-soporte`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+        if (resp.ok) setSupportCount(data.notificaciones?.length || 0);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    if (token) {
+      fetchSupportCount();
+      const interval = setInterval(fetchSupportCount, 60000); // Poll every minute
+      return () => clearInterval(interval);
+    }
+  }, [token]);
+
   const navItems = [
     { id: 'panel', icon: 'dashboard', label: 'Dashboard' },
-    { id: 'usuarios', icon: 'group', label: 'Gestión Socios' },
+    { id: 'usuarios', icon: 'group', label: 'Gestión Socios', badge: supportCount > 0 ? supportCount : null },
     { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Comercios' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
     { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
@@ -90,9 +111,14 @@ export default function AdminDashboard() {
               <span className={`material-symbols-outlined text-[20px] ${activeTab === item.id ? 'text-admin-accent' : 'group-hover:text-admin-accent/70'}`}>
                 {item.icon}
               </span>
-              <span className={`font-semibold text-sm tracking-wide ${activeTab === item.id ? 'text-admin-text' : ''}`}>
+              <span className={`font-semibold text-sm tracking-wide ${activeTab === item.id ? 'text-admin-text' : ''} flex-1`}>
                 {item.label}
               </span>
+              {(item as any).badge && (
+                <span className="size-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse shadow-lg shadow-red-500/20">
+                  {(item as any).badge}
+                </span>
+              )}
             </button>
           ))}
         </nav>

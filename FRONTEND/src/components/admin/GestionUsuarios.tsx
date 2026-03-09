@@ -34,6 +34,45 @@ export default function GestionUsuarios() {
     });
     const [municipiosDisponibles, setMunicipiosDisponibles] = useState<{ id: string, nombre: string }[]>([]);
 
+    // Support Requests States
+    const [supportNotifications, setSupportNotifications] = useState<any[]>([]);
+    const [loadingSupport, setLoadingSupport] = useState(false);
+
+    const fetchSupportNotifications = async () => {
+        setLoadingSupport(true);
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/notificaciones-soporte`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await resp.json();
+            if (resp.ok) setSupportNotifications(data.notificaciones || []);
+        } catch (err) {
+            console.error('Error fetching support notifications:', err);
+        } finally {
+            setLoadingSupport(false);
+        }
+    };
+
+    const handleResolveSupport = async (notifId: string) => {
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/notificaciones-soporte/${notifId}/resolver`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resp.ok) {
+                setSupportNotifications(prev => prev.filter(n => n.id !== notifId));
+            }
+        } catch (err) {
+            console.error('Error resolving support notification:', err);
+        }
+    };
+
+    const handleProcessRecovery = async (notif: any) => {
+        setActionUser({ id: notif.usuario_id, name: notif.profiles?.nombre_apellido || 'Socio' });
+        setActionType('RESET_PASS');
+        (window as any)._pendingSupportId = notif.id;
+    };
+
     const fetchUsers = async () => {
         setLoading(true);
         try {
@@ -52,6 +91,7 @@ export default function GestionUsuarios() {
 
     useEffect(() => {
         fetchUsers();
+        fetchSupportNotifications();
     }, [token]);
 
     const isSimulationId = (id: string) => id.startsWith('simulacion-');
@@ -141,9 +181,19 @@ export default function GestionUsuarios() {
                 body: JSON.stringify({ new_password: 'SRNC2026!' })
             });
             const data = await resp.json();
-            if (!resp.ok) throw new Error(data.detail || 'Error al restablecer contraseña');
-            setSuccessMessage(`Se ha restablecido la contraseña de ${actionUser.name}.\n\nContraseña temporal: ${data.temporary_password}\n\nEl usuario deberá cambiarla en su primer ingreso.`);
-            setActionType('SUCCESS_MSG');
+            if (resp.ok) {
+                setSuccessMessage(`Se ha restablecido la contraseña de ${actionUser.name}.\n\nContraseña temporal: ${data.temporary_password}\n\nEl usuario deberá cambiarla en su primer ingreso.`);
+                setActionType('SUCCESS_MSG');
+
+                // Si venía de una solicitud de soporte, resolverla automáticamente
+                const pendingId = (window as any)._pendingSupportId;
+                if (pendingId) {
+                    handleResolveSupport(pendingId);
+                    (window as any)._pendingSupportId = null;
+                }
+            } else {
+                throw new Error(data.detail || 'Error al restablecer contraseña');
+            }
         } catch (err: any) {
             alert(err.message);
             setActionType('NONE');
@@ -299,6 +349,49 @@ export default function GestionUsuarios() {
                     </select>
                 </div>
             </div>
+
+            {/* SECCIÓN DE SOLICITUDES DE SOPORTE */}
+            {supportNotifications.length > 0 && (
+                <div className="px-4 mb-2">
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-amber-500">
+                                <span className="material-symbols-outlined font-bold">priority_high</span>
+                                <h3 className="text-sm font-black uppercase tracking-wider">Solicitudes de Recuperación ({supportNotifications.length})</h3>
+                            </div>
+                            <button onClick={fetchSupportNotifications} className="text-amber-500/50 hover:text-amber-500 transition-colors">
+                                <span className="material-symbols-outlined text-sm">refresh</span>
+                            </button>
+                        </div>
+                        <div className="flex flex-col gap-2 max-h-48 overflow-y-auto admin-scroll">
+                            {supportNotifications.map(notif => (
+                                <div key={notif.id} className="bg-admin-bg/50 border border-amber-500/20 rounded-xl p-3 flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex flex-col">
+                                            <p className="text-xs font-bold text-admin-text">{notif.profiles?.nombre_apellido}</p>
+                                            <p className="text-[10px] text-slate-500">DNI: {notif.profiles?.dni} • {new Date(notif.created_at).toLocaleTimeString()}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleResolveSupport(notif.id)}
+                                                className="px-2 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[10px] font-bold transition-colors"
+                                            >
+                                                Ignorar
+                                            </button>
+                                            <button
+                                                onClick={() => handleProcessRecovery(notif)}
+                                                className="px-3 py-1 bg-amber-500 text-white rounded-md text-[10px] font-bold shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+                                            >
+                                                Restablecer
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="flex flex-col gap-3 px-4 pb-8">
                 {loading ? (

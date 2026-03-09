@@ -1668,49 +1668,80 @@ async def upload_oferta_foto(file: UploadFile = File(...), current_user = Depend
         print(f"Error en endpoint /api/ofertas/foto: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error subiendo imagen de oferta: {str(e)}")
 
+
 @app.post("/api/notificar-olvido-password")
 @limiter.limit("3/minute")
-def notificar_olvido_password(req: ForgotPasswordRequest, request: Request):
+def notificar_olvido_password(req: ForgotPasswordRequest, request: Request, background_tasks: BackgroundTasks):
     """
-    Registra una solicitud de recuperación de contraseña para que el administrador la procese.
+    Registra una solicitud de recuperación de contraseña y notifica a todos los administradores.
     """
     try:
         identificador = req.identificador.strip()
         
-        # Opcional: Buscar el perfil para validar que existe y obtener más datos
+        # 1. Buscar el perfil del usuario que solicita
         profile_res = None
         if "@" in identificador:
-            profile_res = supabase.table("profiles").select("id, email, nombre_apellido").eq("email", identificador).execute()
+            profile_res = supabase.table("profiles").select("id, email, nombre_apellido, dni").eq("email", identificador).execute()
         else:
-            profile_res = supabase.table("profiles").select("id, email, nombre_apellido").eq("dni", identificador).execute()
+            profile_res = supabase.table("profiles").select("id, email, nombre_apellido, dni").eq("dni", identificador).execute()
             
         if not profile_res.data:
-            # Por seguridad, no informamos si el usuario existe o no, pero internamente fallamos
+            # Por seguridad, mensaje genérico
             return {"message": "Si el usuario existe, el administrador ha sido notificado."}
 
         perfil = profile_res.data[0]
         
-        # Registrar la solicitud en una tabla 'soporte' o similar. 
-        # Si no existe la tabla, podemos usar un log o una tabla genérica de notificaciones.
-        # Por simplicidad ahora, intentaremos insertar en una tabla 'notificaciones_admin'
+        # 2. Registrar la solicitud en notificaciones_admin
         notif_data = {
             "usuario_id": perfil["id"],
             "tipo": "OLVIDO_PASSWORD",
-            "descripcion": f"El usuario {perfil['nombre_apellido']} ({perfil['email']}) solicita restablecer su contraseña.",
-            "estado": "PENDIENTE"
+            "descripcion": f"El usuario {perfil['nombre_apellido']} (DNI: {perfil['dni']}) solicita restablecer su contraseña.",
+            "estado": "PENDIENTE",
+            "metadata": {"email": perfil["email"]}
         }
         
-        # Nota: Asumimos que existe una tabla o la creamos vía código si falla el insert directo por falta de tabla
-        try:
-            supabase.table("notificaciones_admin").insert(notif_data).execute()
-        except:
-            # Fallback a un log si la tabla no existe aún o falla
-            print(f"⚠️ NOTIFICACIÓN ADMIN: {notif_data['descripcion']}")
+        res_ins = supabase.table("notificaciones_admin").insert(notif_data).execute()
+        
+        # 3. Notificar a todos los administradores (In-App y Push)
+        # Buscamos todos los perfiles con rol ADMIN
+        admins_res = supabase.table("profiles").select("id").eq("rol", "ADMIN").execute()
+        if admins_res.data:
+            for admin in admins_res.data:
+                background_tasks.add_task(
+                    enviar_notificacion_push_inapp,
+                    usuario_id=admin["id"],
+                    titulo="Solicitud de Soporte 🔑",
+                    mensaje=f"{perfil['nombre_apellido']} olvidó su contraseña.",
+                    link_url="/admin" # O una sección específica si la creamos
+                )
 
-        return {"message": "Solicitud enviada correctamente. El administrador se pondrá en contacto pronto."}
+        return {"message": "Solicitud enviada correctamente. Un administrador procesará tu pedido a la brevedad."}
         
     except Exception as e:
+        logger.error(f"Error en notificar_olvido_password: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al procesar solicitud: {str(e)}")
+
+@app.get("/api/admin/notificaciones-soporte")
+def get_support_notifications(admin_user = Depends(get_current_admin)):
+    """Retorna las notificaciones de soporte pendientes para el administrador"""
+    try:
+        res = supabase.table("notificaciones_admin") \
+            .select("*, profiles!usuario_id(nombre_apellido, dni, email, rol)") \
+            .eq("estado", "PENDIENTE") \
+            .order("created_at", desc=True) \
+            .execute()
+        return {"notificaciones": res.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/admin/notificaciones-soporte/{notif_id}/resolver")
+def resolve_support_notification(notif_id: str, admin_user = Depends(get_current_admin)):
+    """Marca una notificación de soporte como resuelta"""
+    try:
+        supabase.table("notificaciones_admin").update({"estado": "RESUELTO"}).eq("id", notif_id).execute()
+        return {"message": "Solicitud marcada como resuelta"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ── ENDPOINT DE AUDITORÍA (ADMIN) ─────────────────────────────────────────────
 @app.get("/api/admin/auditoria")
