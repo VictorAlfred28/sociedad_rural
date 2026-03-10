@@ -333,6 +333,9 @@ class WebhookEventoPayload(BaseModel):
     media_url: str
     timestamp: str
 
+class UpdateSupportNoteRequest(BaseModel):
+    nota: str
+
 # ── UTILIDADES PARA EL WEBHOOK DE EVENTOS SOCIALES ───────────────────────────
 def procesar_texto_evento(caption: str) -> dict:
     # 1. Extraer Lugar
@@ -2227,6 +2230,23 @@ def admin_reset_password(notif_id: str, req: ResetPasswordRequest, request: Requ
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=f"Error al resetear contraseña: {str(e)}")
+
+@app.put("/api/admin/notificaciones-soporte/{notif_id}/nota")
+def update_support_note(notif_id: str, req: UpdateSupportNoteRequest, admin_user = Depends(get_current_admin)):
+    """Actualiza la nota interna en el metadata de una notificación"""
+    try:
+        # Recuperar metadata actual
+        notif_res = supabase.table("notificaciones_admin").select("metadata").eq("id", notif_id).execute()
+        if not notif_res.data:
+            raise HTTPException(status_code=404, detail="Notificación no encontrada")
+        
+        metadata = notif_res.data[0].get("metadata") or {}
+        metadata["nota"] = req.nota
+        
+        supabase.table("notificaciones_admin").update({"metadata": metadata}).eq("id", notif_id).execute()
+        return {"message": "Nota actualizada correctamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ── ENDPOINT DE AUDITORÍA (ADMIN) ─────────────────────────────────────────────
 @app.get("/api/admin/auditoria")
