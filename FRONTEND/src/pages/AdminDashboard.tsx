@@ -220,7 +220,7 @@ export default function AdminDashboard() {
 
                       {/* VISTA SOCIO */}
                       <button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/home')}
                         className="flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-admin-accent hover:bg-admin-accent/10 rounded-lg admin-transition text-left"
                       >
                         <span className="material-symbols-outlined text-[20px]">

@@ -63,7 +63,7 @@ export default function App() {
     <Router>
       <Routes>
         {/* Rutas Públicas */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={isAuthenticated ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
         <Route path="/registro-paso-2" element={<RegistroPaso2 />} />
