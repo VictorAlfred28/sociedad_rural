@@ -1387,8 +1387,13 @@ def reset_user_password(user_id: str, req: ResetPasswordRequest, request: Reques
             raise HTTPException(status_code=400, detail="ID de usuario inválido")
 
         # Prevenir que un ADMIN restablezca la clave de otro ADMIN (Tenant Security)
+        # EXCEPCIÓN: Superadmin puede resetear claves de cualquiera
+        roles_res = supabase.table("user_roles").select("roles(nombre)").eq("user_id", admin_user.id).execute()
+        user_roles = [r["roles"]["nombre"] for r in roles_res.data if r.get("roles")] if roles_res.data else []
+        is_superadmin = "SUPERADMIN" in user_roles
+
         target_profile = supabase.table("profiles").select("rol").eq("id", user_id).execute()
-        if target_profile.data and target_profile.data[0].get("rol") == "ADMIN" and admin_user.id != user_id:
+        if target_profile.data and target_profile.data[0].get("rol") == "ADMIN" and admin_user.id != user_id and not is_superadmin:
             raise HTTPException(status_code=403, detail="No tienes permisos para restablecer la contraseña de otro Administrador.")
             
         new_password = req.new_password if req.new_password else "SRNC2026!"
@@ -1406,7 +1411,7 @@ def reset_user_password(user_id: str, req: ResetPasswordRequest, request: Reques
         background_tasks.add_task(registrar_auditoria, 
             usuario_id=admin_user.id,
             email_usuario=admin_user.email,
-            rol_usuario="ADMIN",
+            rol_usuario="SUPERADMIN" if is_superadmin else "ADMIN",
             accion="UPDATE",
             tabla="auth.users (Password)",
             registro_id=user_id,

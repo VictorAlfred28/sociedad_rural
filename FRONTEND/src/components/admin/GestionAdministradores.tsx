@@ -22,6 +22,9 @@ export default function GestionAdministradores() {
         username: '', email: '', password: '', nombre_apellido: '', dni: '', rol: 'ADMINISTRADOR'
     });
 
+    // Reset Password States
+    const [resetLoading, setResetLoading] = useState<string | null>(null);
+
     const fetchAdmins = async () => {
         try {
             setLoading(true);
@@ -103,6 +106,32 @@ export default function GestionAdministradores() {
         }
     };
 
+    const handleResetPassword = async (admin: AdminUser) => {
+        if (!confirm(`¿Estás seguro de restablecer la contraseña de ${admin.nombre_apellido}?\n\nSe le asignará la clave temporal: SRNC2026!`)) return;
+
+        setResetLoading(admin.id);
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/users/${admin.id}/reset-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ new_password: 'SRNC2026!' })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                alert(`¡Éxito! Nueva clave asignada para ${admin.nombre_apellido}.\n\nClave temporal: ${data.temporary_password || 'SRNC2026!'}\n\nEl usuario deberá cambiarla en su próximo ingreso.`);
+            } else {
+                throw new Error(data.detail || 'Error al restablecer contraseña');
+            }
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setResetLoading(null);
+        }
+    };
+
     if (loading) return <div className="p-8 text-center text-admin-text">Cargando administradores...</div>;
 
     return (
@@ -168,6 +197,16 @@ export default function GestionAdministradores() {
                                                                 Hacer {isSuperadmin ? 'ADMINISTRADOR' : 'SUPERADMIN'}
                                                             </button>
                                                         </div>
+                                                        <button
+                                                            onClick={() => handleResetPassword(admin)}
+                                                            disabled={resetLoading === admin.id}
+                                                            className="size-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-admin-accent/10 hover:text-admin-accent transition-colors disabled:opacity-50"
+                                                            title="Restablecer Contraseña"
+                                                        >
+                                                            <span className={`material-symbols-outlined text-[18px] ${resetLoading === admin.id ? 'animate-spin' : ''}`}>
+                                                                {resetLoading === admin.id ? 'sync' : 'key'}
+                                                            </span>
+                                                        </button>
                                                         <button
                                                             onClick={() => handleDelete(admin.id)}
                                                             className="size-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-500/10 hover:text-red-500 transition-colors"
