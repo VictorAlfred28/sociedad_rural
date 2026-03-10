@@ -257,6 +257,7 @@ export default function AdminDashboard() {
           {activeTab === 'eventos' && <GestionEventos />}
           {activeTab === 'auditoria' && isSuperadmin && <PanelAuditoria />}
           {activeTab === 'administradores' && isSuperadmin && <GestionAdministradores />}
+          {activeTab === 'soporte' && <GestionSoporte />}
 
           {activeTab === 'pagos' && <ValidacionPagos />}
           {activeTab === 'reportes' && <ReportesPanel />}
