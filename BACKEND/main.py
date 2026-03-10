@@ -298,8 +298,7 @@ class CreateAdminRequest(BaseModel):
 class UpdateAdminRoleRequest(BaseModel):
     rol: str
 
-class ResetPasswordRequest(BaseModel):
-    new_password: str
+# ResetPasswordRequest se definió más abajo
 
 class AddDependienteRequest(BaseModel):
     nombre_apellido: str
@@ -1425,6 +1424,10 @@ def reset_user_password(user_id: str, req: ResetPasswordRequest, request: Reques
         )
         return {"message": "Contraseña restablecida correctamente", "temporary_password": new_password}
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR CRÍTICO RESET PASSWORD ({user_id}): {str(e)}")
+        print(error_details)
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=f"Error al restablecer contraseña: {str(e)}")
 
