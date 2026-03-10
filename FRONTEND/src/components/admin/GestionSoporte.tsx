@@ -25,9 +25,6 @@ export default function GestionSoporte() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [editingNotes, setEditingNotes] = useState<{ [key: string]: string }>({});
-    const [selfPassData, setSelfPassData] = useState({ current: '', new: '', confirm: '' });
-    const [changingSelfPass, setChangingSelfPass] = useState(false);
-    const [showSelfPassForm, setShowSelfPassForm] = useState(false);
 
     const fetchNotificaciones = async () => {
         try {
@@ -137,35 +134,6 @@ export default function GestionSoporte() {
         }
     };
 
-    const handleSelfChangePassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (selfPassData.new !== selfPassData.confirm) return alert('Las contraseñas no coinciden.');
-        if (selfPassData.new.length < 6) return alert('La nueva contraseña debe tener al menos 6 caracteres.');
-
-        setChangingSelfPass(true);
-        try {
-            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/change-password`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ new_password: selfPassData.new })
-            });
-            if (resp.ok) {
-                setSuccess('¡Tu contraseña ha sido actualizada correctamente!');
-                setSelfPassData({ current: '', new: '', confirm: '' });
-                setShowSelfPassForm(false);
-            } else {
-                const d = await resp.json();
-                throw new Error(d.detail || 'Error al cambiar contraseña');
-            }
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setChangingSelfPass(false);
-        }
-    };
 
     const openWhatsApp = (telefono: string, nombre: string) => {
         if (!telefono) return alert('El usuario no tiene un teléfono registrado.');
@@ -309,64 +277,6 @@ export default function GestionSoporte() {
                 </div>
             )}
 
-            {/* SECCIÓN CLAVES - Autogestión */}
-            <div className="mt-12 pt-8 border-t border-admin-border">
-                <div className="bg-gradient-to-br from-admin-card to-admin-bg border border-admin-border rounded-3xl p-8 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-5">
-                        <span className="material-symbols-outlined text-8xl">manage_accounts</span>
-                    </div>
-
-                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                        <div className="space-y-2">
-                            <h4 className="text-xl font-bold text-admin-text">👤 Configuración de Mi Cuenta</h4>
-                            <p className="text-slate-400 text-sm max-w-md">Gestiona tu acceso personal al sistema. Esta sección es exclusiva para tu usuario.</p>
-                        </div>
-                        <button
-                            onClick={() => setShowSelfPassForm(!showSelfPassForm)}
-                            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-sm transition-all flex items-center gap-2 border border-white/10"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">{showSelfPassForm ? 'expand_less' : 'password'}</span>
-                            {showSelfPassForm ? 'Ocultar Formulario' : 'Cambiar Mi Contraseña'}
-                        </button>
-                    </div>
-
-                    {showSelfPassForm && (
-                        <form onSubmit={handleSelfChangePassword} className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-4 duration-300">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Nueva Contraseña</label>
-                                <input
-                                    type="password"
-                                    required
-                                    value={selfPassData.new}
-                                    onChange={e => setSelfPassData({ ...selfPassData, new: e.target.value })}
-                                    className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
-                                    placeholder="Mínimo 6 caracteres"
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Confirmar Contraseña</label>
-                                <input
-                                    type="password"
-                                    required
-                                    value={selfPassData.confirm}
-                                    onChange={e => setSelfPassData({ ...selfPassData, confirm: e.target.value })}
-                                    className="w-full h-12 bg-slate-900/50 border border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
-                                    placeholder="Repite la contraseña"
-                                />
-                            </div>
-                            <div className="flex items-end">
-                                <button
-                                    type="submit"
-                                    disabled={changingSelfPass}
-                                    className="w-full h-12 bg-admin-accent text-white font-bold rounded-xl shadow-lg shadow-admin-accent/20 active:scale-95 transition-all disabled:opacity-50"
-                                >
-                                    {changingSelfPass ? 'Actualizando...' : 'Actualizar Mi Clave'}
-                                </button>
-                            </div>
-                        </form>
-                    )}
-                </div>
-            </div>
         </div>
     );
 }

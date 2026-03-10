@@ -10,6 +10,7 @@ import ValidacionPagos from '../components/admin/ValidacionPagos';
 import ReportesPanel from '../components/admin/ReportesPanel';
 import GestionAdministradores from '../components/admin/GestionAdministradores';
 import GestionSoporte from '../components/admin/GestionSoporte';
+import ChangePasswordModal from '../components/admin/ChangePasswordModal';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
@@ -20,6 +21,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isPassModalOpen, setIsPassModalOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'classic' | 'cyber'>(() => {
     return (localStorage.getItem('adminTheme') as 'classic' | 'cyber') || 'cyber';
   });
@@ -62,7 +64,7 @@ export default function AdminDashboard() {
     { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Comercios' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
     { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
-    { id: 'soporte', icon: 'support_agent', label: 'Soporte y Claves', badge: supportCount > 0 ? supportCount : null },
+    { id: 'soporte', icon: 'support_agent', label: 'Centro de Soporte', badge: supportCount > 0 ? supportCount : null },
     { id: 'reportes', icon: 'analytics', label: 'Reportes y Cierres' },
   ];
 
@@ -227,7 +229,23 @@ export default function AdminDashboard() {
                           person
                         </span>
                         <span className="font-semibold text-sm">
-                          Ir a Vista Socio
+                          Vista Socio
+                        </span>
+                      </button>
+
+                      {/* CONFIGURACIÓN CUENTA */}
+                      <button
+                        onClick={() => {
+                          setIsPassModalOpen(true);
+                          setIsProfileMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-admin-accent hover:bg-admin-accent/10 rounded-lg admin-transition text-left"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          manage_accounts
+                        </span>
+                        <span className="font-semibold text-sm">
+                          Mi Cuenta y Seguridad
                         </span>
                       </button>
 
@@ -263,6 +281,12 @@ export default function AdminDashboard() {
           {activeTab === 'reportes' && <ReportesPanel />}
         </div>
       </main>
+
+      {/* Modal Global de Cambio de Password */}
+      <ChangePasswordModal
+        isOpen={isPassModalOpen}
+        onClose={() => setIsPassModalOpen(false)}
+      />
     </div>
   );
 }
