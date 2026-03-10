@@ -285,7 +285,7 @@ export default function GestionAdministradores() {
                                                         onClick={() => handleResetPassword(admin)}
                                                         disabled={resetLoading === admin.id}
                                                         className="size-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:bg-admin-accent/10 hover:text-admin-accent transition-colors disabled:opacity-50"
-                                                        title="Restablecer Contraseña"
+                                                        title="Restablecer Clave (Terceros)"
                                                     >
                                                         <span className={`material-symbols-outlined text-[18px] ${resetLoading === admin.id ? 'animate-spin' : ''}`}>
                                                             {resetLoading === admin.id ? 'sync' : 'key'}

@@ -313,13 +313,13 @@ export default function GestionSoporte() {
             <div className="mt-12 pt-8 border-t border-admin-border">
                 <div className="bg-gradient-to-br from-admin-card to-admin-bg border border-admin-border rounded-3xl p-8 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-8 opacity-5">
-                        <span className="material-symbols-outlined text-8xl">lock_reset</span>
+                        <span className="material-symbols-outlined text-8xl">manage_accounts</span>
                     </div>
 
                     <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                         <div className="space-y-2">
-                            <h4 className="text-xl font-bold text-admin-text">🔑 Mi Seguridad y Claves</h4>
-                            <p className="text-slate-400 text-sm max-w-md">Administra tu acceso personal al sistema. Recomendamos cambiar tu contraseña periódicamente.</p>
+                            <h4 className="text-xl font-bold text-admin-text">👤 Configuración de Mi Cuenta</h4>
+                            <p className="text-slate-400 text-sm max-w-md">Gestiona tu acceso personal al sistema. Esta sección es exclusiva para tu usuario.</p>
                         </div>
                         <button
                             onClick={() => setShowSelfPassForm(!showSelfPassForm)}
