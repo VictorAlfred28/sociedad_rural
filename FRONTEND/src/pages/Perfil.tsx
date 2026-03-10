@@ -306,13 +306,15 @@ export default function Perfil() {
       <div className="flex-1 px-4 pb-24">
         <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest pb-3 pt-4 px-2">Configuración</h3>
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-primary/5 overflow-hidden">
-          <Link to="/cambio-password" className="flex items-center gap-4 px-4 py-4 border-b border-slate-50 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800 transition-colors cursor-pointer">
-            <div className="flex items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0 size-10">
-              <span className="material-symbols-outlined">lock</span>
-            </div>
-            <p className="text-slate-700 dark:text-slate-300 text-base font-medium flex-1">Seguridad</p>
-            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
-          </Link>
+          {user?.rol !== 'ADMIN' && (
+            <Link to="/cambio-password" className="flex items-center gap-4 px-4 py-4 border-b border-slate-50 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800 transition-colors cursor-pointer">
+              <div className="flex items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0 size-10">
+                <span className="material-symbols-outlined">lock</span>
+              </div>
+              <p className="text-slate-700 dark:text-slate-300 text-base font-medium flex-1">Seguridad</p>
+              <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
+            </Link>
+          )}
           <Link to="/preferencias" className="flex items-center gap-4 px-4 py-4 active:bg-slate-50 dark:active:bg-slate-800 transition-colors cursor-pointer">
             <div className="flex items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0 size-10">
               <span className="material-symbols-outlined">settings</span>
