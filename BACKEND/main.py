@@ -3015,6 +3015,109 @@ def rechazar_pago(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# 12.4b ADMIN: Procesar Rendición Bancaria (.txt)
+@app.post("/api/admin/procesar-rendicion-bc")
+async def procesar_rendicion_bc(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    archivo: UploadFile = File(...),
+    admin_user = Depends(get_current_admin)
+):
+    """
+    Recibe un archivo .txt con el formato del Banco de Corrientes:
+    Fecha(8) + Monto(8) + DNI(8)
+    Ej: 202603110000500031435789 -> Pago de $50 para el DNI 31435789
+    """
+    try:
+        content = await archivo.read()
+        lines = content.decode("utf-8").splitlines()
+        
+        procesados = 0
+        errores = []
+        fecha_actual = datetime.now().strftime("%Y-%m-%d")
+        
+        for line in lines:
+            if not line.strip(): continue
+            try:
+                # Parsear según formato fijo
+                # fecha = line[0:8]
+                monto_raw = line[8:16] # "00005000" -> 50.00
+                dni_raw = line[16:24].strip()
+                
+                monto = float(monto_raw) / 100
+                
+                # Buscar socio por DNI
+                res_perfil = supabase.table("profiles").select("id, nombre_apellido, telefono").eq("dni", dni_raw).execute()
+                if not res_perfil.data:
+                    errores.append(f"DNI {dni_raw} no encontrado")
+                    continue
+                
+                socio = res_perfil.data[0]
+                socio_id = socio["id"]
+                
+                # 1. Registrar el pago como validado automáticamente por el banco
+                # Buscamos la cuota pendiente más antigua o la del mes actual
+                # Para simplificar este flujo de banco, creamos o actualizamos la del mes en curso
+                mes_actual = datetime.now().month
+                anio_actual = datetime.now().year
+                fecha_venci = f"{anio_actual}-{mes_actual:02d}-10"
+                
+                # Buscamos si ya tiene registro
+                pago_existente = supabase.table("pagos_cuotas") \
+                    .select("id") \
+                    .eq("socio_id", socio_id) \
+                    .eq("fecha_vencimiento", fecha_venci) \
+                    .execute()
+                
+                pago_data = {
+                    "socio_id": socio_id,
+                    "monto": monto,
+                    "estado_pago": "PAGADO",
+                    "fecha_validacion": datetime.now().isoformat(),
+                    "admin_validador_id": admin_user.id,
+                    "comprobante_url": "PAGO_POR_BANCO" # Marca especial
+                }
+                
+                if pago_existente.data:
+                    supabase.table("pagos_cuotas").update(pago_data).eq("id", pago_existente.data[0]["id"]).execute()
+                else:
+                    pago_data["fecha_vencimiento"] = fecha_venci
+                    supabase.table("pagos_cuotas").insert(pago_data).execute()
+                
+                # 2. Reactivar Socio si estaba restringido
+                supabase.table("profiles").update({"estado": "APROBADO", "motivo": None}).eq("id", socio_id).execute()
+                
+                # 3. Log y Notificación
+                supabase.table("activity_log").insert({
+                    "socio_id": socio_id,
+                    "tipo_evento": "PAGO_BANCO_AUTOMATICO",
+                    "descripcion": f"Pago de ${monto} procesado vía rendición bancaria.",
+                    "usuario_id": admin_user.id
+                }).execute()
+                
+                enviar_notificacion_push_inapp(
+                    socio_id, 
+                    "Pago Recibido (Banco) ✅", 
+                    f"Hemos recibido tu pago de ${monto} a través del Banco. Tu cuenta está activa.",
+                    "/cuotas"
+                )
+                
+                if socio.get("telefono"):
+                    mensaje_wa = f"¡Hola {socio['nombre_apellido']}! ✅ Hemos procesado tu pago de ${monto} recibido vía rendición bancaria. Tu carnet ya está activo."
+                    background_tasks.add_task(enviar_whatsapp, socio["telefono"], mensaje_wa)
+                
+                procesados += 1
+            except Exception as e:
+                errores.append(f"Error en línea '{line}': {str(e)}")
+        
+        return {
+            "message": f"Proceso finalizado. {procesados} pagos procesados con éxito.",
+            "errores": errores
+        }
+    except Exception as e:
+        logger.error(f"Error procesando rendición bancaria: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error crítico: {str(e)}")
+
 # 12.5 AUTOMACIÓN: Detección de Mora (Cron)
 @app.post("/api/cron/detectar-mora")
 def detectar_mora(request: Request, background_tasks: BackgroundTasks, admin_user = Depends(get_current_admin_optional)):
