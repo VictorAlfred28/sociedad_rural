@@ -24,6 +24,10 @@ export default function ValidacionPagos() {
     const [rejectReason, setRejectReason] = useState('');
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    
+    // Estados para la carga de rendición bancaria
+    const [rendicionFile, setRendicionFile] = useState<File | null>(null);
+    const [isUploadingRendicion, setIsUploadingRendicion] = useState(false);
 
     const fetchPendientes = async () => {
         try {
@@ -114,6 +118,42 @@ export default function ValidacionPagos() {
         }
     };
 
+    const handleUploadRendicion = async () => {
+        if (!rendicionFile) return;
+        
+        setIsUploadingRendicion(true);
+        const formData = new FormData();
+        formData.append('archivo', rendicionFile);
+
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/procesar-rendicion-bc`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const data = await resp.json();
+
+            if (resp.ok) {
+                alert('Rendición procesada con éxito: ' + (data.message || 'Pagos actualizados.'));
+                setRendicionFile(null);
+                // Limpiar el input de archivo
+                const fileInput = document.getElementById('rendicion-input') as HTMLInputElement;
+                if (fileInput) fileInput.value = '';
+                fetchPendientes();
+            } else {
+                alert('Error al procesar rendición: ' + (data.detail || 'Ocurrió un error.'));
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error de conexión al subir la rendición.');
+        } finally {
+            setIsUploadingRendicion(false);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -121,7 +161,34 @@ export default function ValidacionPagos() {
                     <h2 className="text-2xl font-bold text-admin-text tracking-tight">Validación de Comprobantes</h2>
                     <p className="text-slate-400 text-sm">Revisa pagos y sincroniza estados de mora.</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Botón de carga de rendición */}
+                    <div className="flex items-center gap-2 bg-admin-card border border-admin-border p-1 rounded-xl">
+                        <input 
+                            id="rendicion-input"
+                            type="file" 
+                            accept=".txt"
+                            onChange={(e) => setRendicionFile(e.target.files?.[0] || null)}
+                            className="hidden" 
+                        />
+                        <label 
+                            htmlFor="rendicion-input"
+                            className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-admin-accent/10 rounded-lg transition-colors text-xs font-bold text-slate-300"
+                        >
+                            <span className="material-symbols-outlined text-sm">upload_file</span>
+                            {rendicionFile ? rendicionFile.name : 'Seleccionar Rendición (.txt)'}
+                        </label>
+                        {rendicionFile && (
+                            <button
+                                onClick={handleUploadRendicion}
+                                disabled={isUploadingRendicion}
+                                className="px-4 py-2 bg-admin-accent text-white rounded-lg text-xs font-bold shadow-lg shadow-admin-accent/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                                {isUploadingRendicion ? 'Procesando...' : 'Subir'}
+                            </button>
+                        )}
+                    </div>
+
                     <span className="px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-xs font-bold border border-admin-border">
                         {pendientes.length} Pendientes
                     </span>
