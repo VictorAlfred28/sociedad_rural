@@ -1,0 +1,109 @@
+erDiagram
+    PROFILES ||--o| COMERCIOS : "id references id"
+    PROFILES ||--o| CAMARAS : "id references id"
+    PROFILES ||--o{ OFERTAS : "comercio_id references profiles.id"
+    PROFILES ||--o{ PAGOS_CUOTAS : "socio_id references profiles.id"
+    PROFILES ||--o{ SUSCRIPCIONES : "socio_id references profiles.id"
+    PROFILES ||--o{ FAMILIARES : "titular_id references profiles.id"
+    PROFILES ||--o| PROFESIONALES : "id references id"
+    PROFILES ||--o{ EMPLEADOS_COMERCIOS : "perfil_id references profiles.id"
+    PROFILES ||--o{ ACTIVITY_LOG : "socio_id references profiles.id"
+    PROFILES ||--o{ NOTIFICACIONES_USUARIOS : "usuario_id references profiles.id"
+    PROFILES ||--o{ AUDITORIA_LOGS : "usuario_id"
+
+    COMERCIOS ||--o{ EMPLEADOS_COMERCIOS : "comercio_id references profiles.id"
+    COMERCIOS ||--o| CAMARAS : "camara_id references profiles.id"
+
+    PROFILES {
+        uuid id PK
+        text nombre_apellido
+        text dni
+        text email
+        text telefono
+        enum rol
+        enum estado
+        boolean password_changed
+        text municipio
+        text direccion
+        text rubro
+        boolean es_profesional
+        text foto_url
+        uuid titular_id FK
+        text tipo_vinculo
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    COMERCIOS {
+        uuid id PK
+        text nombre_comercio
+        text cuit
+        text rubro
+        text direccion
+        text municipio
+        uuid camara_id FK
+        timestamp created_at
+    }
+
+    CAMARAS {
+        uuid id PK
+        string denominacion
+        string cuit
+        string municipio
+        string provincia
+        string responsable_nombre
+        string email
+        string telefono
+        timestamp created_at
+    }
+
+    OFERTAS {
+        uuid id PK
+        uuid comercio_id FK
+        text titulo
+        text descripcion
+        text tipo
+        integer descuento_porcentaje
+        text imagen_url
+        date fecha_fin
+        boolean activo
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    EVENTOS {
+        uuid id PK
+        text titulo
+        text descripcion
+        text lugar
+        date fecha
+        time hora
+        text tipo
+        text imagen_url
+        text municipio
+        timestamp created_at
+    }
+
+    PAGOS_CUOTAS {
+        uuid id PK
+        uuid socio_id FK
+        numeric monto
+        date fecha_vencimiento
+        text estado_pago
+        text comprobante_url
+        timestamp created_at
+    }
+
+    AUDITORIA_LOGS {
+        uuid id PK
+        uuid usuario_id FK
+        string email_usuario
+        string rol_usuario
+        string accion
+        string tabla_afectada
+        string registro_id
+        jsonb datos_anteriores
+        jsonb datos_nuevos
+        text ip_address
+        timestamp fecha PK
+    }

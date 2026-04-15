@@ -1,0 +1,26 @@
+[
+  {
+    "id": "c1570490-20ef-4e64-91c1-7cd8edf70428",
+    "titulo": "Gran remate",
+    "descripcion": "Gran remate loco",
+    "lugar": "San luis del PALMAR",
+    "fecha": "2026-12-12",
+    "hora": "12:00:00",
+    "tipo": "Remate",
+    "created_at": "2026-03-04T05:33:11.76724+00:00",
+    "imagen_url": "https://agro.misiones.gob.ar/wp-content/uploads/2022/12/remate-en-25.jpg",
+    "municipio": null
+  },
+  {
+    "id": "e4eba9bf-2f02-44e9-8c59-164cb7c2f8be",
+    "titulo": "Carnavales Itatí Corrientes",
+    "descripcion": "Conocé los carnavales Itateño, noooo increible!!!",
+    "lugar": "Itatí Corrientes",
+    "fecha": "2026-03-10",
+    "hora": "22:00:00",
+    "tipo": "Festival",
+    "created_at": "2026-03-10T11:22:41.457751+00:00",
+    "imagen_url": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg7k-bZufuMFBMj5naFGwSjGXcgDSioZJAfYXlg9bZ89fM5B5Z-OHR3H1GPAymMjrjXXb3e3pG5XJKbAU-VU4lU4s8n7LB9AlFZQhvDuOwaQe-r86tlZt1ZBlg4YrHANyikigSbof8uLecfRyItBcKZd4vFEYRHKKnzNxiEkBP9shKfSN6nm5K8Bx43HmI/s1080/carnavales-itati.jpg",
+    "municipio": null
+  }
+]

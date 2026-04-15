@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@config "../tailwind.config.js";
+
+@theme {
+  --color-primary: #11d432;
+  --color-background-light: #f6f8f6;
+  --color-background-dark: #102213;
+
+  /* Diseño Panel Administrador default (Cyber) */
+  --color-admin-bg: #030a05;
+  --color-admin-card: #08110a;
+  --color-admin-card-hover: #0d1a0f;
+  --color-admin-text: #22c55e;
+  --color-admin-accent: #00ff41;
+  --color-admin-border: #14532d;
+
+  /* Status Colors */
+  --color-admin-active: #10b981;
+  /* Verde esmeralda suave */
+  --color-admin-approved: #10b981;
+  /* Usamos el mismo verde para aprobados */
+  --color-admin-inactive: #64748b;
+  /* Gris tenue */
+  --color-admin-rejected: #ef4444;
+  /* Rojo elegante */
+  --color-admin-pending: #f59e0b;
+  /* Amarillo sobrio */
+
+  --font-display: monospace;
+}
+
+.theme-classic {
+  --color-admin-bg: #f8fafc;
+  --color-admin-card: #ffffff;
+  --color-admin-card-hover: #f1f5f9;
+  --color-admin-text: #0f172a;
+  --color-admin-accent: #11d432;
+  --color-admin-border: #e2e8f0;
+  --font-display: "Inter", sans-serif;
+}
+
+.theme-cyber {
+  --color-admin-bg: #030a05;
+  --color-admin-card: #08110a;
+  --color-admin-card-hover: #0d1a0f;
+  --color-admin-text: #22c55e;
+  --color-admin-accent: #00ff41;
+  --color-admin-border: #14532d;
+  --font-display: monospace;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  @apply bg-background-light text-slate-900;
+}
+
+.dark body {
+  @apply bg-background-dark text-slate-100;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Custom Webkit Scrollbar institucional */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-admin-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-admin-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-admin-accent);
+}
+
+/* Transiciones Genéricas de Panel */
+.admin-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}

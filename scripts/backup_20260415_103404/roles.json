@@ -1,0 +1,20 @@
+[
+  {
+    "id": "12906f03-e5ef-4ae5-ab96-72ccefe975e1",
+    "nombre": "SUPERADMIN",
+    "descripcion": "Control total del sistema",
+    "created_at": "2026-03-09T22:21:31.920343+00:00"
+  },
+  {
+    "id": "d7ec7db7-98dd-4da3-ac8f-886daf0d637d",
+    "nombre": "ADMINISTRADOR",
+    "descripcion": "Control operativo del sistema",
+    "created_at": "2026-03-09T22:21:31.920343+00:00"
+  },
+  {
+    "id": "6c7decbf-cfb5-4d24-a46a-879c8206255c",
+    "nombre": "SOCIO",
+    "descripcion": "Usuario normal del sistema",
+    "created_at": "2026-03-09T22:21:31.920343+00:00"
+  }
+]
