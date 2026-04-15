@@ -546,6 +546,12 @@ def register(socio: RegisterRequest, request: Request, background_tasks: Backgro
             modulo="Registro Cuentas",
             request=request
         )
+
+        # Notificar a los administradores
+        background_tasks.add_task(notificar_admins_nuevo_registro, 
+            nombre=socio.nombre_apellido, 
+            tipo_usuario=rol_asignado
+        )
         
         return {
             "message": f"{rol_asignado.capitalize()} registrado correctamente. Pendiente de aprobación por Admin.", 
@@ -630,6 +636,12 @@ def register_comercio(comercio: ComercioDTO, request: Request, background_tasks:
             datos_nuevos=profile_data,
             modulo="Registro Cuentas",
             request=request
+        )
+
+        # Notificar a los administradores
+        background_tasks.add_task(notificar_admins_nuevo_registro, 
+            nombre=comercio.nombre_comercio, 
+            tipo_usuario="comercio"
         )
         
         return {
@@ -2751,10 +2763,10 @@ def register_push_token(req: PushTokenRequest, current_user = Depends(get_curren
 def get_user_notifications(limit: int = 50, current_user = Depends(get_current_user)):
     """Obtiene las notificaciones in-app del usuario conectado"""
     try:
-        response = supabase.table("notificaciones_usuarios") \
+        response = supabase.table("notificaciones") \
             .select("*") \
             .eq("usuario_id", current_user.id) \
-            .order("created_at", desc=True) \
+            .order("fecha", desc=True) \
             .limit(limit) \
             .execute()
         
@@ -2774,7 +2786,7 @@ def get_user_notifications(limit: int = 50, current_user = Depends(get_current_u
 def mark_notifications_read(current_user = Depends(get_current_user)):
     """Marca todas las notificaciones del usuario como leídas (o saca la bolita roja)"""
     try:
-        supabase.table("notificaciones_usuarios") \
+        supabase.table("notificaciones") \
             .update({"leido": True}) \
             .eq("usuario_id", current_user.id) \
             .eq("leido", False) \
@@ -2793,11 +2805,13 @@ def enviar_notificacion_push_inapp(usuario_id: str, titulo: str, mensaje: str, l
     """
     try:
         # 1. Guardar Notificación In-App en Base de Datos
-        supabase.table("notificaciones_usuarios").insert({
+        supabase.table("notificaciones").insert({
             "usuario_id": usuario_id,
             "titulo": titulo,
             "mensaje": mensaje,
-            "link_url": link_url
+            "link_url": link_url,
+            "leido": False,
+            "fecha": datetime.now(pytz.timezone('America/Argentina/Buenos_Aires')).isoformat()
         }).execute()
         
         # 2. Obtener Token(s) FCM asociados al usuario para envíos Push
@@ -2837,6 +2851,28 @@ def test_send_notification(current_user = Depends(get_current_admin)):
         link_url="/"
     )
     return {"message": "Notificación disparada."}
+
+def notificar_admins_nuevo_registro(nombre: str, tipo_usuario: str):
+    """Inserta una notificación para todos los administradores ante un nuevo registro."""
+    try:
+        # Buscar todos los administradores
+        admins = supabase.table("profiles").select("id").eq("rol", "ADMIN").execute()
+        if not admins.data:
+            return
+        
+        titulo = f"Nuevo Registro: {tipo_usuario.capitalize()}"
+        mensaje = f"Se ha registrado un nuevo {tipo_usuario.lower()}: {nombre}. Requiere revisión para aprobación."
+        
+        for admin in admins.data:
+            # Usar background task o directo? Como ya estamos en background en register, lo hacemos directo o por hilos
+            enviar_notificacion_push_inapp(
+                usuario_id=admin["id"],
+                titulo=titulo,
+                mensaje=mensaje,
+                link_url="/admin"
+            )
+    except Exception as e:
+        print(f"Error notificando admins: {e}")
 
 def enviar_whatsapp(telefono: str, mensaje: str):
     """

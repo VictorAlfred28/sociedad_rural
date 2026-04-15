@@ -162,21 +162,7 @@ export default function AdminDashboard() {
 
           <div className="flex items-center gap-4">
 
-            <button
-              onClick={async () => {
-                try {
-                  await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/notificaciones/test`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                  });
-                  alert('Notificación de prueba enviada a tu dispositivo.');
-                } catch (e) { console.error(e) }
-              }}
-              className="flex items-center justify-center h-10 px-3 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs"
-              title="Probar Notificaciones Push"
-            >
-              TEST PUSH
-            </button>
+
             <NotificationBell />
 
             <div className="hidden md:flex flex-col items-end mr-2">

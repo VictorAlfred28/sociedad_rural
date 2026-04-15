@@ -16,8 +16,9 @@ export default function RegistroPaso2() {
 
   const [formData, setFormData] = useState({
     municipio: '',
-    direccion: '',
+    provincia: 'Corrientes',
   });
+  const [esProfesional, setEsProfesional] = useState(false);
 
   // Cargar lista de municipios al montar (solo necesaria para SOCIO)
   useEffect(() => {
@@ -54,8 +55,9 @@ export default function RegistroPaso2() {
 
     if (userRole === 'SOCIO') {
       payload.municipio = formData.municipio;
-      payload.direccion = formData.direccion;
-      payload.es_profesional = paso1Data.es_profesional ?? false;
+      payload.provincia = formData.provincia;
+      payload.direccion = paso1Data.direccion; // Viene del Paso 1 ahora
+      payload.es_profesional = esProfesional;
     }
     // rubro, municipio y provincia ya vienen de paso1Data cuando es COMERCIO
     if (userRole === 'COMERCIO' && paso1Data.rubro) {
@@ -199,23 +201,65 @@ export default function RegistroPaso2() {
                 </div>
               </div>
 
-              {/* Dirección */}
+              {/* Provincia */}
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
-                  Dirección Exacta
+                  Provincia
                 </label>
                 <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary">home_pin</span>
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary">map</span>
                   <input
-                    name="direccion"
-                    value={formData.direccion}
+                    name="provincia"
+                    value={formData.provincia}
                     onChange={handleChange}
                     className={inputClass}
-                    placeholder="Ej: Av. Principal 123"
+                    placeholder="Ej: Corrientes"
                     type="text"
                     required
                   />
                 </div>
+              </div>
+
+              {/* Toggle ¿Sos profesional? */}
+              <div className="flex flex-col gap-3 py-3">
+                <button
+                  type="button"
+                  onClick={() => setEsProfesional(!esProfesional)}
+                  className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${esProfesional
+                    ? 'border-primary bg-primary/5'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`material-symbols-outlined text-2xl ${esProfesional ? 'text-primary' : 'text-slate-400'}`}>
+                      school
+                    </span>
+                    <div className="flex flex-col text-left">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">¿Sos profesional?</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Médico, abogado, ingeniero, etc.</span>
+                    </div>
+                  </div>
+                  {/* Toggle switch visual */}
+                  <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${esProfesional ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600'
+                    }`}>
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${esProfesional ? 'left-6' : 'left-1'
+                      }`} />
+                  </div>
+                </button>
+
+                {/* Alerta si es profesional */}
+                {esProfesional && (
+                  <div className="flex gap-3 items-start bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-4">
+                    <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 p-2 rounded-full shrink-0">
+                      <span className="material-symbols-outlined text-xl block">info</span>
+                    </div>
+                    <div>
+                      <p className="text-amber-800 dark:text-amber-300 text-sm font-bold leading-relaxed">
+                        Próximamente tendrás beneficios especiales por ser profesional activo en la Sociedad Rural Norte de Corrientes
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

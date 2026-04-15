@@ -24,6 +24,7 @@ interface FormDataBase {
 interface SocioFormData extends FormDataBase {
   nombre_apellido: string;
   dni_cuit: string; // mapea a 'dni' en profiles
+  direccion: string;
 }
 interface CamaraFormData {
   denominacion: string;       // Ej: "Cámara de Comercio de Santo Tomé"
@@ -44,6 +45,7 @@ export default function Registro() {
     dni_cuit: '',
     email: '',
     telefono: '',
+    direccion: '',
   });
   const [esProfesional, setEsProfesional] = useState(false);
   const [socioPassword, setSocioPassword] = useState('');
@@ -340,12 +342,12 @@ export default function Registro() {
           <form className="flex flex-col gap-0 p-4" onSubmit={handleNext}>
             {renderField('Nombre y Apellido', 'nombre_apellido', socioData.nombre_apellido, handleSocioChange, { placeholder: 'Ej: Juan Pérez' })}
             {renderField('DNI', 'dni_cuit', socioData.dni_cuit, handleSocioChange, { type: 'number', placeholder: 'Solo números, sin puntos' })}
-            {renderField('Email', 'email', socioData.email, handleSocioChange, { type: 'email', placeholder: 'nombre@ejemplo.com', hint: 'Te enviaremos notificaciones importantes.' })}
-
+            {renderField('Dirección', 'direccion', socioData.direccion, handleSocioChange, { placeholder: 'Calle y número' })}
+            
             {/* Teléfono con prefijo */}
             <div className="flex flex-col gap-1 py-2">
               <label className="flex flex-col w-full">
-                <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold pb-2">Teléfono</span>
+                <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold pb-2">Teléfono/Celular</span>
                 <div className="flex gap-2">
                   <div className="flex items-center justify-center w-16 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm shrink-0">
                     +54
@@ -362,6 +364,8 @@ export default function Registro() {
                 </div>
               </label>
             </div>
+
+            {renderField('Email', 'email', socioData.email, handleSocioChange, { type: 'email', placeholder: 'nombre@ejemplo.com', hint: 'Te enviaremos notificaciones importantes.' })}
 
             {/* Contraseña Socio */}
             <div className="flex flex-col gap-1 py-2">
@@ -390,47 +394,7 @@ export default function Registro() {
               <p className="text-slate-400 text-xs px-1 mt-1">La usarás para ingresar una vez que el Administrador apruebe tu cuenta.</p>
             </div>
 
-            {/* Toggle ¿Sos profesional? */}
-            <div className="flex flex-col gap-3 py-3">
-              <button
-                type="button"
-                onClick={() => setEsProfesional(!esProfesional)}
-                className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${esProfesional
-                  ? 'border-primary bg-primary/5'
-                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`material-symbols-outlined text-2xl ${esProfesional ? 'text-primary' : 'text-slate-400'}`}>
-                    school
-                  </span>
-                  <div className="flex flex-col text-left">
-                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">¿Sos profesional?</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">Médico, abogado, ingeniero, etc.</span>
-                  </div>
-                </div>
-                {/* Toggle switch visual */}
-                <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${esProfesional ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600'
-                  }`}>
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${esProfesional ? 'left-6' : 'left-1'
-                    }`} />
-                </div>
-              </button>
-
-              {/* Alerta si es profesional */}
-              {esProfesional && (
-                <div className="flex gap-3 items-start bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-4">
-                  <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 p-2 rounded-full shrink-0">
-                    <span className="material-symbols-outlined text-xl block">info</span>
-                  </div>
-                  <div>
-                    <p className="text-amber-800 dark:text-amber-300 text-sm font-bold leading-relaxed">
-                      Próximamente tendrás beneficios especiales por ser profesional activo en la Sociedad Rural Norte de Corrientes
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Toggle ¿Sos profesional? movido a Paso 2 por orden solicitado */}
 
             <div className="mt-6 mb-10">
               <button className="w-full bg-primary hover:bg-primary/90 text-background-dark font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors" type="submit">
