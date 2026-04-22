@@ -322,3 +322,15 @@ BEGIN
     UPDATE public.profiles SET estado = 'APROBADO', rol = 'ADMIN' WHERE id = _user_id;
   END IF;
 END $$;
+
+-- 7. QR TOKENS
+CREATE TABLE IF NOT EXISTS public.qr_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.qr_tokens ENABLE ROW LEVEL SECURITY;
