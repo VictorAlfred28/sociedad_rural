@@ -4,8 +4,9 @@ const config: CapacitorConfig = {
   appId: 'com.agentech.sociedadrural',
   appName: 'Sociedad Rural',
   webDir: 'dist',
-  // En desarrollo local puedes comentar 'server' y usar el build del 'dist'.
-  // En producción, la app empaqueta el dist y consume el backend por VITE_API_URL.
+  server: {
+    androidScheme: 'https'
+  },
   plugins: {
     SplashScreen: {
       launchAutoHide: false,

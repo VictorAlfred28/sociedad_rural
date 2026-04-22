@@ -268,6 +268,7 @@ app.add_middleware(
         "http://localhost",
         "capacitor://localhost",
         "https://sociedadruraldelnorte.agentech.ar",
+        "https://backend.agentech.ar",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
