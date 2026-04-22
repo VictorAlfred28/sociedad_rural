@@ -4,6 +4,8 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 # Forzar a que la salida de Python no use buffer (bueno para logs de Docker)
 ENV PYTHONUNBUFFERED=1
+# Configurar zona horaria local
+ENV TZ=America/Argentina/Buenos_Aires
 
 WORKDIR /app
 

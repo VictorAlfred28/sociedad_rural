@@ -44,6 +44,8 @@ const AdminRoute = ({ children, roles = ['ADMIN'] }: { children: React.ReactElem
 };
 
 import { Chatbot } from './components/Chatbot';
+import { CapacitorUI } from './components/CapacitorUI';
+import { Toaster } from 'react-hot-toast';
 
 const ConditionalChatbot = () => {
   const { isAuthenticated, user } = useAuth();
@@ -61,6 +63,8 @@ export default function App() {
 
   return (
     <Router>
+      <Toaster position="top-center" toastOptions={{ className: 'font-display text-sm font-bold', duration: 4000 }} />
+      <CapacitorUI />
       <Routes>
         {/* Rutas Públicas */}
         <Route path="/" element={isAuthenticated ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} />

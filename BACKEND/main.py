@@ -155,6 +155,9 @@ def shutdown_scheduler():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        
     # Log the real error to the server console but don't leak details to the client
     print(f"Global Exception [500] -> {str(exc)}")
     return JSONResponse(
@@ -262,6 +265,8 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost",
+        "capacitor://localhost",
         "https://sociedadruraldelnorte.agentech.ar",
     ],
     allow_credentials=True,
@@ -999,9 +1004,13 @@ def generar_qr(request: Request):
          raise HTTPException(status_code=401, detail="Token no proporcionado")
     
     token = auth_header.split(" ")[1]
-    user_response = supabase.auth.get_user(token)
-    if not user_response or not user_response.user:
-         raise HTTPException(status_code=401, detail="Usuario no autenticado")
+    
+    try:
+        user_response = supabase.auth.get_user(token)
+        if not user_response or not user_response.user:
+             raise HTTPException(status_code=401, detail="Usuario no autenticado")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Token inválido o expirado.")
          
     user_id = user_response.user.id
     new_token_str = str(uuid4())
@@ -3500,7 +3509,7 @@ def exportar_contabilidad_csv(admin_user = Depends(get_current_admin)):
         
         # Encabezado del Reporte
         writer.writerow(["REPORTE DE CONTABILIDAD - SOCIEDAD RURAL"])
-        writer.writerow(["Fecha de Generación", datetime.now().strftime("%d/%m/%Y %H:%M:%S")])
+        writer.writerow(["Fecha de Generación", datetime.now(TZ_ARGENTINA).strftime("%d/%m/%Y %H:%M:%S")])
         writer.writerow([])
         
         # DETALLE DE SOCIOS (Arriba)
@@ -3590,7 +3599,7 @@ def exportar_socios_pdf(admin_user = Depends(get_current_admin)):
         elements.append(Paragraph("<b>SOCIEDAD RURAL DEL NORTE DE CORRIENTES</b>", styles['Title']))
         elements.append(Paragraph("<b>INFORME ESTATUTARIO DE SOCIOS</b>", styles['Heading2']))
         elements.append(Spacer(1, 10))
-        elements.append(Paragraph(f"Fecha de reporte: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+        elements.append(Paragraph(f"Fecha de reporte: {datetime.now(TZ_ARGENTINA).strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
         elements.append(Spacer(1, 20))
         
         # Tabla de datos
@@ -3886,7 +3895,7 @@ def validar_pago(req: PagoActionRequest, background_tasks: BackgroundTasks, curr
 
         c.setFont("Helvetica", 12)
         c.drawString(50, 680, f"Recibo N°: {pago_id[-8:].upper()}")
-        c.drawString(50, 660, f"Fecha de Pago: {datetime.now().strftime('%d/%m/%Y')}")
+        c.drawString(50, 660, f"Fecha de Pago: {datetime.now(TZ_ARGENTINA).strftime('%d/%m/%Y')}")
         c.drawString(50, 640, "-"*80)
         
         c.setFont("Helvetica", 14)
