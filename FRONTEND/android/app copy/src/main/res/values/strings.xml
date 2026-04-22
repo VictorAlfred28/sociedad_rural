@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Sociedad Rural</string>
     <string name="title_activity_main">Sociedad Rural</string>
-    <string name="package_name">com.agentech.sociedadrural</string>
-    <string name="custom_url_scheme">com.agentech.sociedadrural</string>
+    <string name="package_name">com.sociedadrural.app</string>
+    <string name="custom_url_scheme">com.sociedadrural.app</string>
 </resources>
