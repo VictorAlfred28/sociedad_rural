@@ -253,14 +253,25 @@ export default function ValidacionPagos() {
                                     {selectedPago.comprobante_url.endsWith('.pdf') ? (
                                         <div className="flex flex-col items-center gap-4">
                                             <span className="material-symbols-outlined text-red-500 text-6xl">picture_as_pdf</span>
-                                            <a
-                                                href={selectedPago.comprobante_url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="px-4 py-2 bg-admin-accent text-white font-bold rounded-xl text-sm"
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const response = await fetch(selectedPago.comprobante_url);
+                                                        const blob = await response.blob();
+                                                        const filename = selectedPago.comprobante_url.split('/').pop() || 'comprobante.pdf';
+                                                        // Limpiar query params si hay del filename
+                                                        const cleanFilename = filename.split('?')[0];
+                                                        
+                                                        const { handleNativeDownload } = await import('../../utils/nativeDownload');
+                                                        await handleNativeDownload(blob, cleanFilename);
+                                                    } catch (e) {
+                                                        alert("Error al descargar el comprobante");
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-admin-accent text-white font-bold rounded-xl text-sm hover:opacity-90 active:scale-95 transition-all"
                                             >
-                                                Abrir PDF en pestaña nueva
-                                            </a>
+                                                Descargar / Abrir PDF
+                                            </button>
                                         </div>
                                     ) : (
                                         <img

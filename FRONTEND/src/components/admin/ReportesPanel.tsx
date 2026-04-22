@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { handleNativeDownload } from '../../utils/nativeDownload';
 
 export default function ReportesPanel() {
     const { token } = useAuth();
@@ -21,19 +22,11 @@ export default function ReportesPanel() {
             if (!response.ok) throw new Error('Error al generar el reporte');
 
             const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-
             const filename = type === 'accounting'
                 ? 'reporte_contabilidad_sr.csv'
                 : (type === 'excel' ? 'informe_socios.xlsx' : 'informe_socios.pdf');
 
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            await handleNativeDownload(blob, filename);
         } catch (error) {
             console.error(error);
             alert('Error al descargar el archivo.');

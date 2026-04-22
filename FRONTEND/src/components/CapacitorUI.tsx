@@ -4,6 +4,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Network } from '@capacitor/network';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -12,28 +13,91 @@ export const CapacitorUI = () => {
     const location = useLocation();
     const wasOffline = useRef(false);
 
+    // --- Push Notifications Setup ---
+    useEffect(() => {
+        if (!Capacitor.isNativePlatform()) return;
+
+        const setupPushNotifications = async () => {
+            try {
+                // 1. Solicitar permiso
+                const permResult = await PushNotifications.requestPermissions();
+                if (permResult.receive !== 'granted') {
+                    console.warn('[Push] Permiso denegado.');
+                    return;
+                }
+
+                // 2. Registrar dispositivo con FCM
+                await PushNotifications.register();
+
+                // 3. Recibir el FCM Token y guardarlo en el backend
+                PushNotifications.addListener('registration', async (token) => {
+                    console.log('[Push] FCM Token:', token.value);
+                    try {
+                        const authToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+                        if (!authToken) return;
+                        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/push/register-token`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`,
+                            },
+                            body: JSON.stringify({ token: token.value, plataforma: 'android' }),
+                        });
+                    } catch (e) {
+                        console.error('[Push] Error al registrar token:', e);
+                    }
+                });
+
+                // 4. Error en registro
+                PushNotifications.addListener('registrationError', (err) => {
+                    console.error('[Push] Error de registro FCM:', err.error);
+                });
+
+                // 5. Notificación recibida con app en primer plano → mostrar toast
+                PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                    toast(notification.title || 'Nueva notificación', {
+                        icon: '🔔',
+                        duration: 5000,
+                    });
+                });
+
+                // 6. Tappear una notificación → navegar al destino
+                PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+                    const data = action.notification.data;
+                    if (data?.route) {
+                        navigate(data.route);
+                    }
+                });
+            } catch (e) {
+                console.error('[Push] Error setup push notifications:', e);
+            }
+        };
+
+        setupPushNotifications();
+
+        return () => {
+            PushNotifications.removeAllListeners();
+        };
+    }, [navigate]);
+
+    // --- Capacitor UI Setup (StatusBar, SplashScreen, Back Button, Network) ---
     useEffect(() => {
         if (!Capacitor.isNativePlatform()) return;
 
         const setupCapacitorUI = async () => {
             try {
-                // Configurar StatusBar (Color corporativo verde)
                 await StatusBar.setStyle({ style: Style.Dark });
                 await StatusBar.setBackgroundColor({ color: '#245b31' });
-
-                // Ocultar SplashScreen ahora que React ha montado
                 await SplashScreen.hide();
             } catch (e) {
-                console.error("Error setting up Capacitor UI", e);
+                console.error('Error setting up Capacitor UI', e);
             }
         };
 
         setupCapacitorUI();
 
-        // Manejar el botón físico "Atrás" en Android
         const backButtonListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
             if (canGoBack) {
-                // Si la ruta actual es /home, /login o rutas raíz, no volvemos atrás, cerramos la app.
                 if (location.pathname === '/home' || location.pathname === '/login') {
                     CapacitorApp.exitApp();
                 } else {
@@ -44,7 +108,6 @@ export const CapacitorUI = () => {
             }
         });
 
-        // Manejar eventos de Red (Offline/Online)
         const networkListener = Network.addListener('networkStatusChange', status => {
             if (!status.connected) {
                 wasOffline.current = true;
@@ -52,11 +115,9 @@ export const CapacitorUI = () => {
             } else if (status.connected && wasOffline.current) {
                 wasOffline.current = false;
                 toast.success('¡Conexión restaurada!', { duration: 3000 });
-                // Aquí en el futuro se gatillará el refetch de React Query
             }
         });
 
-        // Verificación inicial de red
         Network.getStatus().then(status => {
             if (!status.connected) {
                 wasOffline.current = true;
@@ -70,5 +131,5 @@ export const CapacitorUI = () => {
         };
     }, [navigate, location]);
 
-    return null; // Este componente no renderiza nada, solo maneja efectos secundarios
+    return null;
 };

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { useAuth } from '../context/AuthContext';
 import { Html5Qrcode } from 'html5-qrcode';
+import { Capacitor } from '@capacitor/core';
 import GestionDependientes from '../components/GestionDependientes';
 import NotificationBell from '../components/NotificationBell';
 
@@ -281,18 +282,53 @@ export default function MiNegocio() {
     };
 
     const startScanner = async () => {
-        setShowScanner(true);
         setScanResult(null);
         setError('');
 
+        // --- ANDROID NATIVO: usar MLKit Barcode Scanner ---
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const { BarcodeScanner } = await import('@capacitor-mlkit/barcode-scanning');
+
+                // Solicitar permiso de cámara
+                const { camera } = await BarcodeScanner.requestPermissions();
+                if (camera !== 'granted' && camera !== 'limited') {
+                    setError('Permiso de cámara denegado. Habilitalo desde Configuración.');
+                    return;
+                }
+
+                // Iniciar escaneo nativo (fullscreen)
+                const { barcodes } = await BarcodeScanner.scan();
+
+                if (barcodes.length > 0) {
+                    const decodedText = barcodes[0].rawValue || '';
+                    const urlMatch = decodedText.match(/\/(qr-valida|valida-socio)\/([a-f0-9-]+)$/i);
+                    const tokenToValidate = urlMatch ? urlMatch[2] : decodedText;
+                    validarSocio(tokenToValidate);
+                } else {
+                    setError('No se detectó ningún QR. Intentá de nuevo.');
+                }
+            } catch (err: any) {
+                console.error('MLKit scan error:', err);
+                if (err?.message?.includes('canceled') || err?.message?.includes('cancel')) {
+                    // El usuario canceló, no es un error
+                } else {
+                    setError('Error al escanear. Intentá de nuevo.');
+                }
+            }
+            return;
+        }
+
+        // --- WEB: usar html5-qrcode (comportamiento original) ---
+        setShowScanner(true);
         setTimeout(async () => {
             try {
-                const scanner = new Html5Qrcode("qr-reader");
+                const scanner = new Html5Qrcode('qr-reader');
                 scannerRef.current = scanner;
                 setIsScanning(true);
 
                 await scanner.start(
-                    { facingMode: "environment" },
+                    { facingMode: 'environment' },
                     { fps: 10, qrbox: { width: 250, height: 250 } },
                     async (decodedText) => {
                         await scanner.stop();
@@ -301,11 +337,11 @@ export default function MiNegocio() {
                         const tokenToValidate = urlMatch ? urlMatch[2] : decodedText;
                         validarSocio(tokenToValidate);
                     },
-                    () => { }
+                    () => {}
                 );
             } catch (err) {
-                console.error("Camera access error:", err);
-                setError("No se pudo acceder a la cámara. Revisa los permisos.");
+                console.error('Camera access error:', err);
+                setError('No se pudo acceder a la cámara. Revisa los permisos.');
                 setIsScanning(false);
             }
         }, 100);
