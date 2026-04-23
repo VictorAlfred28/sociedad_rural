@@ -30,7 +30,8 @@ export default function GestionUsuarios() {
         nombre_apellido: '',
         email: '',
         telefono: '',
-        municipio: ''
+        municipio: '',
+        barrio: ''      // Barrio (nuevo)
     });
     const [municipiosDisponibles, setMunicipiosDisponibles] = useState<{ id: string, nombre: string }[]>([]);
 
@@ -208,7 +209,8 @@ export default function GestionUsuarios() {
             nombre_apellido: user.nombre_apellido || '',
             email: user.email || '',
             telefono: user.telefono || '',
-            municipio: user.municipio || ''
+            municipio: user.municipio || '',
+            barrio: user.barrio || ''      // Barrio (nuevo)
         });
     };
 
@@ -421,6 +423,9 @@ export default function GestionUsuarios() {
                                     <div className="flex flex-col overflow-hidden">
                                         <p className="font-bold text-sm truncate text-admin-text">{user.nombre_apellido || user.email}</p>
                                         <p className="text-xs text-slate-400 truncate">{user.rol} • {user.dni}</p>
+                                        {user.numero_socio && (
+                                            <p className="text-xs text-admin-accent font-semibold truncate">Socio N° {user.numero_socio}</p>
+                                        )}
                                         {user.telefono && (
                                             <div className="flex items-center gap-1 text-[10px] text-admin-accent font-bold mt-0.5">
                                                 <span className="material-symbols-outlined text-[12px]">call</span>
@@ -560,6 +565,16 @@ export default function GestionUsuarios() {
                                         </select>
                                         <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
                                     </div>
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Barrio</label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.barrio}
+                                        onChange={e => setEditFormData({ ...editFormData, barrio: e.target.value })}
+                                        className="w-full h-11 bg-slate-800 border border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        placeholder="Ej: Centro, Sudoeste"
+                                    />
                                 </div>
                             </div>
                             <div className="p-6 border-t border-admin-border flex gap-3">

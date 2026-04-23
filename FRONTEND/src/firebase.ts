@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { playNotificationSound } from './utils/soundNotification';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -45,8 +46,17 @@ export const requestForToken = async () => {
 export const onMessageListener = () =>
     new Promise((resolve) => {
         if (!messaging) return;
-        onMessage(messaging, (payload) => {
+        onMessage(messaging, async (payload) => {
             console.log("Notificación recibida en foreground: ", payload);
+            
+            // Extraer si el sonido está habilitado del payload
+            const soundEnabled = payload.data?.['sound_enabled'] === 'true' ?? true;
+            
+            // Reproducir sonido si está habilitado
+            if (soundEnabled) {
+                await playNotificationSound(true, 'notification');
+            }
+            
             resolve(payload);
         });
     });

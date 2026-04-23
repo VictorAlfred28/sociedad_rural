@@ -57,6 +57,7 @@ export default function RegistroPaso2() {
       payload.municipio = formData.municipio;
       payload.provincia = formData.provincia;
       payload.direccion = paso1Data.direccion; // Viene del Paso 1 ahora
+      payload.barrio = paso1Data.barrio;       // Barrio del socio (nuevo)
       payload.es_profesional = esProfesional;
     }
     // rubro, municipio y provincia ya vienen de paso1Data cuando es COMERCIO

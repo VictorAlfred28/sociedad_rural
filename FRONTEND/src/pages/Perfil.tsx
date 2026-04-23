@@ -17,8 +17,10 @@ export default function Perfil() {
     direccion: user?.direccion || '',
     telefono: user?.telefono || '',
     municipio: user?.municipio || '',
+    barrio: user?.barrio || '',     // Barrio (nuevo)
     email: user?.email || ''
   });
+  const [soundEnabled, setSoundEnabled] = useState(user?.sonido_notificaciones_habilitado ?? true);
   const [statusMsg, setStatusMsg] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -147,6 +149,45 @@ export default function Perfil() {
       setTimeout(() => setStatusMsg({ type: '', text: '' }), 3000);
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
+      if (err.message.includes("Token expirado")) {
+        // Ya se disparó el evento en el fetch
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSoundToggle = async () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    setStatusMsg({ type: 'info', text: 'Actualizando preferencia de sonido...' });
+
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/preferencias/sonido`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ sonido_habilitado: newValue })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
+        throw new Error(data.detail || 'Error al actualizar preferencia');
+      }
+
+      // Actualizar el contexto de auth con la nueva preferencia
+      updateUser({ sonido_notificaciones_habilitado: newValue });
+      setStatusMsg({ type: 'success', text: newValue ? 'Sonido activado' : 'Sonido desactivado' });
+      setTimeout(() => setStatusMsg({ type: '', text: '' }), 2000);
+    } catch (err: any) {
+      setSoundEnabled(!newValue); // Revertir en caso de error
+      setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
+    }
+  };
+      setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
     } finally {
       setLoading(false);
     }
@@ -233,6 +274,16 @@ export default function Perfil() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Barrio</label>
+                    <input
+                      type="text"
+                      value={editData.barrio}
+                      onChange={e => setEditData({ ...editData, barrio: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl h-12 px-4 text-slate-700 dark:text-slate-200 outline-none focus:border-primary transition-colors font-medium"
+                      placeholder="Ej: Centro, Sudoeste, etc."
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Correo electrónico</label>
                     <input
                       type="email"
@@ -268,6 +319,12 @@ export default function Perfil() {
                     <p className="text-slate-600 dark:text-slate-300 font-medium text-sm mt-1 text-center bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
                       <span className="material-symbols-outlined text-[14px] align-text-bottom mr-1 text-primary">apartment</span>
                       {user.municipio}
+                    </p>
+                  )}
+                  {user?.barrio && (
+                    <p className="text-slate-600 dark:text-slate-300 font-medium text-sm mt-1 text-center bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <span className="material-symbols-outlined text-[14px] align-text-bottom mr-1 text-primary">location_on</span>
+                      {user.barrio}
                     </p>
                   )}
                   {user?.direccion && (
@@ -316,6 +373,26 @@ export default function Perfil() {
               <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
             </Link>
           )}
+          <div className="flex items-center gap-4 px-4 py-4 border-b border-slate-50 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800 transition-colors">
+            <div className="flex items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0 size-10">
+              <span className="material-symbols-outlined">volume_up</span>
+            </div>
+            <p className="text-slate-700 dark:text-slate-300 text-base font-medium flex-1">Sonido de Notificaciones</p>
+            <button
+              onClick={handleSoundToggle}
+              className={`shrink-0 w-12 h-7 rounded-full transition-all ${
+                soundEnabled
+                  ? 'bg-primary shadow-lg shadow-primary/50'
+                  : 'bg-slate-300 dark:bg-slate-600'
+              } relative`}
+            >
+              <div
+                className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
+                  soundEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
           <Link to="/preferencias" className="flex items-center gap-4 px-4 py-4 active:bg-slate-50 dark:active:bg-slate-800 transition-colors cursor-pointer">
             <div className="flex items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0 size-10">
               <span className="material-symbols-outlined">settings</span>

@@ -9,5 +9,6 @@ class ComercioDTO(BaseModel):
     rubro: str
     direccion: str
     municipio: str
+    barrio: Optional[str] = None      # Barrio/localidad de comercio
     provincia: Optional[str] = "Corrientes"
     password: Optional[str] = None

@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { playNotificationSound } from './soundNotification';
 
 export const initPushNotifications = async () => {
     if (!Capacitor.isNativePlatform()) {
@@ -29,9 +30,16 @@ export const initPushNotifications = async () => {
             console.error('Error on registration: ' + JSON.stringify(error));
         });
 
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        PushNotifications.addListener('pushNotificationReceived', async (notification) => {
             console.log('Push received: ' + JSON.stringify(notification));
-            // Show toast or handle payload silently
+            
+            // Reproducir sonido si está habilitado en foreground
+            const soundEnabled = notification.data?.sound_enabled === 'true' ?? true;
+            if (soundEnabled && Capacitor.isNativePlatform()) {
+                // En Android/iOS, el sonido se maneja principalmente a través del payload de Firebase
+                // Pero podemos reproducir un sonido adicional si es necesario
+                await playNotificationSound(true, 'notification');
+            }
         });
 
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {

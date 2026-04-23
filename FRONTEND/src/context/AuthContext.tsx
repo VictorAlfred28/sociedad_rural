@@ -17,6 +17,10 @@ export interface Socio {
     titular_id?: string | null;
     tipo_vinculo?: string | null;
     user_roles?: string[];
+    numero_socio?: string;                          // Número único de 4 dígitos
+    barrio?: string;                                // Localidad/barrio de residencia
+    created_at?: string;                            // Fecha de creación del usuario
+    sonido_notificaciones_habilitado?: boolean;     // Preferencia de sonido en notificaciones
 }
 
 interface AuthContextType {

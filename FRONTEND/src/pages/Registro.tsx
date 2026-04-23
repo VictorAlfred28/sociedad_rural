@@ -25,6 +25,7 @@ interface SocioFormData extends FormDataBase {
   nombre_apellido: string;
   dni_cuit: string; // mapea a 'dni' en profiles
   direccion: string;
+  barrio?: string;  // Barrio/localidad (nuevo)
 }
 interface CamaraFormData {
   denominacion: string;       // Ej: "Cámara de Comercio de Santo Tomé"
@@ -46,6 +47,7 @@ export default function Registro() {
     email: '',
     telefono: '',
     direccion: '',
+    barrio: '',
   });
   const [esProfesional, setEsProfesional] = useState(false);
   const [socioPassword, setSocioPassword] = useState('');
@@ -140,6 +142,7 @@ export default function Registro() {
             password: socioPassword,
             rol: 'SOCIO',
             es_profesional: esProfesional,
+            barrio: socioData.barrio,    // Nuevo: barrio del socio
           },
         },
       });
@@ -366,6 +369,8 @@ export default function Registro() {
             </div>
 
             {renderField('Email', 'email', socioData.email, handleSocioChange, { type: 'email', placeholder: 'nombre@ejemplo.com', hint: 'Te enviaremos notificaciones importantes.' })}
+
+            {renderField('Barrio/Localidad', 'barrio', socioData.barrio || '', handleSocioChange, { placeholder: 'Ej: Centro, Sudoeste, etc.', hint: 'Opcional - Tu barrio o localidad de residencia.' })}
 
             {/* Contraseña Socio */}
             <div className="flex flex-col gap-1 py-2">

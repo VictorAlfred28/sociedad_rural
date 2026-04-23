@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { requestForToken, onMessageListener } from '../firebase';
+import { playNotificationSound } from '../utils/soundNotification';
 
 interface Notification {
     id: string;
@@ -68,15 +69,20 @@ export default function NotificationBell() {
         }
     }, [user, token]);
 
-    // Listener Foreground FCM (Firebase)
+    // Listener Foreground FCM (Firebase) con reproducción de sonido
     useEffect(() => {
         onMessageListener()
-            .then((payload: any) => {
+            .then(async (payload: any) => {
                 // Cuando llega algo mientras la app está abierta, recargamos notificaciones
                 loadNotifications();
+                
+                // Reproducir sonido si el usuario lo tiene habilitado
+                if (user?.sonido_notificaciones_habilitado ?? true) {
+                    await playNotificationSound(true, 'notification');
+                }
             })
             .catch((err) => console.log('failed: ', err));
-    }, []);
+    }, [user?.sonido_notificaciones_habilitado]);
 
     // Marcar como leídas al abrir
     const toggleDropdown = async () => {

@@ -136,7 +136,7 @@ export default function CarnetDigital() {
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-bold opacity-60 uppercase">Alta</p>
-                  <p className="text-sm font-bold uppercase">2024</p>
+                  <p className="text-sm font-bold uppercase">{user.created_at ? new Date(user.created_at).getFullYear() : new Date().getFullYear()}</p>
                 </div>
               </div>
             </div>
@@ -182,7 +182,7 @@ export default function CarnetDigital() {
 
           <div className="mt-6 flex flex-col items-center">
             <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 tracking-[0.3em] uppercase mb-1">
-              ID único de socio
+              {user.numero_socio ? `Socio N° ${user.numero_socio}` : 'ID único de socio'}
             </span>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-medium text-center px-8">
               {user.estado === 'APROBADO' ? (

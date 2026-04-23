@@ -199,6 +199,22 @@ export function ComercioForm({
                 </div>
             </div>
 
+            {/* Barrio */}
+            <div {...fieldContainerProps}>
+                <label className={labelClass}>Barrio (Opcional)</label>
+                <div className="relative">
+                    <Icon name="location_on" />
+                    <input
+                        type="text"
+                        name="barrio"
+                        value={formData.barrio || ''}
+                        onChange={onChange}
+                        className={inputClass}
+                        placeholder="Ej: Centro, Sudoeste"
+                    />
+                </div>
+            </div>
+
             {/* Provincia (solo visible en ADMIN si es necesario, o público opcional) */}
             <div {...fieldContainerProps}>
                 <label className={labelClass}>Provincia</label>
