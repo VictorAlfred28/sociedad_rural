@@ -21,6 +21,20 @@ export const initPushNotifications = async () => {
 
         await PushNotifications.register();
 
+        // Crear canal de notificaciones para Android (Requerido para Android 8.0+)
+        if (Capacitor.getPlatform() === 'android') {
+            await PushNotifications.createChannel({
+                id: 'high_importance_channel',
+                name: 'Notificaciones Importantes',
+                description: 'Canal principal para notificaciones de la app',
+                importance: 5, // 5 = High importance
+                visibility: 1, // 1 = Public
+                sound: 'notification', // Referencia a notification.mp3 (sin extensión)
+                vibration: true,
+            });
+            console.log('Notification channel created');
+        }
+
         PushNotifications.addListener('registration', (token) => {
             console.log('Push registration success, token: ' + token.value);
             // Send token to backend or save in store
