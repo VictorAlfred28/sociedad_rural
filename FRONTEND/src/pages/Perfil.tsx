@@ -187,11 +187,6 @@ export default function Perfil() {
       setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
     }
   };
-      setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col max-w-[430px] mx-auto bg-background-light dark:bg-background-dark shadow-2xl overflow-x-hidden">
