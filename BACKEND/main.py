@@ -1307,7 +1307,7 @@ def validar_qr_dinamico(data: QRTokenValidarRequest):
         res = (
             supabase.table("profiles")
             .select(
-                "id, nombre_apellido, dni, rol, estado, municipio, titular_id, tipo_vinculo, perfiles_titulares:profiles!titular_id(nombre_apellido, estado)"
+                "id, nombre_apellido, dni, rol, estado, municipio, numero_socio, titular_id, tipo_vinculo, perfiles_titulares:profiles!titular_id(nombre_apellido, estado)"
             )
             .eq("id", socio_id)
             .execute()

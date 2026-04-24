@@ -242,8 +242,10 @@ export default function CarnetDigital() {
                       <span className="border-b border-black/80 dark:border-white/80 border-dashed pb-0.5 text-xs uppercase font-mono font-bold leading-none">{user.dni}</span>
                     </div>
                     <div className="flex flex-col flex-1">
-                      <span className="font-pasaporte-data text-[9px] font-bold uppercase mb-0 text-black/80 dark:text-white/80">Socio</span>
-                      <span className="border-b border-black/80 dark:border-white/80 border-dashed pb-0.5 text-[10px] text-emerald-800 dark:text-emerald-400 font-bold uppercase leading-none truncate">{user.estado}</span>
+                      <span className="font-pasaporte-data text-[9px] font-bold uppercase mb-0 text-black/80 dark:text-white/80">Nro. Socio</span>
+                      <span className="border-b border-black/80 dark:border-white/80 border-dashed pb-0.5 text-[10px] text-emerald-800 dark:text-emerald-400 font-bold uppercase leading-none truncate">
+                        {user.numero_socio ? `N° ${user.numero_socio}` : user.estado}
+                      </span>
                     </div>
                   </div>
                 </div>

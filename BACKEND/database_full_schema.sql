@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     tipo_vinculo                    VARCHAR,
     motivo                          TEXT,
     sonido_notificaciones_habilitado BOOLEAN             DEFAULT TRUE,
+    numero_socio                    TEXT,                -- Número correlativo de 4 dígitos (ej: 0001). Solo para SOCIO APROBADO.
     created_at                      TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()),
     updated_at                      TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
@@ -405,6 +406,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_estado       ON public.profiles (estado)
 CREATE INDEX IF NOT EXISTS idx_profiles_rol          ON public.profiles (rol);
 CREATE INDEX IF NOT EXISTS idx_profiles_dni          ON public.profiles (dni);
 CREATE INDEX IF NOT EXISTS idx_profiles_titular_id   ON public.profiles (titular_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_numero_socio_unique ON public.profiles (numero_socio) WHERE numero_socio IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_pagos_socio_estado    ON public.pagos_cuotas (socio_id, estado_pago);
 CREATE INDEX IF NOT EXISTS idx_pagos_vencimiento     ON public.pagos_cuotas (fecha_vencimiento);
 CREATE INDEX IF NOT EXISTS idx_notif_usuario_leido   ON public.notificaciones (usuario_id, leido);
@@ -413,6 +415,35 @@ CREATE INDEX IF NOT EXISTS idx_qr_tokens_user        ON public.qr_tokens (user_i
 CREATE INDEX IF NOT EXISTS idx_chat_user_created     ON public.chat_history (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_auditoria_usuario     ON public.auditoria_logs_2026 (usuario_id, fecha DESC);
 CREATE INDEX IF NOT EXISTS idx_auditoria_accion      ON public.auditoria_logs_2026 (accion, fecha DESC);
+
+-- ── TRIGGER: Auto-asignación de numero_socio al aprobar un SOCIO ─────────────
+CREATE OR REPLACE FUNCTION public.fn_asignar_numero_socio()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+DECLARE
+  siguiente_numero INTEGER;
+BEGIN
+  IF NEW.estado = 'APROBADO'
+     AND NEW.rol = 'SOCIO'
+     AND NEW.numero_socio IS NULL
+     AND (OLD.estado IS DISTINCT FROM 'APROBADO' OR OLD.numero_socio IS NULL)
+  THEN
+    PERFORM pg_advisory_xact_lock(987654321);
+    SELECT COALESCE(MAX(CAST(numero_socio AS INTEGER)), 0) + 1
+      INTO siguiente_numero
+      FROM public.profiles
+     WHERE numero_socio IS NOT NULL
+       AND numero_socio ~ '^\d+$';
+    NEW.numero_socio := LPAD(siguiente_numero::TEXT, 4, '0');
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_asignar_numero_socio ON public.profiles;
+CREATE TRIGGER trg_asignar_numero_socio
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.fn_asignar_numero_socio();
 
 -- ── 17. ROW LEVEL SECURITY (RLS) ──────────────────────────────────────────
 
