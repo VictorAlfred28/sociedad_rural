@@ -370,7 +370,7 @@ export default function Registro() {
 
             {renderField('Email', 'email', socioData.email, handleSocioChange, { type: 'email', placeholder: 'nombre@ejemplo.com', hint: 'Te enviaremos notificaciones importantes.' })}
 
-            {renderField('Barrio/Localidad', 'barrio', socioData.barrio || '', handleSocioChange, { placeholder: 'Ej: Centro, Sudoeste, etc.', hint: 'Opcional - Tu barrio o localidad de residencia.' })}
+            {renderField('Barrio', 'barrio', socioData.barrio || '', handleSocioChange, { placeholder: 'Ej: Centro, Sudoeste, etc.', hint: 'Opcional - Tu barrio de residencia.' })}
 
             {/* Contraseña Socio */}
             <div className="flex flex-col gap-1 py-2">
