@@ -7,7 +7,14 @@ build/
 .env.*.local
 *.log
 
-# Python
+# Capacitor / Android
+FRONTEND/android/app/build/
+FRONTEND/android/build/
+FRONTEND/android/app/google-services.json
+*.jks
+*.keystore
+
+# Python / Backend
 __pycache__/
 *.pyc
 *.pyo
@@ -17,15 +24,13 @@ env/
 venv/
 .venv/
 pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
 .pytest_cache/
+.ruff_cache/
+
+# Archivos de Producción / Residuales
+proyecto-produccion.zip
+*.zip
+*.tar.gz
 
 # IDEs
 .vscode/
@@ -36,3 +41,4 @@ coverage.xml
 # OS
 .DS_Store
 Thumbs.db
+

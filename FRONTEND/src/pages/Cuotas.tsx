@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { AppLauncher } from '@capacitor/app-launcher';
 import BottomNav from '../components/BottomNav';
 import { useAuth } from '../context/AuthContext';
 
@@ -83,6 +85,30 @@ export default function Cuotas() {
       setFbMsg({ type: 'error', text: err.message });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleOpenWallet = async (appScheme: string, packageName: string, webUrl: string) => {
+    try {
+      setFbMsg({ type: 'success', text: 'Abriendo app...' });
+      
+      if (Capacitor.isNativePlatform()) {
+        const { value: canOpen } = await AppLauncher.canOpenUrl({ url: appScheme });
+        
+        if (canOpen) {
+          await AppLauncher.openUrl({ url: appScheme });
+        } else {
+          setFbMsg({ type: 'success', text: 'Redirigiendo a Play Store...' });
+          const playStoreUrl = `https://play.google.com/store/apps/details?id=${packageName}`;
+          await AppLauncher.openUrl({ url: playStoreUrl });
+        }
+      } else {
+        window.open(webUrl, '_blank');
+        setTimeout(() => setFbMsg({ type: '', text: '' }), 2000);
+      }
+    } catch (error) {
+      console.error("Error abriendo billetera:", error);
+      setFbMsg({ type: 'error', text: 'No se pudo abrir la aplicación' });
     }
   };
 
@@ -240,58 +266,41 @@ export default function Cuotas() {
                       <p className="text-[10px] font-bold text-[#245b31] dark:text-green-400 mb-2 uppercase tracking-wider">Abrir billetera rápida:</p>
                       <div className="grid grid-cols-4 gap-2">
                         {/* Mercado Pago */}
-                        <button type="button" onClick={() => {
-                          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                          if (isIOS) {
-                            window.location.href = "mercadopago://";
-                            setTimeout(() => { if (!document.hidden) window.location.href = "https://apps.apple.com/ar/app/mercado-pago/id1054641739"; }, 2500);
-                          } else {
-                            // Android Intent - Package corregido
-                            window.location.href = "intent://#Intent;scheme=mercadopago;package=com.mercadopago.wallet;end";
-                          }
-                        }} className="flex flex-col items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-[#009EE3]/50 rounded-xl transition-all active:scale-95 group w-full">
+                        <button type="button" onClick={() => handleOpenWallet(
+                          'mercadopago://',
+                          'com.mercadopago.wallet',
+                          'https://www.mercadopago.com.ar/'
+                        )} className="flex flex-col items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-[#009EE3]/50 rounded-xl transition-all active:scale-95 group w-full">
                           <img src="https://www.google.com/s2/favicons?domain=mercadopago.com.ar&sz=128" alt="Mercado Pago" className="w-7 h-7 object-contain group-hover:scale-110 transition-transform rounded" />
                           <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 mt-1">MP</span>
                         </button>
 
                         {/* MasBancoCo */}
-                        <button type="button" onClick={() => {
-                          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                          if (isIOS) {
-                            window.location.href = "bancodecorrientes://";
-                            setTimeout(() => { if (!document.hidden) window.location.href = "https://apps.apple.com/ar/app/banco-de-corrientes/id1485640286"; }, 2500);
-                          } else {
-                            window.location.href = "intent://#Intent;package=com.bancomobile.menu;end";
-                          }
-                        }} className="flex flex-col items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-[#008f39]/50 rounded-xl transition-all active:scale-95 group w-full">
+                        <button type="button" onClick={() => handleOpenWallet(
+                          'bancodecorrientes://',
+                          'com.bancomobile.menu',
+                          'https://www.bancodecorrientes.com.ar/'
+                        )} className="flex flex-col items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-[#008f39]/50 rounded-xl transition-all active:scale-95 group w-full">
                           <img src="https://www.google.com/s2/favicons?domain=bancodecorrientes.com.ar&sz=128" alt="Más Banco" className="w-7 h-7 object-contain group-hover:scale-110 transition-transform rounded" />
                           <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 mt-1 text-center leading-none">Más<br/>Banco</span>
                         </button>
 
                         {/* BNA+ */}
-                        <button type="button" onClick={() => {
-                          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                          if (isIOS) {
-                            window.location.href = "bnamas://";
-                            setTimeout(() => { if (!document.hidden) window.location.href = "https://apps.apple.com/ar/app/bna/id1463945281"; }, 2500);
-                          } else {
-                            window.location.href = "intent://#Intent;package=com.banconacion.bnamas;end";
-                          }
-                        }} className="flex flex-col items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-[#0A3D73]/50 rounded-xl transition-all active:scale-95 group w-full">
+                        <button type="button" onClick={() => handleOpenWallet(
+                          'bnamas://',
+                          'com.banconacion.bnamas',
+                          'https://www.bna.com.ar/Personas/bnamas'
+                        )} className="flex flex-col items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-[#0A3D73]/50 rounded-xl transition-all active:scale-95 group w-full">
                           <img src="https://www.google.com/s2/favicons?domain=bna.com.ar&sz=128" alt="BNA+" className="w-7 h-7 object-contain group-hover:scale-110 transition-transform rounded" />
                           <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 mt-1">BNA+</span>
                         </button>
 
                         {/* MODO */}
-                        <button type="button" onClick={() => {
-                          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                          if (isIOS) {
-                            window.location.href = "modo://";
-                            setTimeout(() => { if (!document.hidden) window.location.href = "https://apps.apple.com/ar/app/modo-tu-billetera-digital/id1527745778"; }, 2500);
-                          } else {
-                            window.location.href = "intent://#Intent;package=com.playdigital.modo;scheme=modo;end";
-                          }
-                        }} className="flex flex-col items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-[#00C29A]/50 rounded-xl transition-all active:scale-95 group w-full">
+                        <button type="button" onClick={() => handleOpenWallet(
+                          'modo://',
+                          'com.playdigital.modo',
+                          'https://www.modo.com.ar/'
+                        )} className="flex flex-col items-center justify-center p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-[#00C29A]/50 rounded-xl transition-all active:scale-95 group w-full">
                           <img src="https://www.google.com/s2/favicons?domain=modo.com.ar&sz=128" alt="MODO" className="w-7 h-7 object-contain group-hover:scale-110 transition-transform rounded" />
                           <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 mt-1">MODO</span>
                         </button>

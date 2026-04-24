@@ -1,7 +1,7 @@
 -- =========================================================================
--- FULL DATABASE SCHEMA v3 - SOCIEDAD RURAL NORTE CORRIENTES
--- Sincronizado con producción: 2026-04-23
--- Auditoría: Antigravity Engineering Team
+-- FULL DATABASE SCHEMA v4 - SOCIEDAD RURAL NORTE CORRIENTES
+-- Sincronizado con backend (escaneo de código fuente): 2026-04-24
+-- Incluye tablas faltantes identificadas en main.py: camaras, notificaciones_admin
 -- =========================================================================
 
 -- ── 1. EXTENSIONS ─────────────────────────────────────────────────────────
@@ -102,29 +102,15 @@ CREATE TABLE IF NOT EXISTS public.auditoria_logs (
 ) PARTITION BY RANGE (fecha);
 
 -- Particiones por año
-CREATE TABLE IF NOT EXISTS public.auditoria_logs_2024
-    PARTITION OF public.auditoria_logs
-    FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
-
-CREATE TABLE IF NOT EXISTS public.auditoria_logs_2025
-    PARTITION OF public.auditoria_logs
-    FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
-
-CREATE TABLE IF NOT EXISTS public.auditoria_logs_2026
-    PARTITION OF public.auditoria_logs
-    FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
-
-CREATE TABLE IF NOT EXISTS public.auditoria_logs_2027
-    PARTITION OF public.auditoria_logs
-    FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');
-
-CREATE TABLE IF NOT EXISTS public.auditoria_logs_2028
-    PARTITION OF public.auditoria_logs
-    FOR VALUES FROM ('2028-01-01') TO ('2029-01-01');
+CREATE TABLE IF NOT EXISTS public.auditoria_logs_2024 PARTITION OF public.auditoria_logs FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
+CREATE TABLE IF NOT EXISTS public.auditoria_logs_2025 PARTITION OF public.auditoria_logs FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+CREATE TABLE IF NOT EXISTS public.auditoria_logs_2026 PARTITION OF public.auditoria_logs FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+CREATE TABLE IF NOT EXISTS public.auditoria_logs_2027 PARTITION OF public.auditoria_logs FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');
+CREATE TABLE IF NOT EXISTS public.auditoria_logs_2028 PARTITION OF public.auditoria_logs FOR VALUES FROM ('2028-01-01') TO ('2029-01-01');
 
 COMMENT ON TABLE public.auditoria_logs IS 'Log inmutable de todas las acciones administrativas. Particionado por año para performance.';
 
--- ── 6. COMERCIOS ──────────────────────────────────────────────────────────
+-- ── 6. COMERCIOS Y CÁMARAS ──────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.comercios (
     id              UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -190,7 +176,20 @@ CREATE TABLE IF NOT EXISTS public.promociones (
     updated_at              TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-COMMENT ON TABLE public.promociones IS 'Ofertas y promociones publicadas por los comercios adheridos';
+-- Cámaras Empresariales (Escaneado desde main.py línea 617)
+CREATE TABLE IF NOT EXISTS public.camaras (
+    id                  UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    denominacion        TEXT NOT NULL,
+    cuit                TEXT,
+    municipio           TEXT,
+    provincia           TEXT,
+    responsable_nombre  TEXT,
+    email               TEXT,
+    telefono            TEXT,
+    created_at          TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
+);
+
+COMMENT ON TABLE public.camaras IS 'Entidades de Cámaras Empresariales vinculadas en backend';
 
 -- ── 7. SOCIOS: FAMILIA, PROFESIONALES Y DEPENDIENTES ─────────────────────
 
@@ -253,8 +252,6 @@ CREATE TABLE IF NOT EXISTS public.eventos_sociales (
     updated_at       TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 
-COMMENT ON TABLE public.eventos_sociales IS 'Publicaciones de Instagram/Facebook importadas automáticamente por Make.com';
-
 -- ── 9. CONTABILIDAD Y PAGOS ───────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.pagos_cuotas (
@@ -271,8 +268,6 @@ CREATE TABLE IF NOT EXISTS public.pagos_cuotas (
     UNIQUE (socio_id, fecha_vencimiento)
 );
 
-COMMENT ON TABLE public.pagos_cuotas IS 'Registro de cuotas sociales. UNIQUE en (socio_id, fecha_vencimiento) para evitar duplicados.';
-
 CREATE TABLE IF NOT EXISTS public.suscripciones (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     socio_id         UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -287,7 +282,7 @@ CREATE TABLE IF NOT EXISTS public.suscripciones (
 
 -- ── 10. NOTIFICACIONES ────────────────────────────────────────────────────
 
--- Notificaciones in-app para usuarios (feed de notificaciones)
+-- Notificaciones in-app para usuarios
 CREATE TABLE IF NOT EXISTS public.notificaciones (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id       UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -302,7 +297,19 @@ CREATE TABLE IF NOT EXISTS public.notificaciones (
     fecha            TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-COMMENT ON TABLE public.notificaciones IS 'Centro de notificaciones in-app. Se conecta con FCM vía push_tokens para envío push.';
+-- Notificaciones destinadas a Administradores (Escaneado desde main.py - Solicitudes Soporte/Recuperación de Password)
+CREATE TABLE IF NOT EXISTS public.notificaciones_admin (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id       UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    tipo             VARCHAR,
+    descripcion      TEXT,
+    estado           VARCHAR DEFAULT 'PENDIENTE',
+    metadata         JSONB,
+    resolved_at      TIMESTAMP WITH TIME ZONE,
+    created_at       TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
+);
+
+COMMENT ON TABLE public.notificaciones_admin IS 'Notificaciones y solicitudes de soporte dirigidas a los administradores';
 
 -- Tokens FCM para notificaciones push
 CREATE TABLE IF NOT EXISTS public.push_tokens (
@@ -315,7 +322,6 @@ CREATE TABLE IF NOT EXISTS public.push_tokens (
 
 -- ── 11. CHAT / IA ─────────────────────────────────────────────────────────
 
--- Historial de conversaciones con el chatbot de IA (OpenAI GPT-4o)
 CREATE TABLE IF NOT EXISTS public.chat_history (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -324,8 +330,6 @@ CREATE TABLE IF NOT EXISTS public.chat_history (
     metadata   JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
-
-COMMENT ON TABLE public.chat_history IS 'Historial de mensajes del asistente de IA agropecuario. Contexto de las últimas 20 interacciones por usuario.';
 
 -- ── 12. QR DINÁMICO ───────────────────────────────────────────────────────
 
@@ -338,8 +342,6 @@ CREATE TABLE IF NOT EXISTS public.qr_tokens (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 
-COMMENT ON TABLE public.qr_tokens IS 'Tokens de acceso QR dinámicos. Validez: 60 segundos. Uso único (one-time-use).';
-
 -- ── 13. LOCALIDADES ───────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.localidades (
@@ -348,8 +350,6 @@ CREATE TABLE IF NOT EXISTS public.localidades (
     active     BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
-
-COMMENT ON TABLE public.localidades IS 'Catálogo de localidades válidas para registro de socios y comercios';
 
 -- ── 14. ACTIVIDAD ─────────────────────────────────────────────────────────
 
@@ -361,8 +361,6 @@ CREATE TABLE IF NOT EXISTS public.activity_log (
     usuario_id  UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     fecha       TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
-
-COMMENT ON TABLE public.activity_log IS 'Log de actividades de socios (pagos, mora, accesos QR, etc.)';
 
 -- ── 15. TRIGGERS ──────────────────────────────────────────────────────────
 
@@ -380,25 +378,11 @@ DROP TRIGGER IF EXISTS tr_eventos_sociales_updated ON public.eventos_sociales;
 DROP TRIGGER IF EXISTS tr_familiares_updated_at    ON public.familiares;
 DROP TRIGGER IF EXISTS tr_solicitudes_updated_at   ON public.comercio_solicitudes;
 
-CREATE TRIGGER tr_profiles_updated_at
-    BEFORE UPDATE ON public.profiles
-    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-
-CREATE TRIGGER tr_promociones_updated_at
-    BEFORE UPDATE ON public.promociones
-    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-
-CREATE TRIGGER tr_eventos_sociales_updated
-    BEFORE UPDATE ON public.eventos_sociales
-    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-
-CREATE TRIGGER tr_familiares_updated_at
-    BEFORE UPDATE ON public.familiares
-    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-
-CREATE TRIGGER tr_solicitudes_updated_at
-    BEFORE UPDATE ON public.comercio_solicitudes
-    FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER tr_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER tr_promociones_updated_at BEFORE UPDATE ON public.promociones FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER tr_eventos_sociales_updated BEFORE UPDATE ON public.eventos_sociales FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER tr_familiares_updated_at BEFORE UPDATE ON public.familiares FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER tr_solicitudes_updated_at BEFORE UPDATE ON public.comercio_solicitudes FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
 -- ── 16. ÍNDICES DE PERFORMANCE ────────────────────────────────────────────
 
@@ -422,17 +406,14 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
   siguiente_numero INTEGER;
 BEGIN
-  IF NEW.estado = 'APROBADO'
-     AND NEW.rol = 'SOCIO'
-     AND NEW.numero_socio IS NULL
+  IF NEW.estado = 'APROBADO' AND NEW.rol = 'SOCIO' AND NEW.numero_socio IS NULL
      AND (OLD.estado IS DISTINCT FROM 'APROBADO' OR OLD.numero_socio IS NULL)
   THEN
     PERFORM pg_advisory_xact_lock(987654321);
     SELECT COALESCE(MAX(CAST(numero_socio AS INTEGER)), 0) + 1
       INTO siguiente_numero
       FROM public.profiles
-     WHERE numero_socio IS NOT NULL
-       AND numero_socio ~ '^\d+$';
+     WHERE numero_socio IS NOT NULL AND numero_socio ~ '^\d+$';
     NEW.numero_socio := LPAD(siguiente_numero::TEXT, 4, '0');
   END IF;
   RETURN NEW;
@@ -440,10 +421,7 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_asignar_numero_socio ON public.profiles;
-CREATE TRIGGER trg_asignar_numero_socio
-  BEFORE UPDATE ON public.profiles
-  FOR EACH ROW
-  EXECUTE FUNCTION public.fn_asignar_numero_socio();
+CREATE TRIGGER trg_asignar_numero_socio BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.fn_asignar_numero_socio();
 
 -- ── 17. ROW LEVEL SECURITY (RLS) ──────────────────────────────────────────
 
@@ -453,6 +431,7 @@ ALTER TABLE public.user_roles          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.auditoria_logs      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comercios           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promociones         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.camaras             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.familiares          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profesionales       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.empleados_comercios ENABLE ROW LEVEL SECURITY;
@@ -461,6 +440,7 @@ ALTER TABLE public.eventos_sociales    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pagos_cuotas        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.suscripciones       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notificaciones      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificaciones_admin ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.push_tokens         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_history        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.qr_tokens           ENABLE ROW LEVEL SECURITY;
@@ -468,15 +448,7 @@ ALTER TABLE public.localidades         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_log        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comercio_solicitudes ENABLE ROW LEVEL SECURITY;
 
--- Políticas para push_tokens
-DROP POLICY IF EXISTS "push_tokens_owner_select" ON public.push_tokens;
-CREATE POLICY "push_tokens_owner_select" ON public.push_tokens FOR SELECT USING (auth.uid() = usuario_id);
-DROP POLICY IF EXISTS "push_tokens_owner_insert" ON public.push_tokens;
-CREATE POLICY "push_tokens_owner_insert" ON public.push_tokens FOR INSERT WITH CHECK (auth.uid() = usuario_id);
-DROP POLICY IF EXISTS "push_tokens_owner_update" ON public.push_tokens;
-CREATE POLICY "push_tokens_owner_update" ON public.push_tokens FOR UPDATE USING (auth.uid() = usuario_id);
-
--- Política pública para localidades (lectura libre)
+-- Políticas públicas
 DROP POLICY IF EXISTS "localidades_public_read" ON public.localidades;
 CREATE POLICY "localidades_public_read" ON public.localidades FOR SELECT USING (active = true);
 
@@ -488,33 +460,7 @@ INSERT INTO public.roles (nombre, descripcion) VALUES
     ('SOCIO',         'Socio estándar con acceso a promociones, carnet virtual y eventos.')
 ON CONFLICT (nombre) DO NOTHING;
 
--- ── 19. ASIGNACIÓN SUPERADMIN PRINCIPAL ──────────────────────────────────
--- NOTA: Este bloque requiere que el usuario exista previamente en auth.users y profiles.
--- Ejecutar sólo en entorno de producción tras el primer registro del administrador.
-DO $$
-DECLARE
-    _role_superadmin UUID;
-    _role_socio      UUID;
-    _user_id         UUID;
-BEGIN
-    SELECT id INTO _role_superadmin FROM public.roles WHERE nombre = 'SUPERADMIN';
-    SELECT id INTO _role_socio      FROM public.roles WHERE nombre = 'SOCIO';
-    SELECT id INTO _user_id         FROM public.profiles WHERE rol = 'ADMIN' LIMIT 1;
-
-    IF _user_id IS NOT NULL AND _role_superadmin IS NOT NULL THEN
-        INSERT INTO public.user_roles (user_id, role_id)
-        VALUES (_user_id, _role_superadmin)
-        ON CONFLICT (user_id, role_id) DO NOTHING;
-
-        INSERT INTO public.user_roles (user_id, role_id)
-        VALUES (_user_id, _role_socio)
-        ON CONFLICT (user_id, role_id) DO NOTHING;
-
-        UPDATE public.profiles SET estado = 'APROBADO' WHERE id = _user_id;
-    END IF;
-END $$;
-
--- ── 20. DATOS INICIALES: LOCALIDADES ─────────────────────────────────────
+-- ── 19. DATOS INICIALES: LOCALIDADES ─────────────────────────────────────
 
 INSERT INTO public.localidades (nombre) VALUES
     ('Gobernador Virasoro'),
