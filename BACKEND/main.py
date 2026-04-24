@@ -1413,13 +1413,18 @@ async def chat_with_assistant(
             .execute()
         )
 
-        # Invertir para que estén en orden cronológico (Supreme performance)
+        # Invertir para que estén en orden cronológico
         history = history_res.data[::-1] if history_res.data else []
 
-        # 2. Obtener respuesta de la IA
-        assistant_response = await chat_service.get_response(
-            history=history, user_message=data.message, image_url=data.image_url
-        )
+        # 2. Obtener respuesta de la IA (puede lanzar RuntimeError con mensaje descriptivo)
+        try:
+            assistant_response = await chat_service.get_response(
+                history=history, user_message=data.message, image_url=data.image_url
+            )
+        except RuntimeError as ia_err:
+            # Error conocido del servicio de IA – retornar 503 con mensaje legible
+            logger.warning(f"[/api/chat] Error de servicio IA para user {user_id}: {ia_err}")
+            raise HTTPException(status_code=503, detail=str(ia_err))
 
         # 3. Guardar en historial (Mensaje del Usuario)
         supabase.table("chat_history").insert(
@@ -1441,16 +1446,18 @@ async def chat_with_assistant(
 
         # 5. Si hay imagen, programar su borrado automático
         if data.image_url and "chat-images" in data.image_url:
-            # Extraer el path del final de la URL
             path_coords = data.image_url.split("/")[-1]
             background_tasks.add_task(delete_chat_image, path_coords)
 
+        logger.info(f"[/api/chat] Respuesta enviada al usuario {user_id}")
         return {"response": assistant_response, "history_count": len(history) + 2}
 
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error en chat endpoint: {str(e)}")
+        logger.error(f"[/api/chat] Error inesperado para user {user_id}: {type(e).__name__}: {e}")
         raise HTTPException(
-            status_code=500, detail="Error procesando la solicitud de chat."
+            status_code=500, detail="Error interno procesando la solicitud de chat."
         )
 
 

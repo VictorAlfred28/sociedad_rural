@@ -1,10 +1,20 @@
 import os
-import json
-from openai import OpenAI
+import logging
+from openai import OpenAI, AuthenticationError, RateLimitError, APIConnectionError, APIStatusError
 from typing import List, Dict, Any, Optional
 
-# Cargar configuración desde el entorno
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+logger = logging.getLogger(__name__)
+
+# ── VALIDACIÓN DE API KEY AL INICIO ──────────────────────────────────────────
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    logger.critical(
+        "[ChatService] OPENAI_API_KEY no configurada. "
+        "El chatbot estará INACTIVO. Verificar variables de entorno."
+    )
+
+# Inicializar cliente solo si hay key
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 SYSTEM_PROMPT = """
 Eres el Asistente Virtual Premium de la plataforma "Sociedad Rural", un experto consultor de elite para el campo argentino, agronomía, veterinaria y emprendimientos rurales.
@@ -38,24 +48,40 @@ FORMATO Y VISIÓN:
 """
 
 class ChatService:
-    def __init__(self, model="gpt-4o-mini"):
+    def __init__(self, model: str = "gpt-4o-mini"):
         self.model = model
+        self._ready = client is not None
+        if self._ready:
+            logger.info(f"[ChatService] Iniciado con modelo '{self.model}'.")
+        else:
+            logger.warning("[ChatService] Servicio degradado: OPENAI_API_KEY no disponible.")
 
     def get_system_prompt(self) -> Dict[str, str]:
         return {"role": "system", "content": SYSTEM_PROMPT.strip()}
 
-    async def get_response(self, history: List[Dict[str, str]], user_message: str, image_url: Optional[str] = None) -> str:
+    async def get_response(
+        self,
+        history: List[Dict[str, str]],
+        user_message: str,
+        image_url: Optional[str] = None
+    ) -> str:
         """
         Genera una respuesta usando OpenAI considerando el historial.
+        Lanza excepción en caso de error para que el endpoint HTTP retorne
+        el código de estado correcto al frontend.
         """
+        if not self._ready:
+            logger.error("[ChatService] get_response llamado sin OPENAI_API_KEY configurada.")
+            raise RuntimeError("El servicio de IA no está disponible. Contacte al administrador.")
+
         messages = [self.get_system_prompt()]
-        
-        # Añadir historial (máximo 20 mensajes como se solicitó)
+
+        # Añadir historial (máximo 20 mensajes)
         messages.extend(history[-20:])
-        
-        # Añadir mensaje actual
+
+        # Construir mensaje actual
         if image_url:
-            # Si hay imagen, usamos estructura multilodal (GPT-4o recomendado)
+            # Mensaje multimodal: forzar gpt-4o para visión
             current_message = {
                 "role": "user",
                 "content": [
@@ -63,13 +89,17 @@ class ChatService:
                     {"type": "image_url", "image_url": {"url": image_url}}
                 ]
             }
-            # Forzamos modelo 4o para visión
             model_to_use = "gpt-4o"
         else:
             current_message = {"role": "user", "content": user_message}
             model_to_use = self.model
 
         messages.append(current_message)
+
+        logger.info(
+            f"[ChatService] Enviando request → modelo={model_to_use}, "
+            f"history_len={len(history)}, has_image={image_url is not None}"
+        )
 
         try:
             response = client.chat.completions.create(
@@ -78,10 +108,32 @@ class ChatService:
                 temperature=0.7,
                 max_tokens=1000
             )
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            logger.info(
+                f"[ChatService] Respuesta OK → tokens_usados={response.usage.total_tokens if response.usage else 'N/A'}"
+            )
+            return content
+
+        except AuthenticationError as e:
+            logger.error(f"[ChatService] AuthenticationError – API Key inválida o expirada: {e}")
+            raise RuntimeError("Error de autenticación con OpenAI. Contacte al administrador.")
+
+        except RateLimitError as e:
+            logger.warning(f"[ChatService] RateLimitError – Límite de solicitudes excedido: {e}")
+            raise RuntimeError("Se alcanzó el límite de solicitudes. Intente nuevamente en unos instantes.")
+
+        except APIConnectionError as e:
+            logger.error(f"[ChatService] APIConnectionError – Sin conexión a OpenAI: {e}")
+            raise RuntimeError("No se pudo conectar con el servicio de IA. Verifique la conexión del servidor.")
+
+        except APIStatusError as e:
+            logger.error(f"[ChatService] APIStatusError {e.status_code} – {e.message}")
+            raise RuntimeError(f"Error del servicio de IA (código {e.status_code}). Intente más tarde.")
+
         except Exception as e:
-            print(f"Error en OpenAI API: {str(e)}")
-            return "Lo siento, hubo un error al procesar tu consulta con el motor de IA. Por favor, intenta de nuevo más tarde."
+            logger.error(f"[ChatService] Error inesperado en OpenAI: {type(e).__name__}: {e}")
+            raise RuntimeError("Error inesperado al procesar la consulta. Intente de nuevo.")
+
 
 # Instancia global
 chat_service = ChatService()

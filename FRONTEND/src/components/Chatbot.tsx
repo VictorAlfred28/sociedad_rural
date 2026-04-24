@@ -135,7 +135,7 @@ export const Chatbot: React.FC = () => {
 
         setMessages(prev => [...prev, userMsg]);
         if (!textToSend) setInputText('');
-        const currentImage = selectedImage; // Guardamos referencia para el fetch
+        const currentImage = selectedImage;
         setSelectedImage(null);
         setIsLoading(true);
 
@@ -154,10 +154,19 @@ export const Chatbot: React.FC = () => {
                 })
             });
 
-            if (!response.ok) throw new Error('Error en la comunicación con el asistente');
+            if (!response.ok) {
+                // Intentar leer el mensaje de error del servidor
+                let serverMessage = 'Error en la comunicación con el asistente.';
+                try {
+                    const errData = await response.json();
+                    if (errData?.detail) serverMessage = errData.detail;
+                } catch { /* ignorar si no es JSON */ }
+                console.error(`[Chatbot] Error ${response.status} del servidor:`, serverMessage);
+                throw new Error(serverMessage);
+            }
 
             const data = await response.json();
-            
+
             const botMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 text: data.response,
@@ -165,10 +174,11 @@ export const Chatbot: React.FC = () => {
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, botMsg]);
-        } catch (error) {
+        } catch (error: any) {
+            console.error('[Chatbot] Error al enviar mensaje:', error);
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
-                text: 'Lo siento, tuve un problema al procesar tu consulta o imagen. Por favor, reintenta.',
+                text: error?.message || 'Lo siento, tuve un problema al procesar tu consulta. Por favor, reintenta.',
                 sender: 'bot',
                 timestamp: new Date(),
             };
@@ -177,6 +187,7 @@ export const Chatbot: React.FC = () => {
             setIsLoading(false);
         }
     };
+
 
     return (
         <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end">
