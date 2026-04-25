@@ -4888,8 +4888,8 @@ def calcular_cuota_dinamica_internal(user_id: str):
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
     profile = profile_res.data[0]
 
-    # Recalcular SIEMPRE consultando la tabla familiares (prohibido usar valor cacheado)
-    fam_res = supabase.table("familiares").select("id", count="exact").eq("titular_id", user_id).execute()
+    # Recalcular SIEMPRE consultando la tabla profiles (los dependientes están en profiles con titular_id)
+    fam_res = supabase.table("profiles").select("id", count="exact").eq("titular_id", user_id).execute()
     familiares_count = fam_res.count if fam_res.count is not None else 0
     
     membership_type = "FAMILIAR" if familiares_count > 0 else "INDIVIDUAL"
