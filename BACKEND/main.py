@@ -4861,7 +4861,7 @@ class CuotaUpdate(BaseModel):
     monto: float
 
 class CuotasUpdateRequest(BaseModel):
-    cuotas: List[CuotaUpdate]
+    cuotas: list[CuotaUpdate]
 
 @app.get("/api/cuotas/valores")
 def get_cuotas_valores():
