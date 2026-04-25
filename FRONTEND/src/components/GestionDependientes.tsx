@@ -145,6 +145,20 @@ export default function GestionDependientes() {
                         value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
                     />
 
+                    <div className="mt-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2">
+                            Contraseña Inicial
+                        </label>
+                        <input
+                            type="text" readOnly disabled
+                            value="Familia1234"
+                            className={`${inputClass} bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-not-allowed`}
+                        />
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                            Esta es la contraseña inicial que el miembro debe usar para acceder.
+                        </p>
+                    </div>
+
                     <button
                         type="submit" disabled={formLoading}
                         className="mt-2 h-11 rounded-xl bg-primary text-slate-900 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-transform disabled:opacity-50"

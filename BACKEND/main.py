@@ -873,13 +873,13 @@ def login(
     try:
         print("Authenticating with Supabase Auth...")
         # NOTA: Para login de usuarios finales, se DEBE usar la ANON_KEY.
-        key_to_use = SUPABASE_ANON_KEY if SUPABASE_ANON_KEY else SUPABASE_SERVICE_KEY
         if not SUPABASE_ANON_KEY:
-            print(
-                "WARNING: SUPABASE_ANON_KEY no detectada. Usando Service Role (puede fallar en login)."
+            raise ValueError(
+                "SUPABASE_ANON_KEY no configurada en variables de entorno. "
+                "El login requiere la ANON_KEY para autenticación de usuarios."
             )
 
-        auth_client = create_client(SUPABASE_URL, key_to_use)
+        auth_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
         auth_session = None
         auth_user = None
