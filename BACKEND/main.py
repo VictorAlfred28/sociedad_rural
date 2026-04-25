@@ -4690,10 +4690,19 @@ async def subir_comprobante(
 
         fecha_vto = f"{anio}-{mes:02d}-10"
 
+        # Obtener monto dinámico según el rol
+        monto_cuota = 5000
+        try:
+            config_resp = supabase.table("configuracion_cuotas").select("monto").eq("rol", current_user.rol).execute()
+            if config_resp.data:
+                monto_cuota = float(config_resp.data[0]["monto"])
+        except Exception:
+            pass
+
         supabase.table("pagos_cuotas").upsert(
             {
                 "socio_id": current_user.id,
-                "monto": 5000,  # Valor cuota provisorio
+                "monto": monto_cuota,
                 "fecha_vencimiento": fecha_vto,
                 "estado_pago": "PENDIENTE_VALIDACION",
                 "comprobante_url": url_publica,
@@ -4842,6 +4851,37 @@ def rechazar_pago(req: PagoActionRequest, current_admin=Depends(get_current_admi
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GESTIÓN DINÁMICA DE CUOTAS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class CuotaUpdate(BaseModel):
+    rol: str
+    monto: float
+
+class CuotasUpdateRequest(BaseModel):
+    cuotas: List[CuotaUpdate]
+
+@app.get("/api/cuotas/valores")
+def get_cuotas_valores():
+    try:
+        response = supabase.table("configuracion_cuotas").select("*").execute()
+        return {"cuotas": response.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/admin/cuotas/valores")
+def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_current_admin)):
+    try:
+        for cuota in req.cuotas:
+            supabase.table("configuracion_cuotas").update({
+                "monto": cuota.monto, 
+                "ultima_actualizacion": "now()"
+            }).eq("rol", cuota.rol).execute()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -24,6 +24,9 @@ export default function GestionUsuarios() {
     const [viewingUser, setViewingUser] = useState<Socio | null>(null);
     const [loadingActivity, setLoadingActivity] = useState(false);
 
+    // Document Viewing States
+    const [viewingDocument, setViewingDocument] = useState<string | null>(null);
+
     // Edit States
     const [editingUser, setEditingUser] = useState<Socio | null>(null);
     const [editFormData, setEditFormData] = useState({
@@ -422,7 +425,12 @@ export default function GestionUsuarios() {
                                     </div>
                                     <div className="flex flex-col overflow-hidden">
                                         <p className="font-bold text-sm truncate text-admin-text">{user.nombre_apellido || user.email}</p>
-                                        <p className="text-xs text-slate-400 truncate">{user.rol} • {user.dni}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-xs text-slate-400 truncate">{user.rol} • {user.dni}</p>
+                                            {user.es_estudiante && (
+                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-widest">Estudiante</span>
+                                            )}
+                                        </div>
                                         {user.numero_socio && (
                                             <p className="text-xs text-admin-accent font-semibold truncate">Socio N° {user.numero_socio}</p>
                                         )}
@@ -488,6 +496,14 @@ export default function GestionUsuarios() {
                                     className="flex items-center justify-center w-9 h-9 bg-slate-800 text-slate-300 border border-slate-700 hover:text-admin-accent hover:border-admin-accent rounded-lg active:scale-95 admin-transition">
                                     <span className="material-symbols-outlined text-[18px]">edit</span>
                                 </button>
+                                {user.constancia_estudiante_url && (
+                                    <button
+                                        onClick={() => setViewingDocument(user.constancia_estudiante_url!)}
+                                        title="Ver Constancia"
+                                        className="flex items-center justify-center w-9 h-9 bg-blue-900/30 text-blue-400 border border-blue-800/50 hover:bg-blue-600 hover:text-white rounded-lg active:scale-95 admin-transition">
+                                        <span className="material-symbols-outlined text-[18px]">visibility</span>
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => fetchActivity(user)}
                                     title="Ver Actividad"
@@ -692,6 +708,52 @@ export default function GestionUsuarios() {
                                         ))}
                                     </div>
                                 )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Modal Visor de Constancia (Glassmorphism) */}
+            <AnimatePresence>
+                {viewingDocument && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-md px-4"
+                        onClick={() => setViewingDocument(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 20 }}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full max-w-2xl bg-white/10 border border-white/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+                        >
+                            <div className="p-4 flex justify-between items-center border-b border-white/10 bg-black/20">
+                                <h3 className="text-white font-bold tracking-widest uppercase text-sm flex items-center gap-2">
+                                    <span className="material-symbols-outlined">badge</span>
+                                    Constancia Alumno Regular
+                                </h3>
+                                <button onClick={() => setViewingDocument(null)} className="text-white/50 hover:text-white transition-colors">
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+                            <div className="p-2 h-[60vh] bg-black/40">
+                                {viewingDocument.toLowerCase().endsWith('.pdf') ? (
+                                    <iframe src={viewingDocument} className="w-full h-full rounded-xl bg-white" title="Constancia" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center overflow-auto rounded-xl">
+                                        <img src={viewingDocument} alt="Constancia de alumno" className="max-w-full max-h-full object-contain" />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="p-4 bg-black/20 border-t border-white/10 flex justify-end">
+                                <a href={viewingDocument} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 text-sm">
+                                    <span className="material-symbols-outlined text-[18px]">download</span>
+                                    Abrir Original
+                                </a>
                             </div>
                         </motion.div>
                     </motion.div>

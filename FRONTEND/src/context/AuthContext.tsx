@@ -21,6 +21,8 @@ export interface Socio {
     barrio?: string;                                // Localidad/barrio de residencia
     created_at?: string;                            // Fecha de creación del usuario
     sonido_notificaciones_habilitado?: boolean;     // Preferencia de sonido en notificaciones
+    es_estudiante?: boolean;
+    constancia_estudiante_url?: string | null;
 }
 
 interface AuthContextType {

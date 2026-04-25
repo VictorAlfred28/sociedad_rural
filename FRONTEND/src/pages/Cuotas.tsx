@@ -25,6 +25,24 @@ export default function Cuotas() {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [fbMsg, setFbMsg] = useState({ type: '', text: '' });
+  const [montoAPagar, setMontoAPagar] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/cuotas/valores`);
+        const data = await resp.json();
+        if (resp.ok && user) {
+          const rolBusqueda = user.es_estudiante ? 'ESTUDIANTE' : user.rol;
+          const config = data.cuotas.find((c: any) => c.rol === rolBusqueda);
+          if (config) setMontoAPagar(config.monto);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    if (user) fetchConfig();
+  }, [user]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -247,6 +265,13 @@ export default function Cuotas() {
                 <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800/30 mb-4">
                   <h4 className="text-sm font-bold text-[#245b31] dark:text-green-400 mb-2">Paso 1: Realizá la transferencia</h4>
                   <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                    {montoAPagar !== null && (
+                      <div className="mb-3 p-3 bg-white/60 dark:bg-black/20 rounded-lg border border-green-200 dark:border-green-800/40">
+                        <span className="font-bold text-[#245b31] dark:text-green-400 block text-[10px] uppercase tracking-widest mb-1">Monto a transferir</span>
+                        <span className="text-2xl font-black text-slate-800 dark:text-slate-100">${montoAPagar.toLocaleString('es-AR')}</span>
+                        {user?.es_estudiante && <span className="ml-2 text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full inline-block mt-1">Tarifa Estudiante</span>}
+                      </div>
+                    )}
                     <p><span className="font-semibold text-slate-700 dark:text-slate-200">Titular:</span> ASOCIACION CIVIL RURAL DEL NOR</p>
                     <p><span className="font-semibold text-slate-700 dark:text-slate-200">CUIL:</span> 30719265754</p>
                     <p><span className="font-semibold text-slate-700 dark:text-slate-200">Tipo:</span> Cuenta corriente en pesos</p>

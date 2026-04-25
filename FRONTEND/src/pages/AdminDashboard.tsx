@@ -11,14 +11,15 @@ import ReportesPanel from '../components/admin/ReportesPanel';
 import GestionAdministradores from '../components/admin/GestionAdministradores';
 import GestionSoporte from '../components/admin/GestionSoporte';
 import ChangePasswordModal from '../components/admin/ChangePasswordModal';
+import GestionAranceles from '../components/admin/GestionAranceles';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'
-  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'>('panel');
+  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles'
+  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
@@ -64,6 +65,7 @@ export default function AdminDashboard() {
     { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Comercios' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
     { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
+    { id: 'aranceles', icon: 'account_balance_wallet', label: 'Gestión de Aranceles' },
     { id: 'soporte', icon: 'support_agent', label: 'Centro de Soporte', badge: supportCount > 0 ? supportCount : null },
     { id: 'reportes', icon: 'analytics', label: 'Reportes y Cierres' },
   ];
@@ -262,6 +264,7 @@ export default function AdminDashboard() {
           {activeTab === 'auditoria' && isSuperadmin && <PanelAuditoria />}
           {activeTab === 'administradores' && isSuperadmin && <GestionAdministradores />}
           {activeTab === 'soporte' && <GestionSoporte />}
+          {activeTab === 'aranceles' && <GestionAranceles />}
 
           {activeTab === 'pagos' && <ValidacionPagos />}
           {activeTab === 'reportes' && <ReportesPanel />}
