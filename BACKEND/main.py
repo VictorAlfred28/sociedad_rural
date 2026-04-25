@@ -4690,12 +4690,10 @@ async def subir_comprobante(
 
         fecha_vto = f"{anio}-{mes:02d}-10"
 
-        # Obtener monto dinámico según el rol
-        monto_cuota = 5000
+        monto_cuota = 0
         try:
-            config_resp = supabase.table("configuracion_cuotas").select("monto").eq("rol", current_user.rol).execute()
-            if config_resp.data:
-                monto_cuota = float(config_resp.data[0]["monto"])
+            calculo = calcular_cuota_dinamica_internal(current_user.id)
+            monto_cuota = calculo["monto_total"]
         except Exception:
             pass
 
@@ -4881,6 +4879,57 @@ def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_cu
             }).eq("rol", cuota.rol).execute()
         return {"status": "success"}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def calcular_cuota_dinamica_internal(user_id: str):
+    # fetch user profile
+    profile_res = supabase.table("profiles").select("rol, es_estudiante, membership_type, family_members_count").eq("id", user_id).execute()
+    if not profile_res.data:
+        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+    profile = profile_res.data[0]
+
+    # Traer valores base
+    cuotas_res = supabase.table("configuracion_cuotas").select("*").execute()
+    cuotas_map = {c["rol"]: c["monto"] for c in cuotas_res.data}
+    
+    rol = profile["rol"]
+    if profile.get("es_estudiante"):
+        rol = "ESTUDIANTE"
+        
+    monto_base = cuotas_map.get(rol, 0)
+    membership_type = profile.get("membership_type", "INDIVIDUAL")
+    familiares_count = max(profile.get("family_members_count", 1) - 1, 0)
+    
+    monto_total = monto_base
+    monto_base_usado = monto_base
+
+    # Si tiene familiares (es grupo familiar)
+    if membership_type == "FAMILIAR" or familiares_count > 0:
+        membership_type = "FAMILIAR"
+        monto_base_familiar = cuotas_map.get("GRUPO FAMILIAR", monto_base) # fallback si no existe
+        monto_base_usado = monto_base_familiar
+        
+        # Titular paga 100%, Familiares pagan 50%
+        integrantes = familiares_count + 1
+        monto_total = monto_base_familiar + (integrantes - 1) * (monto_base_familiar * 0.5)
+        
+    return {
+        "monto_total": monto_total,
+        "detalle": {
+            "base": monto_base_usado,
+            "familiares": familiares_count,
+            "cantidad": familiares_count + 1,
+            "tipo_plan": "Grupo Familiar" if membership_type == "FAMILIAR" else "Individual"
+        }
+    }
+
+@app.get("/api/cuota/calcular")
+def calcular_cuota_dinamica(current_user=Depends(get_current_user)):
+    try:
+        return calcular_cuota_dinamica_internal(current_user.id)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 # ─────────────────────────────────────────────────────────────────────────────

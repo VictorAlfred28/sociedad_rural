@@ -26,7 +26,8 @@ export default function GestionAranceles() {
       });
       const data = await resp.json();
       if (resp.ok && data.cuotas) {
-        setCuotas(data.cuotas);
+        // Ocultar CÁMARA y mostrar el resto (incluyendo el nuevo GRUPO FAMILIAR)
+        setCuotas(data.cuotas.filter((c: CuotaConfig) => c.rol.toUpperCase() !== 'CAMARA'));
       }
     } catch (err) {
       console.error(err);
@@ -72,7 +73,7 @@ export default function GestionAranceles() {
       case 'SOCIO': return 'person';
       case 'COMERCIO': return 'storefront';
       case 'ESTUDIANTE': return 'local_library';
-      case 'CAMARA': return 'domain';
+      case 'GRUPO FAMILIAR': return 'groups';
       default: return 'payments';
     }
   };
