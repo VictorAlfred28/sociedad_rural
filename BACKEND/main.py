@@ -4883,10 +4883,16 @@ def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_cu
 
 def calcular_cuota_dinamica_internal(user_id: str):
     # fetch user profile
-    profile_res = supabase.table("profiles").select("rol, es_estudiante, membership_type, family_members_count").eq("id", user_id).execute()
+    profile_res = supabase.table("profiles").select("rol, es_estudiante").eq("id", user_id).execute()
     if not profile_res.data:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
     profile = profile_res.data[0]
+
+    # Recalcular SIEMPRE consultando la tabla familiares (prohibido usar valor cacheado)
+    fam_res = supabase.table("familiares").select("id", count="exact").eq("titular_id", user_id).execute()
+    familiares_count = fam_res.count if fam_res.count is not None else 0
+    
+    membership_type = "FAMILIAR" if familiares_count > 0 else "INDIVIDUAL"
 
     # Traer valores base
     cuotas_res = supabase.table("configuracion_cuotas").select("*").execute()
@@ -4897,15 +4903,11 @@ def calcular_cuota_dinamica_internal(user_id: str):
         rol = "ESTUDIANTE"
         
     monto_base = cuotas_map.get(rol, 0)
-    membership_type = profile.get("membership_type", "INDIVIDUAL")
-    familiares_count = max(profile.get("family_members_count", 1) - 1, 0)
-    
     monto_total = monto_base
     monto_base_usado = monto_base
 
     # Si tiene familiares (es grupo familiar)
-    if membership_type == "FAMILIAR" or familiares_count > 0:
-        membership_type = "FAMILIAR"
+    if membership_type == "FAMILIAR":
         monto_base_familiar = cuotas_map.get("GRUPO FAMILIAR", monto_base) # fallback si no existe
         monto_base_usado = monto_base_familiar
         

@@ -32,7 +32,8 @@ export default function Cuotas() {
     const fetchConfig = async () => {
       try {
         const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/cuota/calcular`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store'
         });
         const data = await resp.json();
         if (resp.ok) {
