@@ -84,7 +84,7 @@ export default function CarnetDigital() {
             Pasaporte'i
           </button>
           <button onClick={() => setViewMode('carnet')} className={`relative z-10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full transition-all ${!pasaporteMode ? 'text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-            Carnet
+            MINIPASAPORTE
           </button>
           <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#245b31] dark:bg-emerald-600 rounded-full transition-transform duration-300 ease-in-out ${pasaporteMode ? 'translate-x-1' : 'translate-x-[calc(100%+4px)]'}`}></div>
         </div>
