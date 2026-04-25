@@ -4915,7 +4915,9 @@ def calcular_cuota_dinamica_internal(user_id: str):
         monto_total = monto_base_familiar
         
     return {
-        "monto_total": monto_total,
+        "monto": monto_total,
+        "monto_total": monto_total, # For backward compatibility
+        "tipo": "GRUPO_FAMILIAR" if membership_type == "FAMILIAR" else "INDIVIDUAL",
         "detalle": {
             "base": monto_base_usado,
             "familiares": familiares_count,

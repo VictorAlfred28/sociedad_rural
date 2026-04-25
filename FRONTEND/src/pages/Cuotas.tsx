@@ -37,14 +37,18 @@ export default function Cuotas() {
         });
         const data = await resp.json();
         if (resp.ok) {
-          setMontoAPagar(data.monto_total);
+          setMontoAPagar(data.monto || data.monto_total);
           setCalculoCuota(data);
         }
       } catch (err) {
         console.error(err);
       }
     };
-    if (user && token) fetchConfig();
+    if (user && token) {
+      fetchConfig();
+      window.addEventListener('focus', fetchConfig);
+      return () => window.removeEventListener('focus', fetchConfig);
+    }
   }, [user, token]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
