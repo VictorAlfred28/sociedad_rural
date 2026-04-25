@@ -918,8 +918,9 @@ def login(
             "socio1234",
             "socio123",
             "SRNC2026!",
+            "Familia1234"
         ]
-        if password in default_passwords or profile.get("password_changed") is False:
+        if password in default_passwords or profile.get("password_changed") is False or profile.get("must_change_password") is True:
             necesita_cambio_password = True
 
         # Auditoría de Login para Administradores
@@ -1587,9 +1588,10 @@ def change_password(
         )
 
         # Marcar en profile como password_changed = True
-        supabase.table("profiles").update({"password_changed": True}).eq(
-            "id", current_user.id
-        ).execute()
+        supabase.table("profiles").update({
+            "password_changed": True,
+            "must_change_password": False
+        }).eq("id", current_user.id).execute()
 
         # Auditoría
         background_tasks.add_task(
@@ -2550,9 +2552,10 @@ def change_my_password(
         )
 
         # 3. Marcar como cambiada en profile
-        supabase.table("profiles").update({"password_changed": True}).eq(
-            "id", current_user.id
-        ).execute()
+        supabase.table("profiles").update({
+            "password_changed": True,
+            "must_change_password": False
+        }).eq("id", current_user.id).execute()
 
         # 4. Auditoría
         background_tasks.add_task(
@@ -2620,9 +2623,9 @@ def agregar_dependiente(
             if req.email
             else f"dependiente.{req.dni_cuit}@sociedadrural.local"
         )
-        user_password = (
-            req.password if req.password and len(req.password) >= 6 else "socio1234"
-        )
+        
+        # Asignar contraseña inicial fija
+        user_password = "Familia1234"
 
         # 3. Crear usuario en Auth
         auth_response = supabase.auth.admin.create_user(
@@ -2638,12 +2641,14 @@ def agregar_dependiente(
             "email": user_email,
             "telefono": req.telefono,
             "rol": titular["rol"],  # Hereda rol del titular (ej. SOCIO o COMERCIO)
-            "estado": "APROBADO",  # Dependientes pre-aprobados por el titular
+            "estado": "PENDIENTE",  # Requiere verificación de ADMIN
             "municipio": titular["municipio"],
             "rubro": titular["rubro"],
             "titular_id": current_user.id,
             "tipo_vinculo": req.tipo_vinculo,
             "password_changed": False,
+            "user_type": "FAMILIAR",
+            "must_change_password": True
         }
 
         try:

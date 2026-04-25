@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { PasswordInput } from '../components/ui/PasswordInput';
 
 export default function CambioPassword() {
-    const { token, logout } = useAuth();
+    const { token, logout, updateUser } = useAuth();
     const navigate = useNavigate();
 
     const [password, setPassword] = useState('');
@@ -21,6 +21,11 @@ export default function CambioPassword() {
 
         if (password.length < 6) {
             setErrorMsg('La contraseña debe tener al menos 6 caracteres');
+            return;
+        }
+
+        if (password === 'Familia1234') {
+            setErrorMsg('No puedes usar la contraseña temporal como nueva contraseña.');
             return;
         }
 
@@ -47,11 +52,13 @@ export default function CambioPassword() {
                 throw new Error(data.detail || 'Error al actualizar contraseña');
             }
 
-            setSuccessMsg('¡Contraseña actualizada con éxito! Redirigiendo al login...');
+            setSuccessMsg('¡Contraseña actualizada con éxito! Redirigiendo...');
+
+            // Actualizar objeto de sesión en memoria para que el guard no vuelva a redirigir
+            updateUser({ must_change_password: false, password_changed: true });
 
             setTimeout(() => {
-                logout();
-                navigate('/login');
+                navigate('/home');
             }, 2000);
 
         } catch (err: any) {

@@ -23,6 +23,8 @@ export interface Socio {
     sonido_notificaciones_habilitado?: boolean;     // Preferencia de sonido en notificaciones
     es_estudiante?: boolean;
     constancia_estudiante_url?: string | null;
+    must_change_password?: boolean;
+    user_type?: string;
 }
 
 interface AuthContextType {

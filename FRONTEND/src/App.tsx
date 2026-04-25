@@ -22,10 +22,16 @@ import EnConstruccion from './pages/EnConstruccion';
 
 // Rutas protegidas genéricas (Solo logueados)
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark text-slate-500">Cargando...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  // Si el usuario tiene contraseña temporal, forzar cambio antes de cualquier otra acción
+  if (user?.must_change_password === true) {
+    return <Navigate to="/cambio-password" replace />;
+  }
+
   return children;
 };
 
