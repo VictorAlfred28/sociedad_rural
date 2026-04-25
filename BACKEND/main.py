@@ -4909,9 +4909,8 @@ def calcular_cuota_dinamica_internal(user_id: str):
         monto_base_familiar = cuotas_map.get("GRUPO FAMILIAR", monto_base) # fallback si no existe
         monto_base_usado = monto_base_familiar
         
-        # Titular paga 100%, Familiares pagan 50%
-        integrantes = familiares_count + 1
-        monto_total = monto_base_familiar + (integrantes - 1) * (monto_base_familiar * 0.5)
+        # Monto FIJO para grupo familiar, sin importar cantidad de integrantes
+        monto_total = monto_base_familiar
         
     return {
         "monto_total": monto_total,
