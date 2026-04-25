@@ -347,6 +347,8 @@ class RegisterRequest(BaseModel):
     password: Optional[str] = None
     camara_denominacion: Optional[str] = None
     camara_provincia: Optional[str] = None
+    isStudent: Optional[bool] = False
+    studentCertificate: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -563,6 +565,31 @@ def register(
 
         user_id = auth_response.user.id
 
+        constancia_url = None
+        if socio.isStudent and socio.studentCertificate:
+            try:
+                import base64
+                bucket_name = "constancias-estudiantes"
+                try:
+                    supabase.storage.create_bucket(bucket_name, public=True)
+                except Exception:
+                    pass
+                
+                header, encoded = socio.studentCertificate.split(",", 1)
+                file_bytes = base64.b64decode(encoded)
+                ext = "pdf" if "pdf" in header.lower() else "png"
+                filename = f"{user_id}_constancia_{uuid4().hex[:6]}.{ext}"
+                content_type = "application/pdf" if ext == "pdf" else "image/png"
+                
+                supabase.storage.from_(bucket_name).upload(
+                    file=file_bytes,
+                    path=filename,
+                    file_options={"content-type": content_type},
+                )
+                constancia_url = supabase.storage.from_(bucket_name).get_public_url(filename)
+            except Exception as e:
+                logger.error(f"Error uploading student certificate: {e}")
+
         # 3.C: Insertar en la tabla public.profiles (El DNI debe ser UNIQUE segun esquema)
         profile_data = {
             "id": user_id,
@@ -579,6 +606,8 @@ def register(
             "barrio": socio.barrio,  # Barrio/localidad (nuevo)
             "es_profesional": socio.es_profesional,
             "password_changed": user_password_was_set,  # Solo True si NO es una de las default
+            "es_estudiante": socio.isStudent,
+            "constancia_estudiante_url": constancia_url,
         }
 
         # Inserción en tabla profiles - con rollback al auth si falla

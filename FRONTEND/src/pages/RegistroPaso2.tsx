@@ -19,6 +19,8 @@ export default function RegistroPaso2() {
     provincia: 'Corrientes',
   });
   const [esProfesional, setEsProfesional] = useState(false);
+  const [esEstudiante, setEsEstudiante] = useState(false);
+  const [studentCertificate, setStudentCertificate] = useState<File | null>(null);
 
   // Cargar lista de municipios al montar (solo necesaria para SOCIO)
   useEffect(() => {
@@ -59,6 +61,20 @@ export default function RegistroPaso2() {
       payload.direccion = paso1Data.direccion; // Viene del Paso 1 ahora
       payload.barrio = paso1Data.barrio;       // Barrio del socio (nuevo)
       payload.es_profesional = esProfesional;
+      payload.isStudent = esEstudiante;
+      if (esEstudiante && studentCertificate) {
+        try {
+          const base64String = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(studentCertificate);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+          });
+          payload.studentCertificate = base64String;
+        } catch (e) {
+          console.error("Error converting file to base64", e);
+        }
+      }
     }
     // rubro, municipio y provincia ya vienen de paso1Data cuando es COMERCIO
     if (userRole === 'COMERCIO' && paso1Data.rubro) {
@@ -258,6 +274,83 @@ export default function RegistroPaso2() {
                       <p className="text-amber-800 dark:text-amber-300 text-sm font-bold leading-relaxed">
                         Próximamente tendrás beneficios especiales por ser profesional activo en la Sociedad Rural Norte de Corrientes
                       </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle ¿Sos Estudiante? */}
+              <div className="flex flex-col gap-3 py-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEsEstudiante(!esEstudiante);
+                    if (esEstudiante) setStudentCertificate(null);
+                  }}
+                  className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${esEstudiante
+                    ? 'border-primary bg-primary/5'
+                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`material-symbols-outlined text-2xl ${esEstudiante ? 'text-primary' : 'text-slate-400'}`}>
+                      local_library
+                    </span>
+                    <div className="flex flex-col text-left">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">¿Sos Estudiante?</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Estudiante regular (requiere constancia)</span>
+                    </div>
+                  </div>
+                  {/* Toggle switch visual */}
+                  <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${esEstudiante ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600'
+                    }`}>
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${esEstudiante ? 'left-6' : 'left-1'
+                      }`} />
+                  </div>
+                </button>
+
+                {/* Subir constancia si es estudiante */}
+                {esEstudiante && (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                      Subir constancia de alumno regular
+                    </label>
+                    <div
+                      onClick={() => document.getElementById('studentCertInput')?.click()}
+                      className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer ${studentCertificate ? 'border-primary bg-primary/5' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'}`}
+                    >
+                      {studentCertificate ? (
+                        <>
+                          <span className="material-symbols-outlined text-3xl text-primary mb-1">check_circle</span>
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 max-w-[200px] truncate">{studentCertificate.name}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-3xl text-slate-400 mb-2">upload_file</span>
+                          <span className="text-xs text-slate-500 font-medium">Click para seleccionar archivo</span>
+                          <span className="text-[10px] text-slate-400 mt-1">Formatos permitidos: .png, .pdf</span>
+                        </>
+                      )}
+                      <input
+                        id="studentCertInput"
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.type === 'application/pdf' || file.type === 'image/png') {
+                              setStudentCertificate(file);
+                            } else {
+                              alert('Solo se permiten archivos PNG o PDF');
+                              e.target.value = '';
+                              setStudentCertificate(null);
+                            }
+                          } else {
+                            setStudentCertificate(null);
+                          }
+                        }}
+                        className="hidden"
+                        accept=".png,.pdf"
+                      />
                     </div>
                   </div>
                 )}
