@@ -93,14 +93,17 @@ export default function Cuotas() {
       setFbMsg({ type: 'success', text: 'Abriendo app...' });
       
       if (Capacitor.isNativePlatform()) {
-        const { value: canOpen } = await AppLauncher.canOpenUrl({ url: appScheme });
+        const { value: canOpen } = await AppLauncher.canOpenUrl({ url: packageName });
         
         if (canOpen) {
-          await AppLauncher.openUrl({ url: appScheme });
+          // En Android, usar packageName en openUrl (no scheme)
+          await AppLauncher.openUrl({ url: packageName });
+          setTimeout(() => setFbMsg({ type: '', text: '' }), 500);
         } else {
           setFbMsg({ type: 'success', text: 'Redirigiendo a Play Store...' });
           const playStoreUrl = `https://play.google.com/store/apps/details?id=${packageName}`;
           await AppLauncher.openUrl({ url: playStoreUrl });
+          setTimeout(() => setFbMsg({ type: '', text: '' }), 500);
         }
       } else {
         window.open(webUrl, '_blank');

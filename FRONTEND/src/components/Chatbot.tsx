@@ -26,7 +26,7 @@ export const Chatbot: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
-            text: '¡Hola! Soy tu asistente de la Sociedad Rural. ¿En qué puedo ayudarte hoy?',
+            text: '¡Hola! soy tu asistente virtual SapucAI. ¿En qué puedo ayudarte?',
             sender: 'bot',
             timestamp: new Date(),
         }
@@ -207,7 +207,7 @@ export const Chatbot: React.FC = () => {
                                     <img src={avatarImg} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
                                 </div>
                                 <div>
-                                    <h3 className="font-extrabold text-base tracking-tight">Asistente Virtual</h3>
+                                    <h3 className="font-extrabold text-base tracking-tight">SapucAI</h3>
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                                         <span className="text-[11px] font-medium text-emerald-50 text-opacity-90">Soporte Rural 24/7</span>
