@@ -21,14 +21,15 @@ import ValidaQRDinamico from './pages/ValidaQRDinamico';
 import EnConstruccion from './pages/EnConstruccion';
 
 // Rutas protegidas genéricas (Solo logueados)
-const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
+const ProtectedRoute = ({ children, skipPasswordCheck = false }: { children: React.ReactElement; skipPasswordCheck?: boolean }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark text-slate-500">Cargando...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   // Si el usuario tiene contraseña temporal, forzar cambio antes de cualquier otra acción
-  if (user?.must_change_password === true) {
+  // EXCEPTO si ya está en la página de cambio de contraseña
+  if (!skipPasswordCheck && user?.must_change_password === true) {
     return <Navigate to="/cambio-password" replace />;
   }
 
@@ -90,7 +91,7 @@ export default function App() {
         <Route path="/promociones" element={<ProtectedRoute><Promociones /></ProtectedRoute>} />
         <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
         <Route path="/preferencias" element={<ProtectedRoute><Preferencias /></ProtectedRoute>} />
-        <Route path="/cambio-password" element={<ProtectedRoute><CambioPassword /></ProtectedRoute>} />
+        <Route path="/cambio-password" element={<ProtectedRoute skipPasswordCheck={true}><CambioPassword /></ProtectedRoute>} />
         <Route path="/mi-negocio" element={<ProtectedRoute><MiNegocio /></ProtectedRoute>} />
         <Route path="/pagar-cuota" element={<ProtectedRoute><EnConstruccion /></ProtectedRoute>} />
 
