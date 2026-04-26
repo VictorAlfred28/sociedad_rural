@@ -68,6 +68,11 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         "Faltan variables de entorno SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY"
     )
 
+if not SUPABASE_ANON_KEY:
+    raise ValueError(
+        "Falta variable de entorno SUPABASE_ANON_KEY. Esto es requerido para autenticación de usuarios (login)."
+    )
+
 # Inicializar cliente Supabase con ClientOptions
 opts = ClientOptions(auto_refresh_token=False, persist_session=False)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, options=opts)
@@ -873,12 +878,7 @@ def login(
     try:
         print("Authenticating with Supabase Auth...")
         # NOTA: Para login de usuarios finales, se DEBE usar la ANON_KEY.
-        if not SUPABASE_ANON_KEY:
-            raise ValueError(
-                "SUPABASE_ANON_KEY no configurada en variables de entorno. "
-                "El login requiere la ANON_KEY para autenticación de usuarios."
-            )
-
+        # La validación de SUPABASE_ANON_KEY ya se realiza al inicio del archivo.
         auth_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
         auth_session = None
@@ -1068,8 +1068,12 @@ def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(securi
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
+        err_msg = str(e).lower()
+        if "expired" in err_msg or "token expired" in err_msg:
+            raise HTTPException(status_code=401, detail="Token expirado. Por favor inicia sesión nuevamente.")
+        logger.error(f"Error verificando permisos de admin: {str(e)}")
         raise HTTPException(
-            status_code=401, detail=f"Error verificando permisos: {str(e)}"
+            status_code=401, detail="Error verificando permisos de administrador."
         )
 
 
@@ -1132,9 +1136,12 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         if isinstance(e, HTTPException):
             raise e
         err_msg = str(e).lower()
-        if "expired" in err_msg:
-            raise HTTPException(status_code=401, detail="Token expirado")
-        raise HTTPException(status_code=401, detail="No autorizado")
+        if "expired" in err_msg or "token expired" in err_msg:
+            raise HTTPException(status_code=401, detail="Token expirado. Por favor inicia sesión nuevamente.")
+        if "invalid" in err_msg or "malformed" in err_msg:
+            raise HTTPException(status_code=401, detail="Token inválido o malformado.")
+        logger.error(f"Error verificando usuario: {str(e)}")
+        raise HTTPException(status_code=401, detail="Error verificando credenciales.")
 
 
 def get_current_admin_or_camara(

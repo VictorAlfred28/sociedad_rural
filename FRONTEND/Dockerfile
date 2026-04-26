@@ -33,19 +33,33 @@ FROM nginx:alpine
 # Copiamos la build generada
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Configuramos Nginx para Single Page Applications (React Router) y Desactivamos Caché
+# Configuramos Nginx para Single Page Applications (React Router), Seguridad y Caché
 RUN echo 'server { \
     listen 80; \
+    \
+    # Bloqueamos acceso a archivos sensibles \
+    location ~ /\. { deny all; access_log off; log_not_found off; } \
+    location ~ ~$ { deny all; access_log off; log_not_found off; } \
+    location ~ \.git { deny all; access_log off; log_not_found off; } \
+    location ~ \.env { deny all; access_log off; log_not_found off; } \
+    \
     location / { \
     root /usr/share/nginx/html; \
     index index.html index.htm; \
     try_files $uri $uri/ /index.html; \
     } \
+    \
     location ~* \.html$ { \
     root /usr/share/nginx/html; \
     expires -1; \
     add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"; \
     add_header Pragma "no-cache"; \
+    } \
+    \
+    location ~* \.(js|css|svg|png|jpg|jpeg|gif|ico|webp|webm|mp4|woff|woff2|ttf|eot)$ { \
+    root /usr/share/nginx/html; \
+    expires 1y; \
+    add_header Cache-Control "public, immutable"; \
     } \
     }' > /etc/nginx/conf.d/default.conf
 
