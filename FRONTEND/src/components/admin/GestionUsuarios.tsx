@@ -114,7 +114,7 @@ export default function GestionUsuarios() {
         fetchMunicipios();
     }, []);
 
-    const handleStatusChange = async (userId: string, newStatus: string) => {
+    const handleStatusChange = async (userId: string, newStatus: Socio['estado']) => {
         if (isSimulationId(userId)) {
             setUsers(prev => prev.map(u => u.id === userId ? { ...u, estado: newStatus } : u));
             return;
@@ -434,7 +434,7 @@ export default function GestionUsuarios() {
                     </div>
                 ) : (
                     filteredUsers.map(user => (
-                        <div key={user.id} className="bg-admin-card p-4 rounded-2xl border border-admin-border flex flex-col gap-3 shadow-sm hover:border-admin-accent/30 admin-transition">
+                        <div key={user.id} className={`bg-admin-card p-4 rounded-2xl border ${user.es_profesional ? 'border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.1)]' : 'border-admin-border'} flex flex-col gap-3 shadow-sm hover:border-admin-accent/30 admin-transition`}>
                             <div className="flex items-start gap-3 justify-between">
                                 <div className="flex items-center gap-3 truncate">
                                     <div className={`flex shrink-0 items-center justify-center rounded-xl size-10 border ${user?.rol === 'COMERCIO'
@@ -444,19 +444,25 @@ export default function GestionUsuarios() {
                                             : 'bg-admin-accent/10 border-admin-accent/20 text-admin-accent'
                                         }`}>
                                         <span className="material-symbols-outlined text-xl">
-                                            {user?.rol === 'COMERCIO' ? 'storefront' : user?.rol === 'CAMARA' ? 'domain' : 'person'}
+                                            {user?.rol === 'COMERCIO' ? 'storefront' : user?.rol === 'CAMARA' ? 'domain' : user?.es_profesional ? 'assignment_ind' : 'person'}
                                         </span>
                                     </div>
                                     <div className="flex flex-col overflow-hidden">
                                         <p className="font-bold text-sm truncate text-admin-text">{user.nombre_apellido || user.email}</p>
                                         <div className="flex items-center gap-2">
-                                            <p className="text-xs text-slate-400 truncate">{user.rol} • {user.dni}</p>
+                                            <p className="text-xs text-slate-400 truncate">{user.es_profesional ? 'SOCIO (PROF.)' : user.rol} • {user.dni}</p>
                                             {user.es_estudiante && (
                                                 <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-widest">Estudiante</span>
                                             )}
+                                            {user.es_profesional && (
+                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest">Profesional</span>
+                                            )}
                                         </div>
+                                        {user.es_profesional && user.rubro && (
+                                            <p className="text-xs text-indigo-400 font-semibold truncate mt-0.5">{user.rubro}</p>
+                                        )}
                                         {user.numero_socio && (
-                                            <p className="text-xs text-admin-accent font-semibold truncate">Socio N° {user.numero_socio}</p>
+                                            <p className="text-xs text-admin-accent font-semibold truncate mt-0.5">Socio N° {user.numero_socio}</p>
                                         )}
                                         {user.telefono && (
                                             <div className="flex items-center gap-1 text-[10px] text-admin-accent font-bold mt-0.5">

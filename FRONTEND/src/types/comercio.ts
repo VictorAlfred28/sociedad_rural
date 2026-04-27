@@ -8,6 +8,7 @@ export interface ComercioDTO {
   municipio: string;
   provincia?: string;
   password?: string;
+  barrio?: string;
 }
 
 export const RUBROS_COMERCIO = [

@@ -40,6 +40,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse, StreamingResponse
 from schemas.comercio import ComercioDTO
+from schemas.profesional import ProfesionalDTO
 
 """
 FUNCIONALIDAD DESACTIVADA TEMPORALMENTE
@@ -2441,6 +2442,103 @@ def create_commerce(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Error al crear comercio: {str(e)}",
         )
+
+# 7.5 ENDPOINT ADMIN: CREAR PROFESIONAL
+@app.post("/api/admin/profesionales", status_code=status.HTTP_201_CREATED)
+def create_profesional(
+    prof: ProfesionalDTO,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    auth_user=Depends(get_current_admin_or_camara),
+):
+    try:
+        # Extraer rol y perfil del usuario autenticado
+        profile_res = (
+            supabase.table("profiles")
+            .select("rol", "municipio")
+            .eq("id", auth_user.id)
+            .execute()
+        )
+        if not profile_res.data:
+            raise HTTPException(status_code=403, detail="Perfil no encontrado")
+
+        user_profile = profile_res.data[0]
+        user_rol = user_profile["rol"]
+        user_municipio = user_profile["municipio"]
+
+        # Si es ADMIN, usa el municipio del request; fallback al municipio del admin si aplica
+        final_municipio = prof.municipio or user_municipio
+
+        default_password = "profesional1234"
+
+        auth_response = supabase.auth.admin.create_user(
+            {
+                "email": prof.email,
+                "password": default_password,
+                "email_confirm": True,
+            }
+        )
+
+        user_id = auth_response.user.id
+
+        profile_data = {
+            "id": user_id,
+            "nombre_apellido": prof.nombreApellido,
+            "dni": prof.dni,
+            "email": prof.email,
+            "telefono": prof.telefono,
+            "rubro": prof.profesion, # Usamos rubro para la profesion de forma genérica
+            "rol": "SOCIO", # ES UN SOCIO SEGÚN LA REGLA
+            "es_profesional": True, # LO MARCAMOS COMO PROFESIONAL
+            "estado": "PENDIENTE",
+            "municipio": final_municipio,
+            "provincia": prof.provincia,
+            "direccion": prof.domicilio,
+            "password_changed": False,
+        }
+
+        supabase.table("profiles").insert(profile_data).execute()
+
+        # Insertar en tabla profesionales
+        prof_data = {
+            "id": user_id,
+            "matricula": prof.nroMatricula,
+            "titulo": prof.profesion,
+        }
+        supabase.table("profesionales").insert(prof_data).execute()
+
+        # Auditoría
+        background_tasks.add_task(
+            registrar_auditoria,
+            usuario_id=auth_user.id if auth_user else None,
+            email_usuario=auth_user.email if auth_user else "Sistema",
+            rol_usuario=user_rol,
+            accion="CREATE",
+            tabla="profiles",
+            registro_id=user_id,
+            datos_anteriores=None,
+            datos_nuevos=profile_data,
+            modulo="Gestión Profesionales",
+            request=request,
+        )
+
+        return {
+            "message": f"Profesional creado correctamente. Contraseña temporal: {default_password}",
+            "profesional": profile_data,
+        }
+
+    except Exception as e:
+        # Rollback auth just in case
+        try:
+            if 'user_id' in locals():
+                supabase.auth.admin.delete_user(user_id)
+        except:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al crear profesional: {str(e)}",
+        )
+
 
 
 # ── MODELOS PARA OFERTAS ──────────────────────────────────────────────────────

@@ -50,7 +50,7 @@ export const onMessageListener = () =>
             console.log("Notificación recibida en foreground: ", payload);
             
             // Extraer si el sonido está habilitado del payload
-            const soundEnabled = payload.data?.['sound_enabled'] === 'true' ?? true;
+            const soundEnabled = payload.data?.['sound_enabled'] !== 'false';
             
             // Reproducir sonido si está habilitado
             if (soundEnabled) {

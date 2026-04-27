@@ -48,7 +48,7 @@ export const initPushNotifications = async () => {
             console.log('Push received: ' + JSON.stringify(notification));
             
             // Reproducir sonido si está habilitado en foreground
-            const soundEnabled = notification.data?.sound_enabled === 'true' ?? true;
+            const soundEnabled = notification.data?.sound_enabled !== 'false';
             if (soundEnabled && Capacitor.isNativePlatform()) {
                 // En Android/iOS, el sonido se maneja principalmente a través del payload de Firebase
                 // Pero podemos reproducir un sonido adicional si es necesario

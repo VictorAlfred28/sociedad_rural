@@ -22,6 +22,8 @@ export interface Socio {
     created_at?: string;                            // Fecha de creación del usuario
     sonido_notificaciones_habilitado?: boolean;     // Preferencia de sonido en notificaciones
     es_estudiante?: boolean;
+    es_profesional?: boolean;
+    rubro?: string;
     constancia_estudiante_url?: string | null;
     must_change_password?: boolean;
     user_type?: string;

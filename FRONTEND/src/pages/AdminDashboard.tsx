@@ -62,7 +62,7 @@ export default function AdminDashboard() {
   const baseNavItems = [
     { id: 'panel', icon: 'dashboard', label: 'Dashboard' },
     { id: 'usuarios', icon: 'group', label: 'Gestión Socios' },
-    { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Comercios' },
+    { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Integral' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
     { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
     { id: 'aranceles', icon: 'account_balance_wallet', label: 'Gestión de Aranceles' },
