@@ -26,8 +26,15 @@ export default function GestionAranceles() {
       });
       const data = await resp.json();
       if (resp.ok && data.cuotas) {
-        // Ocultar CÁMARA y mostrar el resto (incluyendo el nuevo GRUPO FAMILIAR)
-        setCuotas(data.cuotas.filter((c: CuotaConfig) => c.rol.toUpperCase() !== 'CAMARA'));
+        // Ocultar CÁMARA y mostrar el resto (incluyendo el nuevo GRUPO FAMILIAR y PROFESIONAL)
+        let filtered = data.cuotas.filter((c: CuotaConfig) => c.rol.toUpperCase() !== 'CAMARA');
+        
+        // Asegurar que PROFESIONAL exista en la vista aunque no esté en DB aún
+        if (!filtered.some((c: CuotaConfig) => c.rol.toUpperCase() === 'PROFESIONAL')) {
+            filtered.push({ rol: 'PROFESIONAL', monto: 7000 });
+        }
+        
+        setCuotas(filtered);
       }
     } catch (err) {
       console.error(err);
@@ -74,6 +81,7 @@ export default function GestionAranceles() {
       case 'COMERCIO': return 'storefront';
       case 'ESTUDIANTE': return 'local_library';
       case 'GRUPO FAMILIAR': return 'groups';
+      case 'PROFESIONAL': return 'assignment_ind';
       default: return 'payments';
     }
   };

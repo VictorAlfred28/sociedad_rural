@@ -5029,10 +5029,18 @@ def get_cuotas_valores():
 def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_current_admin)):
     try:
         for cuota in req.cuotas:
-            supabase.table("configuracion_cuotas").update({
-                "monto": cuota.monto, 
-                "ultima_actualizacion": "now()"
-            }).eq("rol", cuota.rol).execute()
+            res = supabase.table("configuracion_cuotas").select("id").eq("rol", cuota.rol).execute()
+            if res.data:
+                supabase.table("configuracion_cuotas").update({
+                    "monto": cuota.monto, 
+                    "ultima_actualizacion": "now()"
+                }).eq("rol", cuota.rol).execute()
+            else:
+                supabase.table("configuracion_cuotas").insert({
+                    "rol": cuota.rol,
+                    "monto": cuota.monto,
+                    "ultima_actualizacion": "now()"
+                }).execute()
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
