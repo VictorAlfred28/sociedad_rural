@@ -2541,6 +2541,33 @@ def create_profesional(
 
 
 
+# ── ENDPOINT PÚBLICO: Listar profesionales ────────────────────────────────────
+@app.get("/api/profesionales")
+def get_profesionales_publicos(municipio: Optional[str] = None):
+    """
+    Retorna lista de profesionales aprobados para visualización pública.
+    Solo expone campos no sensibles. No requiere autenticación.
+    """
+    try:
+        query = (
+            supabase.table("profiles")
+            .select("id, nombre_apellido, rubro, municipio, provincia, telefono")
+            .eq("rol", "SOCIO")
+            .eq("es_profesional", True)
+            .eq("estado", "APROBADO")
+            .order("nombre_apellido")
+        )
+        if municipio:
+            query = query.eq("municipio", municipio)
+        res = query.execute()
+        return {"profesionales": res.data or []}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener profesionales: {str(e)}"
+        )
+
+
 # ── MODELOS PARA OFERTAS ──────────────────────────────────────────────────────
 class OfertaRequest(BaseModel):
     titulo: str

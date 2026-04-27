@@ -26,6 +26,14 @@ interface Comercio {
   municipio: string;
   telefono: string;
 }
+interface Profesional {
+  id: string;
+  nombre_apellido: string;
+  rubro: string;       // profesion almacenada en campo rubro
+  municipio: string;
+  provincia: string;
+  telefono: string;
+}
 interface Municipio {
   id: string;
   nombre: string;
@@ -74,14 +82,17 @@ const TIPO_CFG = {
 
 const RUBROS = ['todos', 'servicios_profesionales', 'veterinaria', 'maquinaria_agricola', 'insumos_agricolas', 'alimentacion', 'construccion', 'transporte', 'agropecuario'];
 
-type Tab = 'ofertas' | 'comercios';
+type Tab = 'ofertas' | 'comercios' | 'profesionales';
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 export default function Promociones() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<Tab>('ofertas');
+  const [tab, setTab] = useState<Tab>('profesionales');
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [comercios, setComercios] = useState<Comercio[]>([]);
+  const [profesionales, setProfesionales] = useState<Profesional[]>([]);
+  const [loadingProf, setLoadingProf] = useState(false);
+  const [profCargados, setProfCargados] = useState(false);
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
   const [filtroRubro, setFiltroRubro] = useState('todos');
   const [filtroMunicipio, setFiltroMunicipio] = useState('todos');
@@ -130,6 +141,21 @@ export default function Promociones() {
     };
     fetchAll();
   }, []);
+
+  // Carga lazy de profesionales al activar el tab (se cachea en profCargados)
+  useEffect(() => {
+    if (tab === 'profesionales' && !profCargados) {
+      setLoadingProf(true);
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/profesionales`)
+        .then(res => res.json())
+        .then(data => {
+          setProfesionales(data.profesionales || []);
+          setProfCargados(true);
+        })
+        .catch(err => console.error('Error cargando profesionales:', err))
+        .finally(() => setLoadingProf(false));
+    }
+  }, [tab, profCargados]);
 
   // Click outside detector para el dropdown
   useEffect(() => {
@@ -225,7 +251,7 @@ export default function Promociones() {
               <div className="flex items-center gap-1.5 mt-1.5">
                 <div className="size-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(255,200,0,0.5)]"></div>
                 <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">
-                  {tab === 'ofertas' ? `${ofertasFiltradas.length} ofertas activas` : `${comerciosFiltrados.length} comercios`}
+                  {tab === 'ofertas' ? `${ofertasFiltradas.length} ofertas activas` : tab === 'comercios' ? `${comerciosFiltrados.length} comercios` : `${profesionales.length} profesionales`}
                 </p>
               </div>
             </div>
@@ -239,27 +265,29 @@ export default function Promociones() {
           </button>
         </div>
 
-        {/* ── Tab switcher tipo "segmento" ── */}
+        {/* ── Tab switcher tipo "segmento" — 3 pestañas ── */}
         <div className="flex gap-2 px-4 pb-4">
-          <div className="flex-1 flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl relative">
-            <motion.div
-              layoutId="tab-bg"
-              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl shadow-lg border border-white/10 ${tab === 'ofertas' ? 'left-1 bg-gradient-to-r from-orange-500 to-amber-500' : 'left-[calc(50%+2px)] bg-slate-700 dark:bg-slate-600'}`}
-            />
-            <button
-              onClick={() => setTab('ofertas')}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black uppercase tracking-widest transition-colors ${tab === 'ofertas' ? 'text-white' : 'text-slate-400'}`}
-            >
-              <span className="material-symbols-outlined text-lg">sell</span>
-              Ofertas
-            </button>
-            <button
-              onClick={() => setTab('comercios')}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-black uppercase tracking-widest transition-colors ${tab === 'comercios' ? 'text-white' : 'text-slate-400'}`}
-            >
-              <span className="material-symbols-outlined text-lg">storefront</span>
-              Comercios
-            </button>
+          <div className="flex-1 flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+            {([
+              { id: 'profesionales' as Tab, label: 'Serv. Prof.', icon: 'assignment_ind', activeClass: 'bg-indigo-500' },
+              { id: 'ofertas'       as Tab, label: 'Ofertas',     icon: 'sell',           activeClass: 'bg-gradient-to-r from-orange-500 to-amber-500' },
+              { id: 'comercios'    as Tab, label: 'Comercios',   icon: 'storefront',     activeClass: 'bg-slate-700 dark:bg-slate-600' },
+            ]).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`relative flex-1 flex items-center justify-center gap-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors ${tab === t.id ? 'text-white' : 'text-slate-400'}`}
+              >
+                {tab === t.id && (
+                  <motion.div
+                    layoutId="tab-bg"
+                    className={`absolute inset-0.5 rounded-xl shadow-lg ${t.activeClass}`}
+                  />
+                )}
+                <span className="relative z-10 material-symbols-outlined text-base">{t.icon}</span>
+                <span className="relative z-10">{t.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -379,6 +407,92 @@ export default function Promociones() {
                 <div key={i} className="h-44 rounded-[32px] bg-white dark:bg-slate-900 animate-pulse border border-slate-100 dark:border-slate-800" />
               ))}
             </motion.div>
+          ) : tab === 'profesionales' ? (
+
+            /*** ══ SECCIÓN PROFESIONALES ════ ***/
+            <motion.div
+              key="profesionales"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+              className="flex flex-col gap-4 px-4"
+            >
+              {/* Banner */}
+              <div className="bg-indigo-600 p-6 rounded-[32px] flex items-center gap-5 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none translate-x-1/2 -translate-y-1/2">
+                  <span className="material-symbols-outlined text-9xl text-white">assignment_ind</span>
+                </div>
+                <div className="size-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-white text-3xl">verified</span>
+                </div>
+                <div className="relative z-10 text-white">
+                  <h3 className="font-black text-lg uppercase tracking-tight italic">Servicios Profesionales</h3>
+                  <p className="text-indigo-200 text-[11px] font-bold uppercase tracking-wider mt-1">Profesionales de la Sociedad Rural</p>
+                </div>
+              </div>
+
+              {loadingProf ? (
+                <div className="flex flex-col gap-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-24 rounded-3xl bg-white dark:bg-slate-900 animate-pulse border border-slate-100 dark:border-slate-800" />
+                  ))}
+                </div>
+              ) : profesionales.length === 0 ? (
+                <div className="py-20 text-center flex flex-col items-center">
+                  <span className="material-symbols-outlined text-6xl text-slate-200">person_off</span>
+                  <p className="text-slate-400 font-bold mt-4 italic">No hay profesionales registrados aún</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  {profesionales
+                    .filter(p => filtroMunicipio === 'todos' || p.municipio === filtroMunicipio)
+                    .map((prof, idx) => (
+                      <motion.div
+                        key={prof.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: idx * 0.03 }}
+                        className="bg-white dark:bg-slate-900 rounded-3xl px-5 py-4 flex items-center gap-4 shadow-sm border border-indigo-200/50 dark:border-indigo-900/40 group active:scale-[0.98] transition-all"
+                      >
+                        <div className="size-14 rounded-2xl bg-indigo-500 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20 group-hover:rotate-6 transition-transform">
+                          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>assignment_ind</span>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-black text-sm uppercase italic tracking-tight text-slate-800 dark:text-white truncate">{prof.nombre_apellido}</h4>
+                            <span className="text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">Profesional</span>
+                          </div>
+
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                            {prof.rubro && (
+                              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">{prof.rubro}</span>
+                            )}
+                            {prof.municipio && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                <span className="material-symbols-outlined text-[10px]">location_on</span>
+                                {prof.municipio}
+                              </span>
+                            )}
+                          </div>
+
+                          {prof.telefono && (
+                            <a
+                              href={`tel:${prof.telefono}`}
+                              onClick={e => e.stopPropagation()}
+                              className="inline-flex items-center gap-1.5 text-[10px] text-primary font-black mt-3 uppercase tracking-wider bg-primary/5 px-3 py-1.5 rounded-xl border border-primary/20"
+                            >
+                              <span className="material-symbols-outlined text-sm">call</span>
+                              {prof.telefono}
+                            </a>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))
+                  }
+                </div>
+              )}
+            </motion.div>
+
           ) : tab === 'ofertas' ? (
 
             /*** ══ SECCIÓN OFERTAS ════ ***/
