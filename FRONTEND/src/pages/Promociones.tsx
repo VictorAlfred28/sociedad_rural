@@ -269,7 +269,7 @@ export default function Promociones() {
         <div className="flex gap-2 px-4 pb-4">
           <div className="flex-1 flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
             {([
-              { id: 'profesionales' as Tab, label: 'Socios Prof.', icon: 'assignment_ind', activeClass: 'bg-indigo-500' },
+              { id: 'profesionales' as Tab, label: 'Profesionales', icon: 'assignment_ind', activeClass: 'bg-indigo-500' },
               { id: 'ofertas' as Tab, label: 'Ofertas', icon: 'sell', activeClass: 'bg-gradient-to-r from-orange-500 to-amber-500' },
               { id: 'comercios' as Tab, label: 'Comercios', icon: 'storefront', activeClass: 'bg-slate-700 dark:bg-slate-600' },
             ]).map(t => (
