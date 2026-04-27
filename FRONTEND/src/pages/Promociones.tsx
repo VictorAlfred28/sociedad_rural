@@ -44,21 +44,21 @@ const RUBRO_LABELS: Record<string, string> = {
   agropecuario: 'Agropecuario', veterinaria: 'Veterinaria',
   maquinaria_agricola: 'Maquinaria', insumos_agricolas: 'Insumos Agríc.',
   alimentacion: 'Alimentación', construccion: 'Construcción',
-  transporte: 'Transporte', servicios_profesionales: 'Serv. Prof.',
+  transporte: 'Transporte', socios_profesionales: 'Profesionales',
   comercio_general: 'Comercio Gral.', otro: 'Otro',
 };
 const RUBRO_ICON: Record<string, string> = {
   agropecuario: 'agriculture', veterinaria: 'vaccines',
   maquinaria_agricola: 'precision_manufacturing', insumos_agricolas: 'science',
   alimentacion: 'restaurant', construccion: 'construction',
-  transporte: 'local_shipping', servicios_profesionales: 'work',
+  transporte: 'local_shipping', socios_profesionales: 'work',
   comercio_general: 'storefront', otro: 'category',
 };
 const RUBRO_COLOR: Record<string, string> = {
   agropecuario: 'bg-lime-500', veterinaria: 'bg-cyan-500',
   maquinaria_agricola: 'bg-orange-500', insumos_agricolas: 'bg-emerald-500',
   alimentacion: 'bg-amber-500', construccion: 'bg-stone-500',
-  transporte: 'bg-blue-500', servicios_profesionales: 'bg-violet-500',
+  transporte: 'bg-blue-500', socios_profesionales: 'bg-violet-500',
   comercio_general: 'bg-rose-500', otro: 'bg-slate-500',
 };
 
@@ -80,7 +80,7 @@ const TIPO_CFG = {
   },
 };
 
-const RUBROS = ['todos', 'servicios_profesionales', 'veterinaria', 'maquinaria_agricola', 'insumos_agricolas', 'alimentacion', 'construccion', 'transporte', 'agropecuario'];
+const RUBROS = ['todos', 'socios_profesionales', 'veterinaria', 'maquinaria_agricola', 'insumos_agricolas', 'alimentacion', 'construccion', 'transporte', 'agropecuario'];
 
 type Tab = 'ofertas' | 'comercios' | 'profesionales';
 
@@ -117,13 +117,13 @@ export default function Promociones() {
 
         setOfertas(ofData.ofertas || []);
         setComercios(comData.comercios || []);
-        
+
         const list = munData.municipios || [];
         const ordenManual = [
           'Capital', 'Itatí', 'Ramada Paso', 'San Cosme',
           'Santa Ana', 'Riachuelo', 'El Sombrero', 'Paso de la Patria'
         ];
-        
+
         const sorted = [...list].sort((a: any, b: any) => {
           const idxA = ordenManual.indexOf(a.nombre);
           const idxB = ordenManual.indexOf(b.nombre);
@@ -269,9 +269,9 @@ export default function Promociones() {
         <div className="flex gap-2 px-4 pb-4">
           <div className="flex-1 flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
             {([
-              { id: 'profesionales' as Tab, label: 'Serv. Prof.', icon: 'assignment_ind', activeClass: 'bg-indigo-500' },
-              { id: 'ofertas'       as Tab, label: 'Ofertas',     icon: 'sell',           activeClass: 'bg-gradient-to-r from-orange-500 to-amber-500' },
-              { id: 'comercios'    as Tab, label: 'Comercios',   icon: 'storefront',     activeClass: 'bg-slate-700 dark:bg-slate-600' },
+              { id: 'profesionales' as Tab, label: 'Socios Prof.', icon: 'assignment_ind', activeClass: 'bg-indigo-500' },
+              { id: 'ofertas' as Tab, label: 'Ofertas', icon: 'sell', activeClass: 'bg-gradient-to-r from-orange-500 to-amber-500' },
+              { id: 'comercios' as Tab, label: 'Comercios', icon: 'storefront', activeClass: 'bg-slate-700 dark:bg-slate-600' },
             ]).map(t => (
               <button
                 key={t.id}
@@ -424,7 +424,7 @@ export default function Promociones() {
                   <span className="material-symbols-outlined text-white text-3xl">verified</span>
                 </div>
                 <div className="relative z-10 text-white">
-                  <h3 className="font-black text-lg uppercase tracking-tight italic">Servicios Profesionales</h3>
+                  <h3 className="font-black text-lg uppercase tracking-tight italic">Socios Profesionales</h3>
                   <p className="text-indigo-200 text-[11px] font-bold uppercase tracking-wider mt-1">Profesionales de la Sociedad Rural</p>
                 </div>
               </div>
@@ -666,7 +666,7 @@ export default function Promociones() {
                   <span className="material-symbols-outlined text-slate-900 text-3xl font-black">verified</span>
                 </div>
                 <div className="relative z-10 text-white">
-                  <h3 className="font-black text-lg uppercase tracking-tight italic">Red de Alianzas</h3>
+                  <h3 className="font-black text-lg uppercase tracking-tight italic">Socios Comerciales</h3>
                   <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wider mt-1">Beneficios exclusivos para nuestros socios</p>
                 </div>
               </div>
