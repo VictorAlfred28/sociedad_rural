@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuth, Socio } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function GestionUsuarios() {
+interface Props {
+    initialRoleFilter?: string;
+}
+
+export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props = {}) {
     const { token } = useAuth();
     const [users, setUsers] = useState<Socio[]>([]);
     const [loading, setLoading] = useState(true);
@@ -10,7 +14,7 @@ export default function GestionUsuarios() {
 
     // Filtros
     const [search, setSearch] = useState('');
-    const [filterRole, setFilterRole] = useState('TODOS');
+    const [filterRole, setFilterRole] = useState(initialRoleFilter);
     const [filterStatus, setFilterStatus] = useState('TODOS');
 
     // Modal States
@@ -287,7 +291,13 @@ export default function GestionUsuarios() {
 
     const filteredUsers = users.filter(u => {
         const matchesSearch = u.nombre_apellido?.toLowerCase().includes(search.toLowerCase()) || u.dni?.includes(search) || u.email?.toLowerCase().includes(search.toLowerCase());
-        const matchesRole = filterRole === 'TODOS' || u.rol === filterRole;
+        const matchesRole = filterRole === 'TODOS' 
+            ? true 
+            : filterRole === 'PROFESIONAL' 
+                ? u.es_profesional === true 
+                : filterRole === 'SOCIO'
+                    ? u.rol === 'SOCIO' && !u.es_profesional
+                    : u.rol === filterRole;
         const matchesStatus = filterStatus === 'TODOS' || u.estado === filterStatus;
         return matchesSearch && matchesRole && matchesStatus;
     });
@@ -362,6 +372,7 @@ export default function GestionUsuarios() {
                         className="h-10 px-3 bg-admin-card border border-admin-border rounded-lg text-xs font-bold uppercase tracking-wider text-slate-300 outline-none focus:border-admin-accent cursor-pointer shadow-sm">
                         <option value="TODOS">Rol: Todos</option>
                         <option value="SOCIO">Socios</option>
+                        <option value="PROFESIONAL">Profesionales</option>
                         <option value="COMERCIO">Comercios</option>
                         {/* <option value="CAMARA">Cámaras</option> */}
                     </select>

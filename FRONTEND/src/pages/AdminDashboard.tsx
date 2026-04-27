@@ -18,8 +18,8 @@ export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles'
-  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles'>('panel');
+  // Tabs: 'panel' | 'usuarios' | 'profesionales' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles'
+  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'profesionales' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
@@ -62,6 +62,7 @@ export default function AdminDashboard() {
   const baseNavItems = [
     { id: 'panel', icon: 'dashboard', label: 'Dashboard' },
     { id: 'usuarios', icon: 'group', label: 'Gestión Socios' },
+    { id: 'profesionales', icon: 'assignment_ind', label: 'Gestión Profesionales' },
     { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Integral' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
     { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
@@ -259,6 +260,7 @@ export default function AdminDashboard() {
         <div className="flex-1 overflow-y-auto admin-scroll p-4 md:p-8 relative z-0">
           {activeTab === 'panel' && <MetricasOverview />}
           {activeTab === 'usuarios' && <GestionUsuarios />}
+          {activeTab === 'profesionales' && <GestionUsuarios initialRoleFilter="PROFESIONAL" />}
           {activeTab === 'nuevo-comercio' && <NuevoComercio inlineMode={true} onSuccess={() => setActiveTab('usuarios')} />}
           {activeTab === 'eventos' && <GestionEventos />}
           {activeTab === 'auditoria' && isSuperadmin && <PanelAuditoria />}

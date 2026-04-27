@@ -5039,7 +5039,7 @@ def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_cu
 
 def calcular_cuota_dinamica_internal(user_id: str):
     # fetch user profile
-    profile_res = supabase.table("profiles").select("rol, es_estudiante").eq("id", user_id).execute()
+    profile_res = supabase.table("profiles").select("rol, es_estudiante, es_profesional").eq("id", user_id).execute()
     if not profile_res.data:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
     profile = profile_res.data[0]
@@ -5054,31 +5054,45 @@ def calcular_cuota_dinamica_internal(user_id: str):
     cuotas_res = supabase.table("configuracion_cuotas").select("*").execute()
     cuotas_map = {c["rol"]: c["monto"] for c in cuotas_res.data}
     
-    rol = profile["rol"]
-    if profile.get("es_estudiante"):
-        rol = "ESTUDIANTE"
+    # Priority logic
+    if membership_type == "FAMILIAR":
+        rol_efectivo = "GRUPO FAMILIAR"
+        tipo_plan = "Grupo Familiar"
+    elif profile.get("es_profesional"):
+        rol_efectivo = "PROFESIONAL"
+        tipo_plan = "Socio Profesional"
+    elif profile.get("es_estudiante"):
+        rol_efectivo = "ESTUDIANTE"
+        tipo_plan = "Estudiante"
+    else:
+        rol_efectivo = profile.get("rol", "SOCIO")
+        tipo_plan = "Individual"
         
-    monto_base = cuotas_map.get(rol, 0)
+    monto_base = cuotas_map.get(rol_efectivo, 0)
+    
+    # Defaults in case not in DB yet
+    if monto_base == 0:
+        if rol_efectivo == "GRUPO FAMILIAR":
+            monto_base = 20000
+        elif rol_efectivo == "PROFESIONAL":
+            monto_base = 7000
+        elif rol_efectivo == "ESTUDIANTE":
+            monto_base = 5000
+        elif rol_efectivo == "SOCIO":
+            monto_base = 10000
+    
     monto_total = monto_base
     monto_base_usado = monto_base
 
-    # Si tiene familiares (es grupo familiar)
-    if membership_type == "FAMILIAR":
-        monto_base_familiar = cuotas_map.get("GRUPO FAMILIAR", monto_base) # fallback si no existe
-        monto_base_usado = monto_base_familiar
-        
-        # Monto FIJO para grupo familiar, sin importar cantidad de integrantes
-        monto_total = monto_base_familiar
-        
     return {
         "monto": monto_total,
         "monto_total": monto_total, # For backward compatibility
-        "tipo": "GRUPO_FAMILIAR" if membership_type == "FAMILIAR" else "INDIVIDUAL",
+        "tipo": rol_efectivo,
         "detalle": {
             "base": monto_base_usado,
             "familiares": familiares_count,
-            "cantidad": familiares_count + 1,
-            "tipo_plan": "Grupo Familiar" if membership_type == "FAMILIAR" else "Individual"
+            "cantidad": familiares_count + 1 if membership_type == "FAMILIAR" else 1,
+            "tipo_plan": tipo_plan
         }
     }
 

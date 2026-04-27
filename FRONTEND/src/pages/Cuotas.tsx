@@ -275,17 +275,17 @@ export default function Cuotas() {
                     {montoAPagar !== null && (
                       <div className="mb-3 p-3 bg-white/60 dark:bg-black/20 rounded-lg border border-green-200 dark:border-green-800/40">
                         <span className="font-bold text-[#245b31] dark:text-green-400 block text-[10px] uppercase tracking-widest mb-1">Monto a transferir</span>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="text-2xl font-black text-slate-800 dark:text-slate-100">${montoAPagar.toLocaleString('es-AR')}</span>
-                          {calculoCuota?.detalle?.tipo_plan === 'Grupo Familiar' ? (
-                            <span className="text-[10px] font-bold bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full inline-block mt-1">
-                              Familiar ({calculoCuota.detalle.cantidad} miembros)
-                            </span>
-                          ) : user?.es_estudiante ? (
-                            <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full inline-block mt-1">
-                              Tarifa Estudiante
-                            </span>
-                          ) : null}
+                        </div>
+                        <div className="pt-2 border-t border-green-200/50 dark:border-green-800/30">
+                          <span className="font-bold text-[#245b31] dark:text-green-400 block text-[10px] uppercase tracking-widest mb-1">Referencia de Pago</span>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            {calculoCuota?.detalle?.tipo_plan === 'Grupo Familiar' ? 'Cuota Grupo Familiar' :
+                             calculoCuota?.detalle?.tipo_plan === 'Socio Profesional' ? 'Cuota Socio Profesional' :
+                             calculoCuota?.detalle?.tipo_plan === 'Estudiante' ? 'Cuota Estudiante' :
+                             'Cuota Socio'}
+                          </span>
                         </div>
                       </div>
                     )}
