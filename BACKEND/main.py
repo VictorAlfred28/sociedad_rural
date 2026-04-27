@@ -2566,8 +2566,27 @@ class OfertaUpdateRequest(BaseModel):
 
 
 # ── ENDPOINT PÚBLICO: ver ofertas por municipio (para socios) ─────────────────
-
-
+@app.get("/api/ofertas/publicas")
+def get_ofertas_publicas(municipio: Optional[str] = None):
+    try:
+        # Traemos la oferta y los datos del comercio asociado (en este caso, usando perfiles o comercios)
+        # Asumiendo que la tabla ofertas tiene un comercio_id
+        res = supabase.table("ofertas").select("*, profiles!inner(nombre_apellido, municipio, rubro)").eq("activo", True).order("created_at", desc=True).execute()
+        
+        ofertas = res.data or []
+        
+        if municipio:
+            # Filtramos en memoria por el municipio del perfil creador de la oferta
+            ofertas = [
+                o for o in ofertas 
+                if o.get("profiles", {}).get("municipio") == municipio
+            ]
+            
+        return {"ofertas": ofertas}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error al obtener ofertas: {str(e)}")
 @app.put("/api/perfil")
 def update_profile(
     req: UpdateProfileRequest,
