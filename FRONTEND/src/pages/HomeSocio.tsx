@@ -9,20 +9,41 @@ export default function HomeSocio() {
   const { user } = useAuth();
 
   return (
-    <div className="relative min-h-screen flex flex-col font-display bg-[#f4eedd] text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
-      {/* Fondo con imagen sutil */}
+    <div className="relative min-h-screen flex flex-col font-display text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+      {/* Fondo Paisaje */}
       <div 
-        className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+        className="fixed inset-0 z-0 pointer-events-none"
         style={{
           backgroundImage: "url('/src/assets/vaquita.png')",
           backgroundSize: "cover",
-          backgroundPosition: "center",
+          backgroundPosition: "center top",
           backgroundRepeat: "no-repeat"
         }}
-      ></div>
+      >
+        {/* Overlay para legibilidad */}
+        <div className="absolute inset-0" style={{
+          background: "linear-gradient(to bottom, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.4) 40%, rgba(255,255,255,0.85) 100%)"
+        }}></div>
+      </div>
 
       <div className="relative z-10 flex-1 flex flex-col">
-        <header className="p-6 pt-12 pb-4">
+        <header className="p-6 pt-12 pb-4 relative">
+          {/* Widget Clima Compacto */}
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute top-4 right-4 flex items-center gap-1.5 h-[40px] px-[12px] py-[6px] rounded-[20px] transition-all hover:scale-105 cursor-default z-20"
+            style={{
+                background: 'rgba(255,255,255,0.6)',
+                backdropFilter: 'blur(6px)',
+                WebkitBackdropFilter: 'blur(6px)',
+                border: '1px solid rgba(0,0,0,0.05)'
+            }}
+          >
+            <span className="text-[14px]">🌤️</span>
+            <span className="text-[13px] font-medium text-[#2F3E2F] leading-none">24°C | Ctes</span>
+          </motion.div>
+
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <Link to="/perfil" className="relative group">

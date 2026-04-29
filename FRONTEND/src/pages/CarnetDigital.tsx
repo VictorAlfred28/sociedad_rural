@@ -56,18 +56,18 @@ export default function CarnetDigital() {
         <Link to="/home" className="flex size-10 items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 text-gray-800">
           <span className="material-symbols-outlined text-xl">arrow_back_ios_new</span>
         </Link>
-        <div className="flex bg-[#eef0f2] rounded-full p-1 mx-2 w-56">
+        <div className="flex bg-[#eef0f2] rounded-full p-1 mx-2 w-[280px]">
           <button
             onClick={() => setViewMode('pasaporte')}
-            className={`flex-1 py-1.5 rounded-full text-[10px] font-bold tracking-widest transition-colors ${pasaporteMode ? 'bg-[#1e4c27] text-white shadow-sm' : 'bg-transparent text-gray-500'}`}
+            className={`flex-1 py-1.5 px-2 rounded-full text-[9px] font-bold tracking-wider transition-colors ${pasaporteMode ? 'bg-[#1e4c27] text-white shadow-sm' : 'bg-transparent text-gray-500'}`}
           >
-            PASAPORTE
+            PASAPORTE CORRENTINO
           </button>
           <button
             onClick={() => setViewMode('carnet')}
-            className={`flex-1 py-1.5 rounded-full text-[10px] font-bold tracking-widest transition-colors ${!pasaporteMode ? 'bg-[#1e4c27] text-white shadow-sm' : 'bg-transparent text-gray-500'}`}
+            className={`flex-1 py-1.5 px-2 rounded-full text-[9px] font-bold tracking-wider transition-colors ${!pasaporteMode ? 'bg-[#1e4c27] text-white shadow-sm' : 'bg-transparent text-gray-500'}`}
           >
-            CARNET
+            MINIPASAPORTE
           </button>
         </div>
         <div className="w-10"></div>
@@ -122,8 +122,8 @@ export default function CarnetDigital() {
                       <p className="text-base font-bold leading-none">{user?.dni || '20456789'}</p>
                     </div>
                     <div className="flex flex-col text-right">
-                      <p className="text-[10px] text-gray-300 font-bold tracking-widest mb-0.5">ALTA</p>
-                      <p className="text-base font-bold leading-none">2024</p>
+                      <p className="text-[10px] text-gray-300 font-bold tracking-widest mb-0.5">VÁLIDO HASTA</p>
+                      <p className="text-base font-bold leading-none">{new Date().getFullYear()}</p>
                     </div>
                   </div>
                 </div>
