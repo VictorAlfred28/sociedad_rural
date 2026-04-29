@@ -223,13 +223,16 @@ export default function CarnetDigital() {
                     )}
                   </div>
 
-                  <div className="w-[100px] aspect-square bg-white border-[3px] border-black p-1.5 mb-1">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user?.dni || '000000'}`}
-                      alt="QR Static"
-                      className="w-full h-full"
-                    />
-                  </div>
+                  <button 
+                    onClick={generarQR}
+                    disabled={isLoadingQR}
+                    className="w-[100px] aspect-square bg-white border-[3px] border-black p-1.5 mb-1 flex flex-col items-center justify-center relative active:scale-95 transition-transform"
+                  >
+                    <span className="material-symbols-outlined text-4xl text-black mb-1">qr_code_scanner</span>
+                    <span className="text-[9px] font-black leading-tight text-center">
+                      {isLoadingQR ? 'CARGANDO...' : 'GENERAR\nQR'}
+                    </span>
+                  </button>
 
                   <div className="text-center w-full flex flex-col">
                     <span className="text-[12px] font-medium leading-none mb-0.5">Pasaporte numero</span>
