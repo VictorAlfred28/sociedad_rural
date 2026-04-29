@@ -158,14 +158,14 @@ export default function CarnetDigital() {
               exit={{ opacity: 0, x: 20 }}
               className="bg-white px-6 pt-8 pb-12 w-full min-h-[80vh] flex flex-col items-center font-sans relative"
             >
-              <h1 className="text-center font-black text-4xl tracking-tighter leading-none mb-6 mt-2" style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}>REPUBLICA DE CORRIENTES</h1>
+              <h1 className="text-center font-black text-black text-4xl tracking-tighter leading-none mb-6 mt-2" style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}>REPUBLICA DE CORRIENTES</h1>
 
               <div className="relative mb-10 text-center w-full flex flex-col items-center">
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 z-0">
                   <img src={mapaCorrientes} alt="Mapa Corrientes" className="w-[18rem] object-contain" />
                 </div>
 
-                <div className="relative z-10 text-[17px] font-medium leading-[1.3] text-black w-full max-w-[320px]">
+                <div className="relative z-10 text-[17px] font-bold leading-[1.3] text-black w-full max-w-[320px]">
                   <p>Me marea el agua ardiente</p>
                   <p>Pero ni nunca la plata</p>
                   <p>Yo me crié de alpargatas</p>
@@ -175,41 +175,41 @@ export default function CarnetDigital() {
                   <p>Yo no soy causa perdida</p>
                   <p>Yo soy nacido en Corrientes.</p>
 
-                  <p className="mt-6 text-[14px] leading-snug px-2">
+                  <p className="mt-6 text-[14px] leading-snug px-2 font-bold">
                     Juro que como correntino, sabré aguantar con entereza lo que venga, andaré a cielo abierto, sin vallas para mis sueños y pensamientos.
                   </p>
                 </div>
               </div>
 
-              <h2 className="text-center font-black text-5xl mb-8" style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}>DATOS</h2>
+              <h2 className="text-center font-black text-black text-5xl mb-8" style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}>DATOS</h2>
 
               <div className="w-full flex gap-5 px-1 max-w-[340px]">
                 {/* Columna Izquierda: Formulario */}
                 <div className="flex-1 flex flex-col gap-6">
                   <div className="flex flex-col">
-                    <span className="text-[15px] font-bold text-black mb-1">Nombre</span>
-                    <div className="border-b-[1.5px] border-black w-full h-5 text-sm flex items-end pb-0.5">{user?.nombre_apellido.split(' ')[0]}</div>
+                    <span className="text-[15px] font-black text-black mb-1 uppercase tracking-tight">Nombre</span>
+                    <div className="border-b-[2px] border-black w-full h-5 text-[15px] font-black text-black flex items-end pb-0.5">{user?.nombre_apellido.split(' ')[0]}</div>
                   </div>
 
                   <div className="flex flex-col">
-                    <span className="text-[15px] font-bold text-black mb-1">Apellido</span>
-                    <div className="border-b-[1.5px] border-black w-full h-5 text-sm flex items-end pb-0.5">{user?.nombre_apellido.split(' ').slice(1).join(' ')}</div>
+                    <span className="text-[15px] font-black text-black mb-1 uppercase tracking-tight">Apellido</span>
+                    <div className="border-b-[2px] border-black w-full h-5 text-[15px] font-black text-black flex items-end pb-0.5">{user?.nombre_apellido.split(' ').slice(1).join(' ')}</div>
                   </div>
 
                   <div className="flex gap-4 w-full">
                     <div className="flex flex-col w-[40%]">
-                      <span className="text-[15px] font-bold text-black mb-1">DNI</span>
-                      <div className="border-b-[1.5px] border-black w-full h-5 text-sm flex items-end pb-0.5">{user?.dni}</div>
+                      <span className="text-[15px] font-black text-black mb-1 uppercase tracking-tight">DNI</span>
+                      <div className="border-b-[2px] border-black w-full h-5 text-[15px] font-black text-black flex items-end pb-0.5">{user?.dni}</div>
                     </div>
                     <div className="flex flex-col flex-1">
-                      <span className="text-[13px] font-bold text-black mb-1 whitespace-nowrap">Localidad/Domicilio</span>
-                      <div className="border-b-[1.5px] border-black w-full h-5 text-sm flex items-end pb-0.5"></div>
+                      <span className="text-[13px] font-black text-black mb-1 whitespace-nowrap uppercase tracking-tight">Localidad/Domicilio</span>
+                      <div className="border-b-[2px] border-black w-full h-5 text-[15px] font-black text-black flex items-end pb-0.5"></div>
                     </div>
                   </div>
 
                   <div className="flex flex-col">
-                    <span className="text-[15px] font-bold text-black mb-1 mt-2">SOCIO</span>
-                    <div className="border-b-[1.5px] border-black w-full h-5 text-sm flex items-end pb-0.5">#{user?.numero_socio}</div>
+                    <span className="text-[15px] font-black text-black mb-1 mt-2 uppercase tracking-tight">SOCIO</span>
+                    <div className="border-b-[2px] border-black w-full h-5 text-[15px] font-black text-black flex items-end pb-0.5">#{user?.numero_socio}</div>
                   </div>
                 </div>
 
