@@ -59,7 +59,7 @@ export default function Eventos() {
       <div 
         className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
         style={{
-          backgroundImage: "url('/src/assets/vaquita.png')",
+          backgroundImage: `url(${paisaje})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat"
