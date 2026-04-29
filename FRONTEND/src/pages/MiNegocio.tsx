@@ -411,7 +411,7 @@ export default function MiNegocio() {
                         <NotificationBell />
                         <div
                             onClick={() => logoPreview ? confirmLogoUpload() : logoInputRef.current?.click()}
-                            className={`w-14 h-14 rounded-2xl flex items-center justify-center cursor-pointer transition-all relative group overflow-hidden ${logoPreview ? 'ring-4 ring-primary ring-offset-2 ring-offset-slate-900 shadow-[0_0_20px_rgba(255,200,0,0.5)]' : 'bg-white/10 hover:bg-white/20'}`}
+                            className={`w-14 h-14 rounded-2xl flex items-center justify-center cursor-pointer transition-all active:opacity-80 relative group overflow-hidden ${logoPreview ? 'ring-4 ring-primary ring-offset-2 ring-offset-slate-900 shadow-[0_0_20px_rgba(255,200,0,0.5)]' : 'bg-white/10 hover:bg-white/20'}`}
                             title={logoPreview ? "Click para confirmar subida" : "Cambiar logo"}
                         >
                             {updatingLogo ? (

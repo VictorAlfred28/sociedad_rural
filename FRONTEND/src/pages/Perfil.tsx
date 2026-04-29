@@ -221,7 +221,7 @@ export default function Perfil() {
               />
               <div
                 onClick={() => logoPreview ? handleFileChange() : handlePencilClick()}
-                className={`size-32 rounded-[3rem] bg-stone-100 dark:bg-stone-900 border-4 shadow-2xl overflow-hidden flex items-center justify-center text-5xl font-black uppercase transition-all cursor-pointer ${logoPreview ? 'border-[#245b31] scale-105' : 'border-white dark:border-stone-700'}`}
+                className={`group relative size-32 rounded-[3rem] bg-stone-100 dark:bg-stone-900 border-4 shadow-2xl overflow-hidden flex items-center justify-center text-5xl font-black uppercase transition-all cursor-pointer active:opacity-80 ${logoPreview ? 'border-[#245b31] scale-105' : 'border-white dark:border-stone-700'}`}
               >
                 {logoPreview ? (
                   <img src={logoPreview} alt="Preview" className="w-full h-full object-cover animate-pulse" />
@@ -230,14 +230,11 @@ export default function Perfil() {
                 ) : (
                   <span className="text-stone-300 font-display">{user?.nombre_apellido?.charAt(0) || 'S'}</span>
                 )}
+                {/* Overlay visual tipo cámara */}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="material-symbols-outlined text-white text-3xl">{logoPreview ? 'check_circle' : 'photo_camera'}</span>
+                </div>
               </div>
-              <button
-                onClick={logoPreview ? handleFileChange : handlePencilClick}
-                disabled={loading}
-                className={`absolute -bottom-2 -right-2 size-10 rounded-2xl shadow-lg border-2 border-white dark:border-stone-800 flex items-center justify-center active:scale-90 transition-all ${logoPreview ? 'bg-emerald-500 text-white' : 'bg-[#245b31] text-white'}`}
-              >
-                <span className="material-symbols-outlined text-xl">{logoPreview ? 'check' : 'photo_camera'}</span>
-              </button>
             </div>
 
             {isEditing ? (
