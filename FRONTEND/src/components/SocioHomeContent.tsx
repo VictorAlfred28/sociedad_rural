@@ -3,6 +3,32 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 
+// SVG Decorators
+const WoodFence = () => (
+  <svg className="absolute bottom-0 left-0 w-full h-[28px] opacity-[0.25] mix-blend-multiply pointer-events-none" preserveAspectRatio="none" viewBox="0 0 200 40">
+    <path d="M0 25 L200 25 M0 35 L200 35" stroke="#5C4326" strokeWidth="2.5" fill="none" opacity="0.8"/>
+    <path d="M20 15 L20 40 M60 10 L60 40 M100 18 L100 40 M140 12 L140 40 M180 20 L180 40" stroke="#5C4326" strokeWidth="4" fill="none" strokeLinecap="round"/>
+  </svg>
+);
+
+const PlantsCorner = () => (
+  <svg className="absolute -bottom-2 -right-2 w-[70px] h-[70px] opacity-[0.35] mix-blend-multiply pointer-events-none" viewBox="0 0 100 100">
+    <path d="M100 100 C 70 50 30 70 20 80 C 40 85 70 95 100 100" fill="#3A6B35" />
+    <path d="M100 100 C 60 30 20 50 10 70 C 40 75 80 90 100 100" fill="#4B7E45" />
+    <path d="M100 100 C 80 10 40 30 30 50 C 60 60 90 80 100 100" fill="#295424" />
+    <path d="M100 100 C 40 10 10 40 0 60 C 30 70 80 90 100 100" fill="#6B8E23" opacity="0.7" />
+  </svg>
+);
+
+const LeftPlants = () => (
+    <svg className="absolute -bottom-1 -left-2 w-[55px] h-[55px] opacity-[0.3] mix-blend-multiply pointer-events-none" viewBox="0 0 100 100" style={{ transform: 'scaleX(-1)' }}>
+      <path d="M100 100 C 70 50 30 70 20 80 C 40 85 70 95 100 100" fill="#3A6B35" />
+      <path d="M100 100 C 60 30 20 50 10 70 C 40 75 80 90 100 100" fill="#4B7E45" />
+    </svg>
+);
+
+const paperTexture = "url('https://www.transparenttextures.com/patterns/paper.png')";
+
 export default function SocioHomeContent() {
     const { user } = useAuth();
     return (
@@ -34,52 +60,104 @@ export default function SocioHomeContent() {
 
             {/* Grid de Accesos Rápidos */}
             <div className="grid grid-cols-2 gap-4">
-                <Link to="/eventos" className="aspect-square flex flex-col items-start justify-between p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm active:scale-95 transition-transform relative overflow-hidden border border-[#e5dfce] dark:border-stone-700/50 group">
-                    <div className="absolute -bottom-2 -right-2 w-20 h-20 text-[#8b9172] dark:text-stone-600 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
-                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
+                {/* 1. Agenda Rural */}
+                <Link 
+                    to="/eventos" 
+                    className="relative overflow-hidden flex flex-col items-center justify-start p-4 rounded-[16px] transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 group"
+                    style={{
+                        background: `linear-gradient(180deg, #F3F6E8 0%, #E4E8D3 100%), ${paperTexture}`,
+                        backgroundBlendMode: 'multiply',
+                        boxShadow: '0px 4px 12px rgba(0,0,0,0.08)',
+                        minHeight: '160px'
+                    }}
+                >
+                    <WoodFence />
+                    <PlantsCorner />
+                    <LeftPlants />
+                    
+                    <div className="w-[56px] h-[56px] rounded-full flex items-center justify-center mb-2 z-10 text-white shrink-0 bg-[#3A6B35]">
+                        <span className="material-symbols-outlined text-[28px]" style={{fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}}>calendar_month</span>
                     </div>
-                    <div className="bg-[#4b5e4a] text-white p-2.5 rounded-full flex items-center justify-center z-10 mb-2 shadow-sm">
-                        <span className="material-symbols-outlined text-[28px] leading-none">calendar_month</span>
-                    </div>
-                    <div className="z-10 w-full">
-                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg leading-tight mb-1 font-display">Agenda Rural</h3>
-                        <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-snug">Conocé los próximos eventos y actividades.</p>
-                    </div>
-                </Link>
-                <Link to="/promociones" className="aspect-square flex flex-col items-start justify-between p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm active:scale-95 transition-transform relative overflow-hidden border border-[#e5dfce] dark:border-stone-700/50 group">
-                    <div className="absolute -bottom-2 -right-2 w-20 h-20 text-[#a87f5d] dark:text-stone-600 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
-                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
-                    </div>
-                    <div className="bg-[#995c27] text-white p-2.5 rounded-full flex items-center justify-center z-10 mb-2 shadow-sm">
-                        <span className="material-symbols-outlined text-[28px] leading-none">sell</span>
-                    </div>
-                    <div className="z-10 w-full">
-                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg leading-tight mb-1 font-display">Beneficios del Socio</h3>
-                        <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-snug">Accedé a todos los beneficios y promociones.</p>
-                    </div>
-                </Link>
-                <Link to="/cuotas" className="aspect-square flex flex-col items-start justify-between p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm active:scale-95 transition-transform relative overflow-hidden border border-[#e5dfce] dark:border-stone-700/50 group">
-                    <div className="absolute -bottom-2 -right-2 w-20 h-20 text-[#8b755e] dark:text-stone-600 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
-                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
-                    </div>
-                    <div className="bg-[#784e32] text-white p-2.5 rounded-full flex items-center justify-center z-10 mb-2 shadow-sm">
-                        <span className="material-symbols-outlined text-[28px] leading-none">account_balance_wallet</span>
-                    </div>
-                    <div className="z-10 w-full">
-                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg leading-tight mb-1 font-display">Aportes / Cuotas</h3>
-                        <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-snug">Consultá y gestioná tus cuotas.</p>
+                    
+                    <div className="z-10 w-full text-center flex flex-col items-center">
+                        <h3 className="text-[18px] font-semibold text-[#2F3E2F] leading-tight font-display">Agenda Rural</h3>
+                        <div className="w-4 h-[2px] bg-[#2F3E2F]/20 my-1.5 rounded-full" />
+                        <p className="text-[13px] text-[#6B6B6B] leading-tight">Conocé los próximos eventos y actividades.</p>
                     </div>
                 </Link>
-                <Link to="/carnet" className="aspect-square flex flex-col items-start justify-between p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm active:scale-95 transition-transform relative overflow-hidden border border-[#e5dfce] dark:border-stone-700/50 group">
-                    <div className="absolute -bottom-2 -right-2 w-20 h-20 text-[#8b9172] dark:text-stone-600 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
-                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
+
+                {/* 2. Beneficios del Socio */}
+                <Link 
+                    to="/promociones" 
+                    className="relative overflow-hidden flex flex-col items-center justify-start p-4 rounded-[16px] transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 group"
+                    style={{
+                        background: `linear-gradient(180deg, #FDF7EC 0%, #EFE5D3 100%), ${paperTexture}`,
+                        backgroundBlendMode: 'multiply',
+                        boxShadow: '0px 4px 12px rgba(0,0,0,0.08)',
+                        minHeight: '160px'
+                    }}
+                >
+                    <WoodFence />
+                    <PlantsCorner />
+                    
+                    <div className="w-[56px] h-[56px] rounded-full flex items-center justify-center mb-2 z-10 text-white shrink-0 bg-[#8B5E3C]">
+                        <span className="material-symbols-outlined text-[28px]" style={{fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24", transform: 'scaleX(-1) rotate(45deg)'}}>sell</span>
                     </div>
-                    <div className="bg-[#4b5e4a] text-white p-2.5 rounded-full flex items-center justify-center z-10 mb-2 shadow-sm">
-                        <span className="material-symbols-outlined text-[28px] leading-none">badge</span>
+                    
+                    <div className="z-10 w-full text-center flex flex-col items-center">
+                        <h3 className="text-[18px] font-semibold text-[#2F3E2F] leading-tight font-display">Beneficios del Socio</h3>
+                        <div className="w-4 h-[2px] bg-[#2F3E2F]/20 my-1.5 rounded-full" />
+                        <p className="text-[13px] text-[#6B6B6B] leading-tight">Accedé a todos los beneficios y promociones.</p>
                     </div>
-                    <div className="z-10 w-full">
-                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg leading-tight mb-1 font-display">Ñande Pasaporte</h3>
-                        <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-snug">Tu credencial digital siempre a mano.</p>
+                </Link>
+
+                {/* 3. Aportes / Cuotas */}
+                <Link 
+                    to="/cuotas" 
+                    className="relative overflow-hidden flex flex-col items-center justify-start p-4 rounded-[16px] transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 group"
+                    style={{
+                        background: `linear-gradient(180deg, #F4EBE0 0%, #E6D8C8 100%), ${paperTexture}`,
+                        backgroundBlendMode: 'multiply',
+                        boxShadow: '0px 4px 12px rgba(0,0,0,0.08)',
+                        minHeight: '160px'
+                    }}
+                >
+                    <WoodFence />
+                    <LeftPlants />
+                    
+                    <div className="w-[56px] h-[56px] rounded-full flex items-center justify-center mb-2 z-10 text-white shrink-0 bg-[#8B5E3C]">
+                        <span className="material-symbols-outlined text-[28px]" style={{fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}}>account_balance_wallet</span>
+                    </div>
+                    
+                    <div className="z-10 w-full text-center flex flex-col items-center">
+                        <h3 className="text-[18px] font-semibold text-[#2F3E2F] leading-tight font-display">Aportes / Cuotas</h3>
+                        <div className="w-4 h-[2px] bg-[#2F3E2F]/20 my-1.5 rounded-full" />
+                        <p className="text-[13px] text-[#6B6B6B] leading-tight">Consultá y gestioná tus cuotas.</p>
+                    </div>
+                </Link>
+
+                {/* 4. Credencial Rural */}
+                <Link 
+                    to="/carnet" 
+                    className="relative overflow-hidden flex flex-col items-center justify-start p-4 rounded-[16px] transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 group"
+                    style={{
+                        background: `linear-gradient(180deg, #EDF1E5 0%, #D8E0CA 100%), ${paperTexture}`,
+                        backgroundBlendMode: 'multiply',
+                        boxShadow: '0px 4px 12px rgba(0,0,0,0.08)',
+                        minHeight: '160px'
+                    }}
+                >
+                    <WoodFence />
+                    <PlantsCorner />
+                    
+                    <div className="w-[56px] h-[56px] rounded-full flex items-center justify-center mb-2 z-10 text-white shrink-0 bg-[#3A6B35]">
+                        <span className="material-symbols-outlined text-[28px]" style={{fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}}>badge</span>
+                    </div>
+                    
+                    <div className="z-10 w-full text-center flex flex-col items-center">
+                        <h3 className="text-[18px] font-semibold text-[#2F3E2F] leading-tight font-display">Credencial Rural</h3>
+                        <div className="w-4 h-[2px] bg-[#2F3E2F]/20 my-1.5 rounded-full" />
+                        <p className="text-[13px] text-[#6B6B6B] leading-tight">Tu credencial digital siempre a mano.</p>
                     </div>
                 </Link>
             </div>
