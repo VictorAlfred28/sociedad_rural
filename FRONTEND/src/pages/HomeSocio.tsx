@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import NotificationBell from '../components/NotificationBell';
 import SocioHomeContent from '../components/SocioHomeContent';
 import { motion } from 'framer-motion';
+import paisaje from '../assets/paisaje.png';
 
 export default function HomeSocio() {
   const { user } = useAuth();
@@ -14,7 +15,7 @@ export default function HomeSocio() {
       <div 
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
-          backgroundImage: "url('/src/assets/vaquita.png')",
+          backgroundImage: `url(${paisaje})`,
           backgroundSize: "cover",
           backgroundPosition: "center top",
           backgroundRepeat: "no-repeat"

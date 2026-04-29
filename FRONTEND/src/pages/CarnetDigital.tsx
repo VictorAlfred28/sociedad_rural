@@ -61,7 +61,7 @@ export default function CarnetDigital() {
             onClick={() => setViewMode('pasaporte')}
             className={`flex-1 py-1.5 px-2 rounded-full text-[9px] font-bold tracking-wider transition-colors ${pasaporteMode ? 'bg-[#1e4c27] text-white shadow-sm' : 'bg-transparent text-gray-500'}`}
           >
-            PASAPORTE CORRENTINO
+            ÑANDE PASAPORTE
           </button>
           <button
             onClick={() => setViewMode('carnet')}
@@ -161,7 +161,7 @@ export default function CarnetDigital() {
               <h1 className="text-center font-black text-4xl tracking-tighter leading-none mb-6 mt-2" style={{fontFamily: 'Impact, Arial Black, sans-serif'}}>REPUBLICA DE CORRIENTES</h1>
               
               <div className="relative mb-10 text-center w-full flex flex-col items-center">
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.08] z-0">
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 z-0">
                   <img src={mapaCorrientes} alt="Mapa Corrientes" className="w-[18rem] object-contain" />
                 </div>
                 
