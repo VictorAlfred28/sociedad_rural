@@ -36,6 +36,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Visibilidad de paquetes para billeteras digitales (Android 11+) -->
     <!-- Requerido por AppLauncher.canOpenUrl() para detectar apps instaladas -->

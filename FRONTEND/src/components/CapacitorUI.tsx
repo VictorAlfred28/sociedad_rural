@@ -19,8 +19,15 @@ export const CapacitorUI = () => {
 
         const setupPushNotifications = async () => {
             try {
-                // 1. Solicitar permiso
-                const permResult = await PushNotifications.requestPermissions();
+                // Si estamos en un entorno sin configuración de Firebase, esto podría fallar.
+                // Usamos un try-catch interno para cada paso crítico.
+                
+                let permResult = await PushNotifications.checkPermissions();
+                
+                if (permResult.receive === 'prompt') {
+                    permResult = await PushNotifications.requestPermissions();
+                }
+
                 if (permResult.receive !== 'granted') {
                     console.warn('[Push] Permiso denegado.');
                     return;
@@ -51,6 +58,7 @@ export const CapacitorUI = () => {
                 // 4. Error en registro
                 PushNotifications.addListener('registrationError', (err) => {
                     console.error('[Push] Error de registro FCM:', err.error);
+                    // No hacemos toast aquí para no molestar al usuario si falla por falta de google-services.json
                 });
 
                 // 5. Notificación recibida con app en primer plano → mostrar toast
@@ -69,7 +77,8 @@ export const CapacitorUI = () => {
                     }
                 });
             } catch (e) {
-                console.error('[Push] Error setup push notifications:', e);
+                console.error('[Push] Error crítico en setup push notifications:', e);
+                // Si falla aquí, la app sigue funcionando pero sin notificaciones push
             }
         };
 

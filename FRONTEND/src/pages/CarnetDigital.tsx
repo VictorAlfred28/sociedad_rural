@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.jpg';
 import mapaCorrientes from '../assets/mapa_corrientes.png';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CarnetDigital() {
   const { user } = useAuth();
@@ -62,10 +63,10 @@ export default function CarnetDigital() {
   const pasaporteMode = viewMode === 'pasaporte';
 
   return (
-    <div className={`relative flex min-h-screen w-full flex-col overflow-hidden mx-auto max-w-[430px] shadow-2xl pb-28 transition-colors duration-500 font-display ${pasaporteMode ? 'bg-[#f4f2ee] dark:bg-slate-900' : 'bg-stone-50 dark:bg-stone-900'}`}>
-      {/* Fondo con imagen sutil de ganadería/campo */}
+    <div className={`relative flex min-h-screen w-full flex-col overflow-x-hidden mx-auto max-w-md shadow-2xl transition-colors duration-500 font-display ${pasaporteMode ? 'bg-[#f4eedd]' : 'bg-stone-50 dark:bg-stone-900'}`}>
+      {/* Fondo con imagen sutil */}
       <div 
-        className={`fixed inset-0 z-0 pointer-events-none transition-opacity duration-500 ${pasaporteMode ? 'opacity-0' : 'opacity-[0.03] dark:opacity-[0.05]'}`}
+        className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
         style={{
           backgroundImage: "url('/src/assets/vaquita.png')",
           backgroundSize: "cover",
@@ -73,282 +74,238 @@ export default function CarnetDigital() {
           backgroundRepeat: "no-repeat"
         }}
       ></div>
-      <style>
-        {`
-          @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Jost:wght@400;500;700&display=swap');
-          .font-pasaporte-title { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; transform: scaleY(1.1); transform-origin: left; }
-          .font-pasaporte-poem { font-family: 'Merriweather', serif; font-size: 14px; line-height: 1.5; font-weight: 500; font-style: italic; }
-          .font-pasaporte-quote { font-family: 'Jost', sans-serif; font-size: 11px; }
-          .font-pasaporte-data { font-family: 'Jost', sans-serif; }
-        `}
-      </style>
 
-      <div className="flex items-center p-6 pb-2 justify-between z-10 relative">
-        <Link to="/home" className={`flex size-10 shrink-0 items-center justify-center rounded-full backdrop-blur-sm border transition-colors ${pasaporteMode ? 'bg-black/5 border-black/10 text-slate-800 dark:text-slate-200 dark:bg-white/10 dark:border-white/20' : 'text-slate-900 dark:text-slate-100 bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'}`}>
-          <span className="material-symbols-outlined text-xl">arrow_back_ios_new</span>
+      <header className="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-stone-900/80 backdrop-blur-md p-4 justify-between border-b border-stone-200/50 dark:border-stone-700/50">
+        <Link to="/home" className="text-stone-800 dark:text-stone-100 flex size-10 items-center justify-center rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+          <span className="material-symbols-outlined">arrow_back</span>
         </Link>
+        <h1 className="text-stone-800 dark:text-stone-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display uppercase italic">Ñande Pasaporte</h1>
+        <div className="flex w-10"></div>
+      </header>
 
-        {/* Toggle Switch */}
-        <div className={`flex p-1 rounded-full relative overflow-hidden backdrop-blur-sm shadow-inner transition-colors ${pasaporteMode ? 'bg-black/10 dark:bg-white/10' : 'bg-slate-200/50 dark:bg-slate-800/50'}`}>
-          <button onClick={() => setViewMode('pasaporte')} className={`relative z-10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full transition-all ${pasaporteMode ? 'text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-            Pasaporte Correntino
+      <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 space-y-8 relative z-10">
+        {/* Selector de Modo */}
+        <div className="flex p-1 bg-stone-100 dark:bg-stone-800 rounded-[2rem] border border-stone-200/50">
+          <button
+            onClick={() => setViewMode('carnet')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${!pasaporteMode ? 'bg-[#245b31] text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
+          >
+            <span className="material-symbols-outlined text-lg">badge</span>
+            Carnet Digital
           </button>
-          <button onClick={() => setViewMode('carnet')} className={`relative z-10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full transition-all ${!pasaporteMode ? 'text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-            MINIPASAPORTE
+          <button
+            onClick={() => setViewMode('pasaporte')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${pasaporteMode ? 'bg-[#784e32] text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}
+          >
+            <span className="material-symbols-outlined text-lg">import_contacts</span>
+            Pasaporte
           </button>
-          <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#245b31] dark:bg-emerald-600 rounded-full transition-transform duration-300 ease-in-out ${pasaporteMode ? 'translate-x-1' : 'translate-x-[calc(100%+4px)]'}`}></div>
         </div>
 
-        <div className="size-10"></div>
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center px-4 pb-4">
-        {/* --- MODO CARNET --- */}
-        <div className={`w-full flex-col items-center justify-center transition-all duration-500 ${pasaporteMode ? 'opacity-0 hidden' : 'flex opacity-100 animate-in fade-in zoom-in-95 px-2'}`}>
-          <div className="w-full relative py-8" style={{ perspective: '1000px' }}>
-            <div className="relative w-full aspect-[1.58/1] rounded-[24px] overflow-hidden shadow-2xl ring-1 ring-white/20 bg-slate-900">
-              <div className="absolute inset-0 bg-cover bg-center opacity-40" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop")' }}></div>
-              <div className="absolute inset-0 bg-gradient-to-tr from-black/90 via-black/40 to-transparent"></div>
-
-              <div className="relative h-full w-full p-6 flex flex-col justify-between text-white">
-                <div className="flex justify-between items-start">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold tracking-widest opacity-80 uppercase">
-                      Estado: {user.estado}
-                    </span>
-                    <div className={`w-8 h-1 mt-1 rounded-full ${getStatusColor()}`}></div>
-                  </div>
-                  <div className="bg-white p-0.5 rounded-xl border border-white/20 overflow-hidden size-11 flex items-center justify-center shadow-lg">
-                    <img src={logo} alt="Logo SR" className="w-full h-full object-cover rounded-lg scale-110" />
-                  </div>
+        <AnimatePresence mode="wait">
+          {!pasaporteMode ? (
+            <motion.div
+              key="carnet"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              {/* Tarjeta de Carnet */}
+              <div className="relative aspect-[1.58/1] w-full rounded-[2.5rem] bg-[#f4eedd] shadow-2xl overflow-hidden border border-[#e5dfce] group">
+                <div className="absolute top-0 right-0 p-8 text-[#245b31]/5 opacity-20 pointer-events-none translate-x-1/4 -translate-y-1/4">
+                  <span className="material-symbols-outlined text-[180px]">eco</span>
                 </div>
 
-                <div className="flex flex-row items-center gap-4">
-                  <div className="w-16 h-16 rounded-full border-2 border-white/30 overflow-hidden bg-white/10 shrink-0 flex items-center justify-center text-2xl font-bold">
-                    {user.foto_url ? (
-                      <img src={user.foto_url} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                      user.nombre_apellido.charAt(0)
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1 overflow-hidden">
-                    <p className="text-xs font-medium tracking-widest opacity-70 uppercase">
-                      {user.titular_id ? `${user.tipo_vinculo || 'Adherente'} Vinculado` : 'Nombre del Miembro'}
-                    </p>
-                    <p className="text-xl font-bold tracking-tight uppercase truncate">{user.nombre_apellido}</p>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-end mt-2">
-                  <div className="flex flex-col">
-                    <p className="text-[10px] font-bold opacity-60 uppercase">DNI / CUIT</p>
-                    <p className="text-lg font-mono font-bold tracking-tighter">{user.dni}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-bold opacity-60 uppercase">Alta</p>
-                    <p className="text-sm font-bold uppercase">{user.created_at ? new Date(user.created_at).getFullYear() : new Date().getFullYear()}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* CONTENEDOR DEL CÓDIGO QR - MODO CARNET */}
-          <div className="flex flex-col items-center mt-6 mb-8">
-            <div className="relative group">
-              {user.estado === 'APROBADO' && (
-                <div className="absolute -inset-4 bg-emerald-500/20 rounded-3xl animate-pulse"></div>
-              )}
-              <div className={`bg-white p-5 rounded-3xl shadow-xl relative ring-2 ${user.estado === 'APROBADO' ? 'ring-emerald-500/50 shadow-emerald-500/20' : 'ring-slate-200 shadow-slate-200'} w-48 h-48 sm:w-56 sm:h-56 flex flex-col items-center justify-center`}>
-
-                {user.estado === 'APROBADO' ? (
-                  <button
-                    onClick={generarQR}
-                    disabled={isLoadingQR}
-                    className="flex flex-col items-center justify-center gap-2 p-4 w-full h-full rounded-2xl border-2 border-dashed border-emerald-500 hover:bg-emerald-50 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-5xl text-emerald-600">qr_code_scanner</span>
-                    <span className="font-bold text-sm text-center text-emerald-700 leading-tight">
-                      {isLoadingQR ? 'Generando...' : 'Generar QR de validación'}
-                    </span>
-                  </button>
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 rounded-3xl p-4 text-center">
-                    <span className="material-symbols-outlined text-4xl text-slate-400 mb-2">qr_code</span>
-                    {user.estado === 'RESTRINGIDO' ? (
-                      <div className="bg-red-500 text-white text-[10px] text-center font-bold px-3 py-2 rounded-xl uppercase tracking-wider shadow-lg transform -rotate-6 max-w-[140px] leading-tight flex flex-col items-center justify-center">
-                        <span>Acceso Restringido</span>
-                        <span className="text-[8px] font-medium opacity-80 mt-1">Consulte en Administración</span>
-                      </div>
-                    ) : (
-                      <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg transform -rotate-12">
-                        Inhabilitado
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-col items-center">
-              <span className="text-[11px] font-black text-slate-800 dark:text-slate-200 tracking-[0.3em] uppercase mb-1">
-                {user.numero_socio ? `Socio N° ${user.numero_socio}` : 'ID único de socio'}
-              </span>
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium text-center px-8">
-                {user.estado === 'APROBADO' ? (
-                  'El comercio escaneará este QR para aplicar tus beneficios.'
-                ) : user.estado === 'RESTRINGIDO' ? (
-                  'Su membresía se encuentra temporalmente restringida por mora.'
-                ) : (
-                  'QR deshabilitado temporalmente hasta regularizar estado.'
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* --- MODO PASAPORTE --- */}
-        <div className={`w-full flex-col items-center transition-all duration-500 ${!pasaporteMode ? 'opacity-0 hidden' : 'flex opacity-100 animate-in fade-in zoom-in-95 mt-4'}`}>
-          <div className="w-full bg-[#faf9f6] dark:bg-slate-800 rounded-sm shadow-xl relative border border-[#e0dacd] dark:border-slate-700 pb-5 px-4 pt-6 flex flex-col items-center text-[#1a1a1a] dark:text-slate-100 overflow-hidden before:content-[''] before:absolute before:inset-0 before:bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] before:opacity-60 dark:before:opacity-10 before:pointer-events-none">
-
-            {/* Background Watermark Image Corrientes */}
-            <div className="absolute inset-0 opacity-[0.05] dark:opacity-10 pointer-events-none flex items-center justify-center z-0 scale-[1.8] translate-y-4">
-              <img src={mapaCorrientes} alt="Mapa Corrientes" className="w-full h-auto object-contain" />
-            </div>
-
-            <div className="relative z-10 w-full flex flex-col items-center">
-              <h1 className="font-pasaporte-title text-4xl mb-4 text-center text-black dark:text-white pb-2 border-b border-black/10 dark:border-white/10 w-full leading-none">REPUBLICA DE CORRIENTES</h1>
-
-              <div className="font-pasaporte-poem text-center space-y-0.5 mb-6 opacity-90">
-                <p>Me marea el agua ardiente</p>
-                <p>Pero ni nunca la plata</p>
-                <p>Yo me crié de alpargatas</p>
-                <p>Y así aprendí a ser consciente</p>
-                <p>Mientras tenga uñas y dientes</p>
-                <p>Puedo pelearle a la vida</p>
-                <p>Yo no soy causa perdida</p>
-                <p>Yo soy nacido en Corrientes.</p>
-              </div>
-
-              <div className="font-pasaporte-quote text-center opacity-80 mb-6 py-3 border-t border-b border-black/10 dark:border-white/10 px-2 leading-tight">
-                "Juro que como correntino, sabré aguantar con entereza lo que venga, andaré a cielo abierto, sin vallas para mis sueños y pensamientos."
-              </div>
-
-              <h2 className="font-pasaporte-title text-[28px] mb-3 tracking-widest text-black dark:text-white w-full text-center">DATOS</h2>
-
-              <div className="w-full flex flex-row items-end justify-between gap-3 relative z-10">
-                <div className="flex flex-col gap-3 flex-1 pb-1">
-                  <div className="flex flex-col">
-                    <span className="font-pasaporte-data text-[9px] font-bold uppercase mb-0 text-black/80 dark:text-white/80">Nombre</span>
-                    <span className="border-b border-black/80 dark:border-white/80 border-dashed pb-0.5 text-sm uppercase font-bold truncate leading-none">{user.nombre_apellido.split(' ')[0] || user.nombre_apellido}</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-pasaporte-data text-[9px] font-bold uppercase mb-0 text-black/80 dark:text-white/80">Apellido</span>
-                    <span className="border-b border-black/80 dark:border-white/80 border-dashed pb-0.5 text-sm uppercase font-bold truncate leading-none">{user.nombre_apellido.split(' ').slice(1).join(' ') || '-'}</span>
-                  </div>
-                  <div className="flex flex-row gap-2">
-                    <div className="flex flex-col flex-1">
-                      <span className="font-pasaporte-data text-[9px] font-bold uppercase mb-0 text-black/80 dark:text-white/80">DNI</span>
-                      <span className="border-b border-black/80 dark:border-white/80 border-dashed pb-0.5 text-xs uppercase font-mono font-bold leading-none">{user.dni}</span>
+                <div className="absolute inset-0 p-8 flex flex-col justify-between">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col">
+                      <h3 className="text-[#245b31] text-[10px] font-black uppercase tracking-[0.2em] mb-1">Sociedad Rural</h3>
+                      <p className="text-stone-800 text-sm font-bold tracking-tight leading-none">Norte de Corrientes</p>
                     </div>
-                    <div className="flex flex-col flex-1">
-                      <span className="font-pasaporte-data text-[9px] font-bold uppercase mb-0 text-black/80 dark:text-white/80">Nro. Socio</span>
-                      <span className="border-b border-black/80 dark:border-white/80 border-dashed pb-0.5 text-[10px] text-emerald-800 dark:text-emerald-400 font-bold uppercase leading-none truncate">
-                        {user.numero_socio ? `N° ${user.numero_socio}` : user.estado}
-                      </span>
+                    <div className="size-12 rounded-full bg-white/50 backdrop-blur-md p-1 border border-white/40 shadow-sm flex items-center justify-center">
+                      <img src={logo} alt="Logo" className="w-8 h-8 object-contain grayscale opacity-60" />
                     </div>
                   </div>
-                </div>
 
-                <div className="w-[85px] flex flex-col gap-2 shrink-0 items-center justify-end">
-                  <div className="w-20 h-[90px] bg-slate-200 dark:bg-slate-700 rounded overflow-hidden shrink-0 shadow-sm border-2 border-white dark:border-slate-600 flex items-center justify-center p-0.5 box-content ring-1 ring-black/10">
-                    <div className="w-full h-full bg-slate-300 dark:bg-slate-600 overflow-hidden flex items-center justify-center rounded-[2px]">
-                      {user.foto_url ? (
-                        <img src={user.foto_url} alt="Foto Pasaporte" className="w-full h-full object-cover" />
+                  <div className="flex items-end gap-6">
+                    <div className="size-24 rounded-3xl bg-stone-200 border-4 border-white shadow-xl overflow-hidden shrink-0 relative">
+                      {user?.foto_url ? (
+                        <img src={user.foto_url} alt="Socio" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="material-symbols-outlined text-4xl text-slate-400">person</span>
+                        <div className="w-full h-full flex items-center justify-center bg-stone-300">
+                          <span className="material-symbols-outlined text-stone-400 text-5xl">person</span>
+                        </div>
                       )}
                     </div>
-                  </div>
-                  <div className="w-32 h-32 bg-slate-50 dark:bg-slate-800 p-2 rounded-md shadow-inner border-2 border-slate-200 dark:border-slate-700 relative z-20 flex flex-col items-center justify-center ring-1 ring-black/5">
-                    {user.estado === 'APROBADO' ? (
-                      <button
-                        onClick={generarQR}
-                        disabled={isLoadingQR}
-                        className="w-full h-full flex flex-col items-center justify-center gap-1 bg-white dark:bg-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-600 rounded transition text-emerald-700 dark:text-emerald-400"
-                        title="Generar QR de validación"
-                      >
-                        <span className="material-symbols-outlined text-3xl">qr_code_2</span>
-                        <span className="font-bold text-[8px] uppercase tracking-wider text-center leading-tight">
-                          {isLoadingQR ? 'Espere' : 'Generar\nValidación'}
-                        </span>
-                      </button>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center opacity-60">
-                        <span className="material-symbols-outlined text-red-600 font-bold text-3xl mb-1">block</span>
-                        <span className="font-bold text-[8px] uppercase tracking-wider text-center leading-tight text-red-600">Inhabilitado</span>
+                    <div className="flex-1 pb-1">
+                      <h4 className="text-xl font-black text-stone-800 uppercase italic tracking-tighter leading-tight pr-2 font-display">{user?.nombre_apellido}</h4>
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">DNI</span>
+                          <span className="text-xs font-black text-[#245b31]">{user?.dni}</span>
+                        </div>
+                        <div className="w-px h-6 bg-stone-200" />
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">Socio</span>
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${user?.estado === 'APROBADO' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
+                            #{user?.numero_socio || '0000'}
+                          </span>
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="w-full flex justify-end mt-1 pr-1 border-t-2 border-black dark:border-white pt-1 mt-2">
-                <div className="flex flex-col items-end">
-                  <span className="font-pasaporte-data text-[7px] uppercase tracking-widest font-bold">Pasaporte Número</span>
-                  <span className="font-mono text-xs text-red-700 dark:text-red-400 tracking-wider font-bold">{(user.dni + user.id.substring(0, 4)).substring(0, 10).toUpperCase()}</span>
+              {/* Botón QR */}
+              <button
+                onClick={generarQR}
+                disabled={isLoadingQR}
+                className="w-full py-8 rounded-[2rem] bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shadow-xl flex flex-col items-center justify-center gap-3 active:scale-95 transition-all group disabled:opacity-50"
+              >
+                <div className="size-20 rounded-[2.5rem] bg-[#245b31] text-white flex items-center justify-center shadow-lg shadow-[#245b31]/30 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-5xl">qr_code_2</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400">Credencial de Acceso</p>
+                  <p className="text-xs font-black text-stone-700 dark:text-stone-300 mt-1 uppercase tracking-widest">
+                    {isLoadingQR ? 'Generando...' : 'Tocar para validar'}
+                  </p>
+                </div>
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="pasaporte"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6 pb-6"
+            >
+              {/* Tarjeta de Pasaporte */}
+              <div className="relative aspect-[0.7/1] w-full max-w-[300px] mx-auto rounded-[3rem] bg-[#f4eedd] shadow-2xl overflow-hidden border border-[#e5dfce] group">
+                <div className="absolute inset-0 opacity-10 pointer-events-none">
+                  <div className="absolute top-0 right-0 p-10">
+                    <span className="material-symbols-outlined text-[150px] text-[#784e32]">import_contacts</span>
+                  </div>
+                </div>
+
+                <div className="absolute inset-0 p-8 flex flex-col items-center justify-between text-center">
+                  <div className="w-full">
+                    <div className="size-16 rounded-full bg-[#784e32] text-white flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#784e32]/30">
+                      <span className="material-symbols-outlined text-4xl">verified_user</span>
+                    </div>
+                    <h3 className="text-2xl font-black text-[#784e32] uppercase italic tracking-tighter leading-none font-display">PASAPORTE</h3>
+                    <p className="text-[#a87f5d] text-[10px] font-black uppercase tracking-[0.3em] mt-1">Correntino</p>
+                  </div>
+
+                  <div className="w-full space-y-4">
+                    <div className="size-36 rounded-[2.5rem] bg-stone-200 border-4 border-white shadow-xl overflow-hidden mx-auto">
+                      {user?.foto_url ? (
+                        <img src={user.foto_url} alt="Socio" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-stone-300">
+                          <span className="material-symbols-outlined text-stone-400 text-6xl">person</span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black text-stone-800 uppercase italic tracking-tighter leading-tight font-display">{user?.nombre_apellido}</h4>
+                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em] mt-1">Socio de la Sociedad Rural</p>
+                    </div>
+                  </div>
+
+                  <div className="w-full pt-4 border-t border-stone-300/50 mt-4">
+                    <div className="flex justify-between items-center px-2">
+                      <div className="flex flex-col items-start">
+                        <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">Nº Pasaporte</span>
+                        <span className="text-xs font-black text-[#784e32]">P-{user?.numero_socio || '0000'}</span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">Emisión</span>
+                        <span className="text-xs font-black text-stone-800">2024</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-            </div>
-          </div>
-        </div>
+              <div className="p-6 rounded-[2rem] bg-stone-900 text-white shadow-xl relative overflow-hidden border border-stone-800">
+                 <div className="absolute bottom-0 right-0 p-8 text-white/5 opacity-10 pointer-events-none translate-x-1/4 translate-y-1/4">
+                  <span className="material-symbols-outlined text-9xl">info</span>
+                </div>
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#a87f5d] mb-3">Identidad Rural</h4>
+                <p className="text-xs text-stone-300 leading-relaxed font-medium italic">
+                  Este documento digital te identifica como miembro de la Sociedad Rural y te otorga beneficios exclusivos en comercios adheridos y eventos regionales.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
 
-      </div>
       <BottomNav />
 
-      {/* MODAL QR DINÁMICO */}
-      {showQRModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-sm p-6 shadow-2xl flex flex-col items-center relative overflow-hidden animate-in zoom-in-95 duration-300 border border-white/20">
-            <button onClick={() => setShowQRModal(false)} className="absolute top-4 right-4 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-full w-8 h-8 flex items-center justify-center hover:text-black dark:hover:text-white transition hover:bg-slate-200 dark:hover:bg-slate-700">
-              <span className="material-symbols-outlined text-sm font-bold">close</span>
-            </button>
+      {/* Modal QR dinámico */}
+      <AnimatePresence>
+        {showQRModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowQRModal(false)}
+              className="absolute inset-0 bg-stone-950/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-[#f4eedd] dark:bg-stone-900 rounded-[3rem] shadow-2xl overflow-hidden border border-[#e5dfce] dark:border-stone-800 p-8 flex flex-col items-center"
+            >
+              <div className="w-full text-center mb-8">
+                <h3 className="text-xl font-black text-stone-800 dark:text-white uppercase italic tracking-tighter font-display">Token de Seguridad</h3>
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mt-1">Este código expira en {timeLeft}s</p>
+              </div>
 
-            <h2 className="text-xl font-bold uppercase tracking-tight text-slate-800 dark:text-slate-100 mt-2 mb-1 text-center">QR de Validación</h2>
-            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 text-center uppercase tracking-widest mb-6 px-4 py-1 bg-emerald-50 dark:bg-emerald-900/30 rounded-full">Uso Único (1 escaneo)</p>
-
-            <div className="relative group mb-8 mt-2">
-              {/* Animación anti captura */}
-              <div className="absolute -inset-4 bg-gradient-to-r from-emerald-400 via-teal-300 to-blue-500 rounded-[2rem] animate-spin-slow opacity-30 blur-md pointer-events-none"></div>
-              <div className="bg-white p-4 rounded-2xl relative z-10 shadow-xl border-4 border-slate-50 dark:border-slate-800 min-w-[240px] min-h-[240px] flex items-center justify-center">
+              <div className="size-64 bg-white p-4 rounded-[2.5rem] shadow-inner border-4 border-stone-200/50 flex items-center justify-center overflow-hidden">
                 {dynamicQR ? (
-                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://sociedadruraldelnorte.agentech.ar/qr-valida/${dynamicQR.token}`} className="w-56 h-56 mix-blend-normal object-contain" alt="QR" />
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://sociedadruraldelnorte.agentech.ar/qr-valida/${dynamicQR.token}`} 
+                    alt="QR Dynamic" 
+                    className="w-full h-full object-contain"
+                  />
                 ) : (
-                  <div className="w-56 h-56 flex items-center justify-center bg-slate-50 rounded-xl text-slate-400 flex-col gap-3">
-                    <span className="material-symbols-outlined text-5xl">timer_off</span>
-                    <span className="font-bold text-sm uppercase tracking-wider text-slate-500">QR Expirado</span>
+                  <div className="flex flex-col items-center gap-3 opacity-30">
+                    <span className="material-symbols-outlined text-6xl">timer_off</span>
+                    <span className="text-[10px] font-black uppercase">Token Expirado</span>
                   </div>
                 )}
               </div>
-            </div>
 
-            <div className="w-full flex flex-col items-center gap-1 mb-6 bg-slate-50 dark:bg-slate-800/50 py-3 rounded-2xl">
-              <span className="text-slate-500 font-medium text-[10px] uppercase tracking-widest">Tiempo Restante</span>
-              <div className={`text-4xl font-mono font-black tracking-tighter ${timeLeft < 15 ? 'text-red-500 animate-pulse' : 'text-slate-800 dark:text-slate-100'}`}>
-                00:{timeLeft.toString().padStart(2, '0')}
+              <div className="mt-10 w-full flex flex-col gap-3">
+                {dynamicQR && (
+                  <div className="h-1.5 w-full bg-stone-200 dark:bg-stone-800 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: "100%" }}
+                      animate={{ width: "0%" }}
+                      transition={{ duration: 60, ease: "linear" }}
+                      className="h-full bg-[#245b31]"
+                    />
+                  </div>
+                )}
+                <button 
+                  onClick={() => setShowQRModal(false)}
+                  className="w-full py-4 rounded-2xl bg-stone-200 dark:bg-stone-800 text-[10px] font-black uppercase tracking-widest text-stone-600 dark:text-stone-400 active:scale-95 transition-transform"
+                >
+                  Cerrar
+                </button>
               </div>
-            </div>
-
-            {!dynamicQR && (
-              <button onClick={generarQR} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl uppercase tracking-wider shadow-md active:scale-95 transition flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-xl">refresh</span>
-                Regenerar QR
-              </button>
-            )}
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

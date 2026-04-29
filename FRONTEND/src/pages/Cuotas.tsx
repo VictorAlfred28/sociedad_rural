@@ -163,69 +163,75 @@ export default function Cuotas() {
         }}
       ></div>
       <div className="relative z-10 flex-1 flex flex-col">
-      <header className="sticky top-0 z-20 bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-md border-b border-stone-200 dark:border-stone-800">
-        <div className="flex items-center px-4 py-3 justify-between">
-          <Link to="/home" className="flex items-center justify-center p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            <span className="material-symbols-outlined text-slate-900 dark:text-slate-100">arrow_back_ios_new</span>
-          </Link>
-          <h1 className="text-lg font-bold tracking-tight text-[#245b31] dark:text-slate-100 flex-1 text-center">Gestión de Cuotas</h1>
-          <div className="w-10"></div>
-        </div>
+      <header className="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-stone-900/80 backdrop-blur-md p-4 justify-between border-b border-stone-200/50 dark:border-stone-700/50">
+        <Link to="/home" className="text-stone-800 dark:text-stone-100 flex size-10 items-center justify-center rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+          <span className="material-symbols-outlined">arrow_back</span>
+        </Link>
+        <h1 className="text-stone-800 dark:text-stone-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display uppercase italic">Aportes / Cuotas</h1>
+        <div className="flex w-10"></div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-24">
+      <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 space-y-6">
         {/* Resumen del Estado */}
-        <section className="p-4">
-          <div className="relative overflow-hidden rounded-2xl bg-[#357a38] p-6 shadow-lg shadow-green-900/10">
-            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10"></div>
-            <div className="relative z-10 flex flex-col gap-1">
-              <span className="text-white/80 text-sm font-medium">Estado de Cuenta</span>
-              <div className="flex items-center gap-2">
-                <span className="text-3xl font-bold text-white tracking-tight">
-                  {user?.estado === 'RESTRINGIDO' ? 'Con Deuda' : user?.estado === 'APROBADO' ? 'Al día' : user?.estado}
-                </span>
-                {user?.estado === 'APROBADO' && <span className="material-symbols-outlined text-white text-2xl">check_circle</span>}
-                {user?.estado === 'RESTRINGIDO' && <span className="material-symbols-outlined text-red-200 text-2xl">warning</span>}
+        <section className="relative overflow-hidden rounded-[2rem] bg-[#245b31] p-6 shadow-lg border border-[#1a4425]">
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none translate-x-1/4 -translate-y-1/4">
+            <span className="material-symbols-outlined text-9xl text-white">account_balance_wallet</span>
+          </div>
+          <div className="relative z-10 text-white">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 mb-1">Estado General</p>
+            <div className="flex items-center gap-3">
+              <h2 className="text-3xl font-black font-display italic tracking-tighter">
+                {user?.estado === 'RESTRINGIDO' ? 'Deuda Pendiente' : 'Al Día'}
+              </h2>
+              {user?.estado === 'RESTRINGIDO' && (
+                <div className="size-3 rounded-full bg-red-400 animate-pulse shadow-[0_0_10px_rgba(248,113,113,0.5)]"></div>
+              )}
+            </div>
+            <div className="mt-6 flex gap-4">
+              <div className="flex-1 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+                <p className="text-[9px] font-bold uppercase tracking-widest opacity-60">Matrícula</p>
+                <p className="text-sm font-black mt-0.5">#{user?.matricula || '0000'}</p>
               </div>
-              <p className="text-white/70 text-[10px] mt-2 uppercase tracking-widest font-bold">DNI: {user?.dni}</p>
+              <div className="flex-1 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
+                <p className="text-[9px] font-bold uppercase tracking-widest opacity-60">DNI</p>
+                <p className="text-sm font-black mt-0.5">{user?.dni}</p>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Acciones Rápidas */}
-        <section className="px-4 flex gap-3 mb-6">
+        <section className="flex gap-3">
           <button
             onClick={() => setShowUploadModal(true)}
-            className="flex-1 flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#357a38] text-white p-4 shadow-lg shadow-green-900/20 active:scale-95 transition-all"
+            className="flex-1 flex flex-col items-center justify-center p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 border border-[#e5dfce] dark:border-stone-700/50 shadow-sm active:scale-95 transition-transform"
           >
-            <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-white">
-              <span className="material-symbols-outlined">payments</span>
+            <div className="size-12 rounded-full bg-[#784e32] text-white flex items-center justify-center mb-3 shadow-sm">
+              <span className="material-symbols-outlined text-2xl">receipt_long</span>
             </div>
-            <span className="text-xs font-bold text-white">Pagar Cuota</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-stone-700 dark:text-stone-300">Pagar Cuota</span>
           </button>
-          <button className="flex-1 flex flex-col items-center justify-center gap-2 rounded-2xl bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 shadow-sm active:scale-95 transition-all opacity-50">
-            <div className="h-10 w-10 rounded-full bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600">
-              <span className="material-symbols-outlined">receipt_long</span>
+          <button className="flex-1 flex flex-col items-center justify-center p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 border border-[#e5dfce] dark:border-stone-700/50 shadow-sm active:scale-95 transition-transform opacity-50">
+            <div className="size-12 rounded-full bg-blue-600 text-white flex items-center justify-center mb-3 shadow-sm">
+              <span className="material-symbols-outlined text-2xl">payments</span>
             </div>
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Libre Deuda</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-stone-700 dark:text-stone-300">Libre Deuda</span>
           </button>
         </section>
 
         {/* Listado Histórico */}
-        <section className="px-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Historial de Pagos</h3>
-          </div>
+        <section>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-4 px-2 italic">Historial de Pagos</h3>
 
           {loading ? (
-            <div className="flex flex-col items-center py-12 text-slate-400">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-              <p className="text-sm">Cargando pagos...</p>
+            <div className="flex flex-col items-center py-12 text-stone-400 gap-4">
+              <span className="material-symbols-outlined text-4xl animate-spin text-emerald-600">autorenew</span>
+              <p className="text-[10px] font-black uppercase tracking-widest">Cargando pagos...</p>
             </div>
           ) : pagos.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-300">
-              <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">payments</span>
-              <p className="text-slate-500 text-sm">No hay registros de pagos aún.</p>
+            <div className="text-center py-12 bg-[#f4eedd]/50 rounded-[2rem] border border-dashed border-[#e5dfce] flex flex-col items-center">
+              <span className="material-symbols-outlined text-4xl text-stone-300 mb-2">payments</span>
+              <p className="text-stone-500 text-[10px] font-black uppercase tracking-widest">Sin movimientos aún</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -235,26 +241,34 @@ export default function Cuotas() {
                 const mesNombre = fechaVenci.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
 
                 return (
-                  <div key={pago.id} className="flex flex-col rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                    <div className="flex items-center gap-4 p-4">
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${pago.estado_pago === 'PAGADO' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                  <div key={pago.id} className="relative overflow-hidden flex flex-col rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 border border-[#e5dfce] dark:border-stone-700/50 shadow-sm transition-transform active:scale-[0.99]">
+                    <div className="absolute -bottom-2 -right-2 w-16 h-16 text-[#8b755e] opacity-10 pointer-events-none">
+                      <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
+                    </div>
+
+                    <div className="flex items-center gap-4 p-5 relative z-10">
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-white/20 shadow-sm text-white ${
+                        pago.estado_pago === 'PAGADO' ? 'bg-emerald-600' : 'bg-red-500'
+                      }`}>
                         <span className="material-symbols-outlined">
                           {pago.estado_pago === 'PAGADO' ? 'check_circle' : 'pending_actions'}
                         </span>
                       </div>
                       <div className="flex flex-1 flex-col">
-                        <p className="text-base font-bold text-slate-900 dark:text-slate-100 capitalize">{mesNombre}</p>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">${pago.monto.toLocaleString('es-AR')}</p>
+                        <p className="text-[11px] font-black text-stone-800 dark:text-white uppercase tracking-tight font-display italic">{mesNombre}</p>
+                        <p className="text-xs font-black text-stone-900 dark:text-white mt-0.5">${pago.monto.toLocaleString('es-AR')}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.color}`}>
+                        <span className={`rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-widest ${
+                          pago.estado_pago === 'PAGADO' ? 'text-emerald-700 bg-emerald-500/10' : 'text-red-700 bg-red-500/10'
+                        }`}>
                           {status.label}
                         </span>
                       </div>
                     </div>
                     {pago.estado_pago === 'RECHAZADO' && (
-                      <div className="px-4 pb-3">
-                        <p className="text-[11px] text-red-600 bg-red-50 p-2 rounded-lg border border-red-100 italic">
+                      <div className="px-5 pb-4 relative z-10">
+                        <p className="text-[9px] text-red-600 font-bold bg-red-500/5 p-3 rounded-xl border border-red-500/10 italic leading-relaxed uppercase tracking-wider">
                           * Comprobante insuficiente o ilegible. Por favor vuelva a subirlo.
                         </p>
                       </div>

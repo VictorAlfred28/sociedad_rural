@@ -3,13 +3,14 @@ import BottomNav from '../components/BottomNav';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from '../components/NotificationBell';
 import SocioHomeContent from '../components/SocioHomeContent';
+import { motion } from 'framer-motion';
 
 export default function HomeSocio() {
   const { user } = useAuth();
 
   return (
-    <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
-      {/* Fondo con imagen sutil de ganadería/campo */}
+    <div className="relative min-h-screen flex flex-col font-display bg-[#f4eedd] text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+      {/* Fondo con imagen sutil */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
         style={{
@@ -24,25 +25,50 @@ export default function HomeSocio() {
         <header className="p-6 pt-12 pb-4">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
-              <div className="size-16 rounded-full border-2 border-emerald-600/30 p-1 bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm shadow-sm overflow-hidden flex items-center justify-center font-bold text-xl text-emerald-700 dark:text-emerald-500 uppercase">
-                {user?.foto_url ? (
-                  <img className="w-full h-full object-cover rounded-full" src={user.foto_url} alt="Profile" />
-                ) : (
-                  user?.nombre_apellido?.charAt(0) || 'S'
-                )}
-              </div>
+              <Link to="/perfil" className="relative group">
+                <div className="size-16 rounded-[1.5rem] border-4 border-white dark:border-stone-800 p-0.5 bg-stone-100 dark:bg-stone-700 shadow-xl overflow-hidden flex items-center justify-center font-black text-2xl text-stone-300 dark:text-stone-500 uppercase transition-transform active:scale-95">
+                  {user?.foto_url ? (
+                    <img className="w-full h-full object-cover rounded-[1.2rem]" src={user.foto_url} alt="Profile" />
+                  ) : (
+                    <span className="font-display">{user?.nombre_apellido?.charAt(0) || 'S'}</span>
+                  )}
+                </div>
+                <div className="absolute -bottom-1 -right-1 size-5 bg-[#245b31] border-2 border-[#f4eedd] rounded-full"></div>
+              </Link>
               <div>
-                <h1 className="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400">Sociedad Rural</h1>
-                <h2 className="text-xl font-bold leading-tight uppercase text-stone-800 dark:text-stone-100">HOLA, {user?.nombre_apellido || 'SOCIO'}</h2>
-                <p className="text-emerald-700 dark:text-emerald-500 font-medium text-sm">ROL: {user?.rol || 'N/A'} • ESTADO: <span className={user?.estado === 'PENDIENTE' ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}>{user?.estado || 'DESCONOCIDO'}</span></p>
+                <motion.h1 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-400"
+                >
+                  Sociedad Rural
+                </motion.h1>
+                <motion.h2 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-2xl font-black text-stone-800 dark:text-white uppercase italic tracking-tighter leading-none font-display"
+                >
+                  HOLA, {user?.nombre_apellido?.split(' ')[0] || 'SOCIO'}
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-[10px] font-black text-[#a87f5d] uppercase tracking-widest mt-1"
+                >
+                  {user?.rol || 'N/A'} • <span className={user?.estado === 'PENDIENTE' ? 'text-amber-600' : 'text-[#245b31]'}>{user?.estado || 'DESCONOCIDO'}</span>
+                </motion.p>
               </div>
             </div>
             <NotificationBell />
           </div>
         </header>
+
         <main className="flex-1 px-6 pb-24">
           <SocioHomeContent />
         </main>
+
         <BottomNav />
       </div>
     </div>

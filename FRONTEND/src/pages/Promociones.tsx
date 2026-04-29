@@ -239,10 +239,11 @@ export default function Promociones() {
       <div className="relative z-10 flex-1 flex flex-col">
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
-      <header className="sticky top-0 z-40 bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-xl border-b border-stone-200/60 dark:border-stone-800/60 transition-all duration-300 shadow-sm">
+      {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-stone-900/80 backdrop-blur-xl border-b border-stone-200/50 dark:border-stone-800 transition-all duration-300 shadow-sm">
         <div className="flex items-center px-4 pt-4 pb-3 gap-3">
-          <Link to="/home" className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors border border-slate-200/50 dark:border-slate-700/50 shadow-sm">
-            <span className="material-symbols-outlined text-slate-600 dark:text-slate-300">arrow_back</span>
+          <Link to="/home" className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#f4eedd] dark:bg-stone-800 hover:bg-[#e5dfce] transition-colors border border-[#e5dfce] dark:border-stone-700/50 shadow-sm">
+            <span className="material-symbols-outlined text-stone-700 dark:text-stone-300">arrow_back</span>
           </Link>
 
           {showSearch ? (
@@ -253,15 +254,15 @@ export default function Promociones() {
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
               onBlur={() => !busqueda && setShowSearch(false)}
-              placeholder="Buscar beneficios..."
-              className="flex-1 h-11 rounded-2xl bg-white dark:bg-slate-800 px-4 text-sm outline-none border-2 border-primary/20 focus:border-primary transition-all shadow-inner"
+              placeholder="Buscar..."
+              className="flex-1 h-11 rounded-2xl bg-white dark:bg-stone-800 px-4 text-sm outline-none border-2 border-[#245b31]/20 focus:border-[#245b31] transition-all shadow-inner"
             />
           ) : (
             <div className="flex-1">
-              <h1 className="text-xl font-black italic tracking-tighter text-slate-800 dark:text-white uppercase leading-none">Beneficios</h1>
+              <h1 className="text-xl font-black italic tracking-tighter text-stone-800 dark:text-white uppercase leading-none font-display">Beneficios</h1>
               <div className="flex items-center gap-1.5 mt-1.5">
-                <div className="size-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(255,200,0,0.5)]"></div>
-                <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">
+                <div className="size-1.5 rounded-full bg-[#245b31] animate-pulse"></div>
+                <p className="text-[10px] uppercase tracking-widest font-black text-stone-400">
                   {tab === 'ofertas' ? `${ofertasFiltradas.length} ofertas activas` : tab === 'comercios' ? `${comerciosFiltrados.length} comercios` : `${profesionales.length} profesionales`}
                 </p>
               </div>
@@ -270,7 +271,7 @@ export default function Promociones() {
 
           <button
             onClick={() => setShowSearch(!showSearch)}
-            className={`flex size-10 shrink-0 items-center justify-center rounded-2xl transition-all ${showSearch ? 'bg-primary text-slate-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
+            className={`flex size-10 shrink-0 items-center justify-center rounded-2xl transition-all ${showSearch ? 'bg-[#245b31] text-white' : 'bg-[#f4eedd] dark:bg-stone-800 text-stone-500'}`}
           >
             <span className="material-symbols-outlined">{showSearch ? 'close' : 'search'}</span>
           </button>
@@ -278,21 +279,21 @@ export default function Promociones() {
 
         {/* ── Tab switcher tipo "segmento" — 3 pestañas ── */}
         <div className="flex gap-2 px-4 pb-4">
-          <div className="flex-1 flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl">
+          <div className="flex-1 flex p-1 bg-stone-100 dark:bg-stone-800 rounded-[2rem]">
             {([
-              { id: 'profesionales' as Tab, label: 'Profesionales', icon: 'assignment_ind', activeClass: 'bg-indigo-500' },
-              { id: 'ofertas' as Tab, label: 'Ofertas', icon: 'sell', activeClass: 'bg-gradient-to-r from-orange-500 to-amber-500' },
-              { id: 'comercios' as Tab, label: 'Comercios', icon: 'storefront', activeClass: 'bg-slate-700 dark:bg-slate-600' },
+              { id: 'profesionales' as Tab, label: 'Profesionales', icon: 'assignment_ind', activeClass: 'bg-[#4b5e4a]' },
+              { id: 'ofertas' as Tab, label: 'Ofertas', icon: 'sell', activeClass: 'bg-[#995c27]' },
+              { id: 'comercios' as Tab, label: 'Comercios', icon: 'storefront', activeClass: 'bg-[#784e32]' },
             ]).map(t => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`relative flex-1 flex items-center justify-center gap-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors ${tab === t.id ? 'text-white' : 'text-slate-400'}`}
+                className={`relative flex-1 flex items-center justify-center gap-1 py-2.5 text-[9px] font-black uppercase tracking-widest transition-colors ${tab === t.id ? 'text-white' : 'text-stone-400'}`}
               >
                 {tab === t.id && (
                   <motion.div
                     layoutId="tab-bg"
-                    className={`absolute inset-0.5 rounded-xl shadow-lg ${t.activeClass}`}
+                    className={`absolute inset-0.5 rounded-[1.5rem] shadow-sm ${t.activeClass}`}
                   />
                 )}
                 <span className="relative z-10 material-symbols-outlined text-base">{t.icon}</span>
@@ -307,15 +308,15 @@ export default function Promociones() {
           <div className="relative flex-1" ref={dropdownRef}>
             <button
               onClick={() => setShowMunDropdown(!showMunDropdown)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm hover:border-primary/50 transition-all text-sm font-bold active:scale-[0.98]"
+              className="w-full flex items-center justify-between px-4 py-3 bg-[#f4eedd]/50 dark:bg-stone-800 border border-[#e5dfce] dark:border-stone-700 rounded-2xl shadow-sm hover:border-[#245b31]/50 transition-all text-sm font-bold active:scale-[0.98]"
             >
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-                <span className="truncate max-w-[150px]">
+                <span className="material-symbols-outlined text-[#245b31] text-xl">location_on</span>
+                <span className="truncate max-w-[150px] uppercase tracking-wider text-xs">
                   {filtroMunicipio === 'todos' ? 'Otros Municipios' : filtroMunicipio}
                 </span>
               </div>
-              <span className={`material-symbols-outlined text-slate-400 transition-transform duration-300 ${showMunDropdown ? 'rotate-180' : ''}`}>expand_more</span>
+              <span className={`material-symbols-outlined text-stone-400 transition-transform duration-300 ${showMunDropdown ? 'rotate-180' : ''}`}>expand_more</span>
             </button>
 
             <AnimatePresence>
@@ -324,34 +325,26 @@ export default function Promociones() {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute top-[calc(100%+8px)] left-0 right-0 max-h-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl shadow-2xl overflow-y-auto admin-scroll z-50 p-2"
+                  className="absolute top-[calc(100%+8px)] left-0 right-0 max-h-80 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-3xl shadow-2xl overflow-y-auto z-50 p-2"
                 >
                   <button
                     onClick={() => { setFiltroMunicipio('todos'); setShowMunDropdown(false); }}
-                    className={`w-full flex items-center gap-3 p-3 rounded-2xl text-left text-sm font-bold transition-all ${filtroMunicipio === 'todos' ? 'bg-primary/10 text-primary' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                    className={`w-full flex items-center gap-3 p-3 rounded-2xl text-left text-[11px] font-black uppercase tracking-widest transition-all ${filtroMunicipio === 'todos' ? 'bg-[#245b31]/10 text-[#245b31]' : 'hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300'}`}
                   >
                     <span className="material-symbols-outlined text-lg">public</span>
-                    Todos los municipios
+                    Todos
                   </button>
-                  <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2" />
+                  <div className="h-px bg-stone-100 dark:bg-stone-700 my-1 mx-2" />
                   {municipios.map(m => (
                     <button
                       key={m.id}
                       onClick={() => { setFiltroMunicipio(m.nombre); setShowMunDropdown(false); }}
-                      className={`w-full flex items-center gap-3 p-3 rounded-2xl text-left text-sm font-bold transition-all ${filtroMunicipio === m.nombre ? 'bg-primary/10 text-primary' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+                      className={`w-full flex items-center gap-3 p-3 rounded-2xl text-left text-[11px] font-black uppercase tracking-widest transition-all ${filtroMunicipio === m.nombre ? 'bg-[#245b31]/10 text-[#245b31]' : 'hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300'}`}
                     >
                       <span className="material-symbols-outlined text-lg opacity-40">apartment</span>
                       {m.nombre}
                     </button>
                   ))}
-                  <div className="h-px bg-slate-100 dark:bg-slate-700 my-1 mx-2" />
-                  <button
-                    onClick={() => { setFiltroMunicipio('No especificado'); setShowMunDropdown(false); }}
-                    className={`w-full flex items-center gap-3 p-3 rounded-2xl text-left text-sm font-bold transition-all ${filtroMunicipio === 'No especificado' ? 'bg-primary/10 text-primary' : 'hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-                  >
-                    <span className="material-symbols-outlined text-lg opacity-40">help_outline</span>
-                    Sin municipio asignado
-                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -359,10 +352,10 @@ export default function Promociones() {
 
           <button
             onClick={() => handleOpenMap()}
-            className="size-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:bg-indigo-600 active:scale-95 transition-all shrink-0"
+            className="size-12 rounded-2xl bg-[#4b5e4a] text-white flex items-center justify-center shadow-md hover:bg-[#3a4a3a] active:scale-95 transition-all shrink-0"
             title="Ver zona en mapa"
           >
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>map</span>
+            <span className="material-symbols-outlined">map</span>
           </button>
         </div>
       </header>
@@ -373,12 +366,12 @@ export default function Promociones() {
         {/* Banner Carousel dinámico */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-primary animate-ping"></span>
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-stone-400 flex items-center gap-2 italic">
+              <span className="size-1.5 rounded-full bg-[#245b31]"></span>
               Promociones Locales
             </h2>
             {user?.municipio && (
-              <span className="text-[10px] font-black uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-lg border border-primary/20">
+              <span className="text-[9px] font-black uppercase bg-[#245b31]/10 text-[#245b31] px-2 py-0.5 rounded-lg border border-[#245b31]/20">
                 {user.municipio}
               </span>
             )}
@@ -393,9 +386,9 @@ export default function Promociones() {
               <button
                 key={r}
                 onClick={() => setFiltroRubro(r)}
-                className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${filtroRubro === r
-                  ? 'bg-slate-900 border-slate-900 text-primary dark:bg-white dark:border-white dark:text-slate-950 shadow-lg'
-                  : 'bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 text-slate-400 hover:border-primary/30'
+                className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border-2 ${filtroRubro === r
+                  ? 'bg-stone-900 border-stone-900 text-white dark:bg-white dark:border-white dark:text-stone-950 shadow-md'
+                  : 'bg-[#f4eedd]/50 dark:bg-stone-800/50 border-[#e5dfce] dark:border-stone-800 text-stone-500 hover:border-[#245b31]/30'
                   }`}
               >
                 <span className="material-symbols-outlined text-lg">
@@ -415,7 +408,7 @@ export default function Promociones() {
               className="flex flex-col gap-4 p-4"
             >
               {[1, 1, 1].map((_, i) => (
-                <div key={i} className="h-44 rounded-[32px] bg-white dark:bg-slate-900 animate-pulse border border-slate-100 dark:border-slate-800" />
+                <div key={i} className="h-44 rounded-[2rem] bg-stone-100 dark:bg-stone-800 animate-pulse border border-stone-200 dark:border-stone-700" />
               ))}
             </motion.div>
           ) : tab === 'profesionales' ? (
@@ -427,29 +420,29 @@ export default function Promociones() {
               className="flex flex-col gap-4 px-4"
             >
               {/* Banner */}
-              <div className="bg-indigo-600 p-6 rounded-[32px] flex items-center gap-5 relative overflow-hidden shadow-2xl">
+              <div className="bg-[#4b5e4a] p-6 rounded-[2rem] flex items-center gap-5 relative overflow-hidden shadow-lg border border-[#3a4a3a]">
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none translate-x-1/2 -translate-y-1/2">
                   <span className="material-symbols-outlined text-9xl text-white">assignment_ind</span>
                 </div>
-                <div className="size-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                <div className="size-14 rounded-full bg-white/20 flex items-center justify-center shrink-0 shadow-sm border border-white/20">
                   <span className="material-symbols-outlined text-white text-3xl">verified</span>
                 </div>
                 <div className="relative z-10 text-white">
-                  <h3 className="font-black text-lg uppercase tracking-tight italic">Socios Profesionales</h3>
-                  <p className="text-indigo-200 text-[11px] font-bold uppercase tracking-wider mt-1">Profesionales de la Sociedad Rural</p>
+                  <h3 className="font-black text-lg uppercase tracking-tight italic font-display">Socios Profesionales</h3>
+                  <p className="text-stone-200 text-[10px] font-bold uppercase tracking-widest mt-1">Directorio Institucional</p>
                 </div>
               </div>
 
               {loadingProf ? (
                 <div className="flex flex-col gap-3">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="h-24 rounded-3xl bg-white dark:bg-slate-900 animate-pulse border border-slate-100 dark:border-slate-800" />
+                    <div key={i} className="h-24 rounded-[2rem] bg-[#f4eedd] animate-pulse border border-[#e5dfce]" />
                   ))}
                 </div>
               ) : profesionales.length === 0 ? (
                 <div className="py-20 text-center flex flex-col items-center">
-                  <span className="material-symbols-outlined text-6xl text-slate-200">person_off</span>
-                  <p className="text-slate-400 font-bold mt-4 italic">No hay profesionales registrados aún</p>
+                  <span className="material-symbols-outlined text-6xl text-stone-200">person_off</span>
+                  <p className="text-stone-400 font-bold mt-4 italic uppercase text-xs tracking-widest">Sin registros</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
@@ -462,24 +455,28 @@ export default function Promociones() {
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: idx * 0.03 }}
-                        className="bg-white dark:bg-slate-900 rounded-3xl px-5 py-4 flex items-center gap-4 shadow-sm border border-indigo-200/50 dark:border-indigo-900/40 group active:scale-[0.98] transition-all"
+                        className="bg-[#f4eedd] dark:bg-stone-800 rounded-[2rem] px-5 py-4 flex items-center gap-4 shadow-sm border border-[#e5dfce] dark:border-stone-700/50 group active:scale-[0.98] transition-all relative overflow-hidden"
                       >
-                        <div className="size-14 rounded-2xl bg-indigo-500 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20 group-hover:rotate-6 transition-transform">
-                          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>assignment_ind</span>
+                        <div className="absolute -bottom-4 -right-4 w-20 h-20 text-[#8b9172] opacity-20 pointer-events-none">
+                          <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
                         </div>
 
-                        <div className="flex-1 min-w-0">
+                        <div className="size-14 rounded-full bg-[#4b5e4a] flex items-center justify-center shrink-0 shadow-sm border border-white/10 z-10">
+                          <span className="material-symbols-outlined text-white text-2xl">assignment_ind</span>
+                        </div>
+
+                        <div className="flex-1 min-w-0 z-10">
                           <div className="flex items-center justify-between gap-2">
-                            <h4 className="font-black text-sm uppercase italic tracking-tight text-slate-800 dark:text-white truncate">{prof.nombre_apellido}</h4>
-                            <span className="text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">Profesional</span>
+                            <h4 className="font-bold text-sm uppercase italic tracking-tighter text-stone-800 dark:text-white truncate font-display">{prof.nombre_apellido}</h4>
+                            <span className="text-[8px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest bg-[#4b5e4a]/10 text-[#4b5e4a] border border-[#4b5e4a]/20 shrink-0">Socio</span>
                           </div>
 
-                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
                             {prof.rubro && (
-                              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">{prof.rubro}</span>
+                              <span className="text-[9px] font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider italic">{prof.rubro}</span>
                             )}
                             {prof.municipio && (
-                              <span className="flex items-center gap-0.5 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                              <span className="flex items-center gap-0.5 text-[9px] text-stone-400 font-bold uppercase tracking-tight">
                                 <span className="material-symbols-outlined text-[10px]">location_on</span>
                                 {prof.municipio}
                               </span>
@@ -490,9 +487,9 @@ export default function Promociones() {
                             <a
                               href={`tel:${prof.telefono}`}
                               onClick={e => e.stopPropagation()}
-                              className="inline-flex items-center gap-1.5 text-[10px] text-primary font-black mt-3 uppercase tracking-wider bg-primary/5 px-3 py-1.5 rounded-xl border border-primary/20"
+                              className="inline-flex items-center gap-1.5 text-[9px] text-emerald-700 dark:text-emerald-400 font-black mt-3 uppercase tracking-wider bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 shadow-sm"
                             >
-                              <span className="material-symbols-outlined text-sm">call</span>
+                              <span className="material-symbols-outlined text-[14px]">call</span>
                               {prof.telefono}
                             </a>
                           )}
@@ -513,18 +510,18 @@ export default function Promociones() {
               className="flex flex-col gap-5 px-4"
             >
               <div className="px-1">
-                <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-stone-400 italic">
                   Otras Promociones
                 </h2>
               </div>
 
               {ofertasFiltradas.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="size-24 rounded-[40px] bg-slate-100 dark:bg-slate-900 flex items-center justify-center mb-6">
-                    <span className="material-symbols-outlined text-6xl text-slate-300">sentiment_dissatisfied</span>
+                  <div className="size-24 rounded-[40px] bg-stone-100 dark:bg-stone-900 flex items-center justify-center mb-6 border border-stone-200">
+                    <span className="material-symbols-outlined text-6xl text-stone-300">sell</span>
                   </div>
-                  <h3 className="text-xl font-black text-slate-800 dark:text-white">Sin ofertas</h3>
-                  <p className="text-slate-400 text-sm mt-2 max-w-[250px]">No hay ofertas adicionales en esta ubicación.</p>
+                  <h3 className="text-xl font-black text-stone-800 dark:text-white font-display uppercase italic tracking-tighter">Sin ofertas</h3>
+                  <p className="text-stone-400 text-[10px] uppercase tracking-widest font-bold mt-2">No hay beneficios adicionales en esta zona.</p>
                 </div>
               ) : (
                 ofertasFiltradas.map((oferta, idx) => {
@@ -536,118 +533,68 @@ export default function Promociones() {
                       whileInView={{ opacity: 1, scale: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ delay: idx * 0.05 }}
-                      className="group relative rounded-[32px] overflow-hidden bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none active:scale-[0.98] transition-all"
+                      className="group relative rounded-[2rem] overflow-hidden bg-[#f4eedd] dark:bg-stone-800 border border-[#e5dfce] dark:border-stone-700/50 shadow-sm active:scale-[0.98] transition-all"
                     >
+                      {/* Adorno Rural */}
+                      <div className="absolute -bottom-4 -right-4 w-24 h-24 text-[#a87f5d] opacity-10 group-hover:opacity-20 pointer-events-none z-0">
+                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
+                      </div>
+
                       {/* Badge lateral tipo */}
-                      <div className={`absolute top-0 right-0 px-5 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-[0.2em] shadow-sm z-10 ${cfg.badge}`}>
+                      <div className={`absolute top-0 right-0 px-5 py-2 rounded-bl-[1.5rem] font-black text-[9px] uppercase tracking-widest shadow-sm z-10 bg-white/40 backdrop-blur-md text-stone-800 border-l border-b border-[#e5dfce]`}>
                         {cfg.label}
                       </div>
 
-                      <div className="p-6">
+                      <div className="p-6 relative z-10">
                         <div className="flex items-start gap-5">
                           {/* Contenedor de Imagen o Icono */}
-                          <div className={`size-16 shrink-0 rounded-[22px] bg-gradient-to-br ${cfg.gradFrom} ${cfg.gradTo} p-0.5 shadow-lg shadow-primary/10 overflow-hidden`}>
+                          <div className={`size-16 shrink-0 rounded-2xl bg-white p-1 shadow-sm border border-[#e5dfce] overflow-hidden flex items-center justify-center`}>
                             {oferta.imagen_url ? (
-                              <img
-                                src={oferta.imagen_url}
-                                alt={oferta.titulo}
-                                className="w-full h-full object-cover rounded-[20px]"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '';
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
+                              <img src={oferta.imagen_url} alt={oferta.titulo} className="w-full h-full object-cover rounded-xl" />
                             ) : (
-                              <div className="w-full h-full rounded-[20px] bg-white/10 flex flex-col items-center justify-center text-white backdrop-blur-sm">
+                              <div className={`w-full h-full rounded-xl flex flex-col items-center justify-center text-white ${tab === 'ofertas' ? 'bg-[#995c27]' : 'bg-[#245b31]'}`}>
                                 {oferta.descuento_porcentaje ? (
-                                  <>
-                                    <span className="text-2xl font-black">-{oferta.descuento_porcentaje}</span>
-                                    <span className="text-[10px] font-bold opacity-80 mt-[-4px]">%</span>
-                                  </>
+                                  <span className="text-xl font-black">-{oferta.descuento_porcentaje}%</span>
                                 ) : (
-                                  <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>{cfg.icon}</span>
+                                  <span className="material-symbols-outlined text-3xl">{cfg.icon}</span>
                                 )}
                               </div>
                             )}
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-lg font-black leading-tight text-slate-800 dark:text-white mb-2 group-hover:text-primary transition-colors pr-16 uppercase italic tracking-tighter">
+                            <h4 className="text-lg font-bold leading-tight text-stone-800 dark:text-white mb-2 pr-16 uppercase italic tracking-tighter font-display">
                               {oferta.titulo}
                             </h4>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm line-clamp-2 leading-relaxed mb-4">
-                              {oferta.descripcion || 'Sin descripción adicional.'}
+                            <p className="text-stone-600 dark:text-stone-400 text-xs line-clamp-2 leading-relaxed mb-4">
+                              {oferta.descripcion || 'Beneficio exclusivo para socios de la Sociedad Rural.'}
                             </p>
                           </div>
                         </div>
 
-                        {/* Social Buttons (If exist) */}
-                        {(oferta.instagram_url || oferta.facebook_url) && (
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            {oferta.instagram_url && (
-                              <button
-                                onClick={() => window.open(oferta.instagram_url!, '_blank')}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-tr from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/10 active:scale-95 transition-all"
-                              >
-                                <i className="fa-brands fa-instagram text-base"></i>
-                                Instagram
-                              </button>
-                            )}
-                            {oferta.facebook_url && (
-                              <button
-                                onClick={() => window.open(oferta.facebook_url!, '_blank')}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#1877F2] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/10 active:scale-95 transition-all"
-                              >
-                                <i className="fa-brands fa-facebook text-base"></i>
-                                Facebook
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="h-px bg-slate-100 dark:bg-slate-800 mb-4" />
+                        <div className="h-px bg-[#e5dfce] dark:bg-stone-700/50 mb-4" />
 
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3 overflow-hidden flex-1">
-                            {/* Interactive Category Icon */}
-                            <button
-                              onClick={() => {
-                                setFiltroRubro(oferta.comercio?.rubro || 'otro');
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                              }}
-                              className={`size-10 rounded-xl ${RUBRO_COLOR[oferta.comercio?.rubro || 'otro']} flex items-center justify-center text-white shrink-0 shadow-lg shadow-current/20 hover:scale-110 active:scale-95 transition-all group/rubro relative`}
-                              title={`Filtrar por ${RUBRO_LABELS[oferta.comercio?.rubro || 'otro']}`}
-                            >
-                              <span className="material-symbols-outlined text-xl">{RUBRO_ICON[oferta.comercio?.rubro || 'otro']}</span>
-                              {/* Tooltip simple */}
-                              <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover/rubro:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 font-bold">
-                                {RUBRO_LABELS[oferta.comercio?.rubro || 'otro']}
-                              </span>
-                            </button>
+                            {/* Icono de Rubro Circular */}
+                            <div className={`size-10 rounded-full ${RUBRO_COLOR[oferta.comercio?.rubro || 'otro']} flex items-center justify-center text-white shrink-0 shadow-sm border-2 border-white/20`}>
+                              <span className="material-symbols-outlined text-lg">{RUBRO_ICON[oferta.comercio?.rubro || 'otro']}</span>
+                            </div>
 
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-black truncate text-slate-800 dark:text-white uppercase tracking-tight">{oferta.comercio?.nombre_apellido}</p>
+                              <p className="text-[11px] font-black truncate text-stone-800 dark:text-white uppercase tracking-tight">{oferta.comercio?.nombre_apellido}</p>
                               <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => {
-                                    setFiltroMunicipio(oferta.comercio?.municipio || 'todos');
-                                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                                  }}
-                                  className="text-[10px] text-slate-400 hover:text-primary flex items-center gap-0.5 transition-colors group/muni"
-                                >
-                                  <span className="material-symbols-outlined text-[12px] group-hover/muni:animate-bounce">location_on</span>
-                                  <span className="border-b border-transparent group-hover/muni:border-primary/50">{oferta.comercio?.municipio}</span>
-                                </button>
-                                {oferta.comercio?.municipio === user?.municipio && (
-                                  <span className="text-[8px] font-black uppercase text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded shadow-sm border border-emerald-500/20">Cerca</span>
-                                )}
+                                <span className="text-[9px] text-stone-500 dark:text-stone-400 flex items-center gap-0.5 font-bold uppercase tracking-wider">
+                                  <span className="material-symbols-outlined text-[12px]">location_on</span>
+                                  {oferta.comercio?.municipio}
+                                </span>
                               </div>
                             </div>
                           </div>
 
                           <button
                             onClick={() => handleOpenMap(oferta.comercio)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 text-primary hover:bg-slate-800 dark:hover:bg-slate-700 transition-all border border-slate-800 dark:border-slate-700 shrink-0 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/10"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 dark:bg-stone-800 text-white hover:bg-stone-800 transition-all shrink-0 text-[10px] font-black uppercase tracking-widest shadow-sm"
                           >
                             <span className="material-symbols-outlined text-lg">explore</span>
                             Ver
@@ -669,29 +616,29 @@ export default function Promociones() {
               className="flex flex-col gap-4 px-4"
             >
               {/* Banner info */}
-              <div className="bg-slate-900 p-6 rounded-[32px] flex items-center gap-5 relative overflow-hidden shadow-2xl">
+              <div className="bg-[#784e32] p-6 rounded-[2rem] flex items-center gap-5 relative overflow-hidden shadow-lg border border-[#633e28]">
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none translate-x-1/2 -translate-y-1/2">
                   <span className="material-symbols-outlined text-9xl text-white">store</span>
                 </div>
-                <div className="size-14 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(255,200,0,0.4)]">
-                  <span className="material-symbols-outlined text-slate-900 text-3xl font-black">verified</span>
+                <div className="size-14 rounded-full bg-white/20 flex items-center justify-center shrink-0 border border-white/20">
+                  <span className="material-symbols-outlined text-white text-3xl">verified</span>
                 </div>
                 <div className="relative z-10 text-white">
-                  <h3 className="font-black text-lg uppercase tracking-tight italic">Socios Comerciales</h3>
-                  <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wider mt-1">Beneficios exclusivos para nuestros socios</p>
+                  <h3 className="font-black text-lg uppercase tracking-tight italic font-display">Socios Comerciales</h3>
+                  <p className="text-stone-200 text-[10px] font-bold uppercase tracking-widest mt-1">Guía de Beneficios</p>
                 </div>
               </div>
 
               {comerciosFiltrados.length === 0 ? (
                 <div className="py-20 text-center flex flex-col items-center">
-                  <span className="material-symbols-outlined text-6xl text-slate-200">store</span>
-                  <p className="text-slate-400 font-bold mt-4 italic">No se encontraron comercios</p>
+                  <span className="material-symbols-outlined text-6xl text-stone-200">store</span>
+                  <p className="text-stone-400 font-bold mt-4 italic uppercase text-[10px] tracking-widest">Sin comercios adheridos</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
                   {comerciosFiltrados.map((comercio, idx) => {
                     const icon = RUBRO_ICON[comercio.rubro] || 'storefront';
-                    const color = RUBRO_COLOR[comercio.rubro] || 'bg-slate-500';
+                    const color = RUBRO_COLOR[comercio.rubro] || 'bg-stone-500';
                     const label = RUBRO_LABELS[comercio.rubro] || comercio.rubro;
                     return (
                       <motion.div
@@ -700,28 +647,32 @@ export default function Promociones() {
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: idx * 0.03 }}
-                        className="bg-white dark:bg-slate-900 rounded-3xl px-5 py-4 flex items-center gap-4 shadow-sm border border-slate-200/50 dark:border-slate-800 group active:scale-[0.98] transition-all"
+                        className="bg-[#f4eedd] dark:bg-stone-800 rounded-[2rem] px-5 py-4 flex items-center gap-4 shadow-sm border border-[#e5dfce] dark:border-stone-700/50 active:scale-[0.98] transition-all relative overflow-hidden group"
                       >
-                        <div className={`size-14 rounded-2xl ${color} flex items-center justify-center shrink-0 shadow-lg shadow-slate-200 dark:shadow-none group-hover:rotate-6 transition-transform`}>
-                          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
+                         <div className="absolute -bottom-4 -right-4 w-20 h-20 text-[#8b755e] opacity-10 pointer-events-none">
+                          <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
                         </div>
 
-                        <div className="flex-1 min-w-0">
+                        <div className={`size-14 rounded-full ${color} flex items-center justify-center shrink-0 shadow-sm border-2 border-white/20 z-10 group-hover:scale-110 transition-transform`}>
+                          <span className="material-symbols-outlined text-white text-2xl">{icon}</span>
+                        </div>
+
+                        <div className="flex-1 min-w-0 z-10">
                           <div className="flex items-center justify-between gap-2">
-                            <h4 className="font-black text-sm uppercase italic tracking-tight text-slate-800 dark:text-white truncate">{comercio.nombre_apellido}</h4>
+                            <h4 className="font-bold text-sm uppercase italic tracking-tighter text-stone-800 dark:text-white truncate font-display">{comercio.nombre_apellido}</h4>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleOpenMap(comercio); }}
-                              className="size-8 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-primary transition-colors flex items-center justify-center border border-slate-100 dark:border-slate-700"
+                              className="size-8 rounded-full bg-white/50 dark:bg-stone-700 text-stone-500 hover:text-emerald-700 transition-colors flex items-center justify-center border border-[#e5dfce] dark:border-stone-600"
                             >
                               <span className="material-symbols-outlined text-lg">explore</span>
                             </button>
                           </div>
 
                           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                            <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest ${color} bg-opacity-10 text-slate-700 dark:text-slate-200`}>
+                            <span className={`text-[8px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest ${color} bg-opacity-10 text-stone-700 dark:text-white border border-black/10`}>
                               {label}
                             </span>
-                            <span className="flex items-center gap-0.5 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                            <span className="flex items-center gap-0.5 text-[9px] text-stone-400 font-bold uppercase tracking-tight">
                               <span className="material-symbols-outlined text-[10px]">location_on</span>
                               {comercio.municipio}
                             </span>
@@ -731,9 +682,9 @@ export default function Promociones() {
                             <a
                               href={`tel:${comercio.telefono}`}
                               onClick={e => e.stopPropagation()}
-                              className="inline-flex items-center gap-1.5 text-[10px] text-primary font-black mt-3 uppercase tracking-wider bg-primary/5 px-3 py-1.5 rounded-xl border border-primary/20"
+                              className="inline-flex items-center gap-1.5 text-[9px] text-emerald-700 dark:text-emerald-400 font-black mt-3 uppercase tracking-wider bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 shadow-sm"
                             >
-                              <span className="material-symbols-outlined text-sm">call</span>
+                              <span className="material-symbols-outlined text-[14px]">call</span>
                               {comercio.telefono}
                             </a>
                           )}

@@ -1,52 +1,86 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 
 export default function SocioHomeContent() {
     const { user } = useAuth();
     return (
         <>
             {/* Clima Meteorológico */}
-            <div className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-md rounded-3xl p-5 mb-6 shadow-sm border border-stone-200/50 dark:border-stone-700/50 flex items-center justify-between">
-                <div>
-                    <h3 className="text-stone-500 dark:text-stone-400 text-sm font-medium mb-1">Corrientes, AR</h3>
-                    <div className="flex items-center gap-2">
-                        <span className="text-3xl font-bold text-stone-800 dark:text-stone-100">24°C</span>
-                        <span className="text-stone-500 dark:text-stone-400 text-sm">Mayormente soleado</span>
+            <div className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-md rounded-[2rem] p-6 mb-6 shadow-xl border border-stone-200/50 dark:border-stone-700/50 flex items-center justify-between overflow-hidden relative">
+                {/* Ornamento */}
+                <div className="absolute top-0 left-0 p-4 text-[#245b31]/5 opacity-10 pointer-events-none">
+                    <span className="material-symbols-outlined text-6xl">cloud</span>
+                </div>
+                <div className="relative z-10">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400 mb-1">Corrientes, AR</h3>
+                    <div className="flex items-center gap-3">
+                        <span className="text-4xl font-black text-stone-800 dark:text-stone-100 font-display italic">24°C</span>
+                        <div className="flex flex-col">
+                            <span className="text-stone-500 dark:text-stone-400 text-[10px] font-black uppercase tracking-widest leading-none">Mayormente</span>
+                            <span className="text-stone-500 dark:text-stone-400 text-[10px] font-black uppercase tracking-widest">soleado</span>
+                        </div>
                     </div>
                 </div>
-                <span className="material-symbols-outlined text-amber-500 text-5xl">light_mode</span>
+                <motion.span 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className="material-symbols-outlined text-amber-500 text-6xl drop-shadow-lg relative z-10"
+                >
+                    light_mode
+                </motion.span>
             </div>
 
             {/* Grid de Accesos Rápidos */}
             <div className="grid grid-cols-2 gap-4">
-                <Link to="/eventos" className="aspect-square flex flex-col items-center justify-center gap-3 rounded-3xl bg-emerald-800 text-stone-50 shadow-md active:scale-95 transition-transform relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                    <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm z-10">
-                        <span className="material-symbols-outlined text-3xl">calendar_month</span>
+                <Link to="/eventos" className="aspect-square flex flex-col items-start justify-between p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm active:scale-95 transition-transform relative overflow-hidden border border-[#e5dfce] dark:border-stone-700/50 group">
+                    <div className="absolute -bottom-2 -right-2 w-20 h-20 text-[#8b9172] dark:text-stone-600 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
+                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
                     </div>
-                    <span className="font-semibold text-sm tracking-wide z-10">EVENTOS</span>
+                    <div className="bg-[#4b5e4a] text-white p-2.5 rounded-full flex items-center justify-center z-10 mb-2 shadow-sm">
+                        <span className="material-symbols-outlined text-[28px] leading-none">calendar_month</span>
+                    </div>
+                    <div className="z-10 w-full">
+                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg leading-tight mb-1 font-display">Agenda Rural</h3>
+                        <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-snug">Conocé los próximos eventos y actividades.</p>
+                    </div>
                 </Link>
-                <Link to="/promociones" className="aspect-square flex flex-col items-center justify-center gap-3 rounded-3xl bg-amber-600 text-stone-50 shadow-md active:scale-95 transition-transform relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                    <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm z-10">
-                        <span className="material-symbols-outlined text-3xl">sell</span>
+                <Link to="/promociones" className="aspect-square flex flex-col items-start justify-between p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm active:scale-95 transition-transform relative overflow-hidden border border-[#e5dfce] dark:border-stone-700/50 group">
+                    <div className="absolute -bottom-2 -right-2 w-20 h-20 text-[#a87f5d] dark:text-stone-600 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
+                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
                     </div>
-                    <span className="font-semibold text-sm tracking-wide text-center leading-tight z-10">BENEFICIOS &<br/>PROMOCIONES</span>
+                    <div className="bg-[#995c27] text-white p-2.5 rounded-full flex items-center justify-center z-10 mb-2 shadow-sm">
+                        <span className="material-symbols-outlined text-[28px] leading-none">sell</span>
+                    </div>
+                    <div className="z-10 w-full">
+                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg leading-tight mb-1 font-display">Beneficios del Socio</h3>
+                        <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-snug">Accedé a todos los beneficios y promociones.</p>
+                    </div>
                 </Link>
-                <Link to="/cuotas" className="aspect-square flex flex-col items-center justify-center gap-3 rounded-3xl bg-stone-700 text-stone-50 shadow-md active:scale-95 transition-transform relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                    <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm z-10">
-                        <span className="material-symbols-outlined text-3xl">account_balance_wallet</span>
+                <Link to="/cuotas" className="aspect-square flex flex-col items-start justify-between p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm active:scale-95 transition-transform relative overflow-hidden border border-[#e5dfce] dark:border-stone-700/50 group">
+                    <div className="absolute -bottom-2 -right-2 w-20 h-20 text-[#8b755e] dark:text-stone-600 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
+                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
                     </div>
-                    <span className="font-semibold text-sm tracking-wide z-10">CUOTAS</span>
+                    <div className="bg-[#784e32] text-white p-2.5 rounded-full flex items-center justify-center z-10 mb-2 shadow-sm">
+                        <span className="material-symbols-outlined text-[28px] leading-none">account_balance_wallet</span>
+                    </div>
+                    <div className="z-10 w-full">
+                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg leading-tight mb-1 font-display">Aportes / Cuotas</h3>
+                        <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-snug">Consultá y gestioná tus cuotas.</p>
+                    </div>
                 </Link>
-                <Link to="/carnet" className="aspect-square flex flex-col items-center justify-center gap-3 rounded-3xl bg-primary text-stone-900 shadow-md active:scale-95 transition-transform relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
-                    <div className="bg-black/10 p-4 rounded-2xl backdrop-blur-sm z-10">
-                        <span className="material-symbols-outlined text-3xl text-stone-900">badge</span>
+                <Link to="/carnet" className="aspect-square flex flex-col items-start justify-between p-4 rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm active:scale-95 transition-transform relative overflow-hidden border border-[#e5dfce] dark:border-stone-700/50 group">
+                    <div className="absolute -bottom-2 -right-2 w-20 h-20 text-[#8b9172] dark:text-stone-600 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
+                        <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
                     </div>
-                    <span className="font-semibold text-sm tracking-wide text-center z-10">Ñande Pasaporte</span>
+                    <div className="bg-[#4b5e4a] text-white p-2.5 rounded-full flex items-center justify-center z-10 mb-2 shadow-sm">
+                        <span className="material-symbols-outlined text-[28px] leading-none">badge</span>
+                    </div>
+                    <div className="z-10 w-full">
+                        <h3 className="font-bold text-stone-800 dark:text-stone-100 text-lg leading-tight mb-1 font-display">Ñande Pasaporte</h3>
+                        <p className="text-stone-600 dark:text-stone-400 text-[11px] leading-snug">Tu credencial digital siempre a mano.</p>
+                    </div>
                 </Link>
             </div>
 

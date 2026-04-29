@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import BottomNav from '../components/BottomNav';
 import GestionDependientes from '../components/GestionDependientes';
+import { motion } from 'framer-motion';
 
 export default function Perfil() {
   const { user, token, logout, updateUser } = useAuth();
@@ -104,9 +105,6 @@ export default function Perfil() {
       setTimeout(() => setStatusMsg({ type: '', text: '' }), 3000);
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
-      if (err.message.includes("Token expirado")) {
-        // Ya se disparó el evento en el fetch, o podemos dispararlo aquí si no estamos seguros
-      }
     } finally {
       setLoading(false);
     }
@@ -149,9 +147,6 @@ export default function Perfil() {
       setTimeout(() => setStatusMsg({ type: '', text: '' }), 3000);
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
-      if (err.message.includes("Token expirado")) {
-        // Ya se disparó el evento en el fetch
-      }
     } finally {
       setLoading(false);
     }
@@ -178,19 +173,18 @@ export default function Perfil() {
         throw new Error(data.detail || 'Error al actualizar preferencia');
       }
 
-      // Actualizar el contexto de auth con la nueva preferencia
       updateUser({ sonido_notificaciones_habilitado: newValue });
       setStatusMsg({ type: 'success', text: newValue ? 'Sonido activado' : 'Sonido desactivado' });
       setTimeout(() => setStatusMsg({ type: '', text: '' }), 2000);
     } catch (err: any) {
-      setSoundEnabled(!newValue); // Revertir en caso de error
+      setSoundEnabled(!newValue);
       setStatusMsg({ type: 'error', text: `Error: ${err.message}` });
     }
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
-      {/* Fondo con imagen sutil de ganadería/campo */}
+    <div className="relative min-h-screen flex flex-col font-display bg-[#f4eedd] text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+      {/* Fondo con imagen sutil */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
         style={{
@@ -200,232 +194,226 @@ export default function Perfil() {
           backgroundRepeat: "no-repeat"
         }}
       ></div>
+
       <div className="relative z-10 flex-1 flex flex-col">
-      <header className="sticky top-0 z-20 bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-md border-b border-stone-200 dark:border-stone-800">
-        <div className="flex items-center px-4 py-3 justify-between">
-          <Link to="/home" className="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center cursor-pointer">
+        <header className="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-stone-900/80 backdrop-blur-md p-4 justify-between border-b border-stone-200/50 dark:border-stone-700/50">
+          <Link to="/home" className="text-stone-800 dark:text-stone-100 flex size-10 items-center justify-center rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
             <span className="material-symbols-outlined">arrow_back</span>
           </Link>
-          <h2 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">Mi Perfil</h2>
-        </div>
-      </header>
+          <h1 className="text-stone-800 dark:text-stone-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display uppercase italic text-nowrap">Mi Perfil</h1>
+          <div className="flex w-10"></div>
+        </header>
 
-      <div className="flex p-6">
-        <div className="flex w-full flex-col gap-6 items-center">
-          <div className="flex gap-4 flex-col items-center">
-            <div className="relative group">
-              <div className="hidden">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelect}
-                  accept="image/*"
-                />
-              </div>
+        <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 space-y-8">
+          <section className="relative p-8 rounded-[2.5rem] bg-white dark:bg-stone-800 shadow-xl border border-stone-200/50 dark:border-stone-700/50 flex flex-col items-center">
+            {/* Ornamento */}
+            <div className="absolute top-0 right-0 p-6 text-[#245b31]/5 opacity-10 pointer-events-none">
+              <span className="material-symbols-outlined text-8xl">eco</span>
+            </div>
+
+            <div className="relative mb-6">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/*"
+                className="hidden"
+              />
               <div
                 onClick={() => logoPreview ? handleFileChange() : handlePencilClick()}
-                className={`bg-primary/20 bg-center bg-no-repeat aspect-square bg-cover rounded-full border-4 shadow-lg min-h-32 w-32 overflow-hidden flex items-center justify-center text-primary text-5xl font-bold uppercase transition-all cursor-pointer ${logoPreview ? 'ring-4 ring-primary ring-offset-4 ring-offset-white dark:ring-offset-slate-900 shadow-primary/30' : 'border-white dark:border-slate-800'}`}>
+                className={`size-32 rounded-[3rem] bg-stone-100 dark:bg-stone-900 border-4 shadow-2xl overflow-hidden flex items-center justify-center text-5xl font-black uppercase transition-all cursor-pointer ${logoPreview ? 'border-[#245b31] scale-105' : 'border-white dark:border-stone-700'}`}
+              >
                 {logoPreview ? (
                   <img src={logoPreview} alt="Preview" className="w-full h-full object-cover animate-pulse" />
                 ) : user?.foto_url ? (
                   <img src={user.foto_url} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  user?.nombre_apellido ? user.nombre_apellido.charAt(0) : 'S'
+                  <span className="text-stone-300 font-display">{user?.nombre_apellido?.charAt(0) || 'S'}</span>
                 )}
               </div>
               <button
                 onClick={logoPreview ? handleFileChange : handlePencilClick}
                 disabled={loading}
-                className={`absolute bottom-0 right-0 p-2 rounded-full shadow-md border-2 border-white dark:border-slate-800 flex items-center justify-center active:scale-90 transition-all cursor-pointer ${logoPreview ? 'bg-emerald-500 text-white' : 'bg-primary text-slate-900'}`}
+                className={`absolute -bottom-2 -right-2 size-10 rounded-2xl shadow-lg border-2 border-white dark:border-stone-800 flex items-center justify-center active:scale-90 transition-all ${logoPreview ? 'bg-emerald-500 text-white' : 'bg-[#245b31] text-white'}`}
               >
-                <span className="material-symbols-outlined text-sm">{logoPreview ? 'check' : 'edit'}</span>
+                <span className="material-symbols-outlined text-xl">{logoPreview ? 'check' : 'photo_camera'}</span>
               </button>
             </div>
 
-            <div className="flex flex-col items-center justify-center w-full">
-              {isEditing ? (
-                <form onSubmit={handleUpdateProfile} className="w-full space-y-4 px-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Dirección</label>
-                    <input
-                      type="text"
-                      value={editData.direccion}
-                      onChange={e => setEditData({ ...editData, direccion: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl h-12 px-4 text-slate-700 dark:text-slate-200 outline-none focus:border-primary transition-colors text-lg font-bold"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
-                    <input
-                      type="text"
-                      value={editData.telefono}
-                      onChange={e => setEditData({ ...editData, telefono: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl h-12 px-4 text-slate-700 dark:text-slate-200 outline-none focus:border-primary transition-colors font-medium"
-                      placeholder="Tu teléfono"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Municipio / Localidad</label>
+            {isEditing ? (
+              <form onSubmit={handleUpdateProfile} className="w-full space-y-5">
+                <div className="space-y-4">
+                  {[
+                    { label: 'Dirección', value: editData.direccion, key: 'direccion', icon: 'home' },
+                    { label: 'Teléfono', value: editData.telefono, key: 'telefono', icon: 'call' },
+                    { label: 'Barrio', value: editData.barrio, key: 'barrio', icon: 'location_on' },
+                    { label: 'Email', value: editData.email, key: 'email', icon: 'mail', type: 'email' }
+                  ].map((field) => (
+                    <div key={field.key} className="space-y-1.5">
+                      <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">{field.label}</label>
+                      <div className="relative">
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-lg">{field.icon}</span>
+                        <input
+                          type={field.type || 'text'}
+                          value={field.value}
+                          onChange={e => setEditData({ ...editData, [field.key]: e.target.value })}
+                          className="w-full bg-stone-50 dark:bg-stone-900/50 border border-stone-200 dark:border-stone-700 rounded-2xl h-14 pl-12 pr-4 text-stone-800 dark:text-stone-200 outline-none focus:border-[#245b31] transition-all font-bold"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Municipio / Localidad</label>
                     <div className="relative">
+                      <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-lg">apartment</span>
                       <select
                         value={editData.municipio}
                         onChange={e => setEditData({ ...editData, municipio: e.target.value })}
-                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl h-12 px-4 text-slate-700 dark:text-slate-200 outline-none focus:border-primary transition-colors font-medium appearance-none"
+                        className="w-full bg-stone-50 dark:bg-stone-900/50 border border-stone-200 dark:border-stone-700 rounded-2xl h-14 pl-12 pr-10 text-stone-800 dark:text-stone-200 outline-none focus:border-[#245b31] transition-all font-bold appearance-none"
                       >
-                        <option value="">Seleccioná un municipio</option>
+                        <option value="">Seleccioná localidad</option>
                         {municipiosDisponibles.map(m => (
                           <option key={m.id} value={m.nombre}>{m.nombre}</option>
                         ))}
-                        <option value="No especificado">No especificado</option>
                       </select>
-                      <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
+                      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-stone-400">expand_more</span>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Barrio</label>
-                    <input
-                      type="text"
-                      value={editData.barrio}
-                      onChange={e => setEditData({ ...editData, barrio: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl h-12 px-4 text-slate-700 dark:text-slate-200 outline-none focus:border-primary transition-colors font-medium"
-                      placeholder="Ej: Centro, Sudoeste, etc."
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Correo electrónico</label>
-                    <input
-                      type="email"
-                      value={editData.email}
-                      onChange={e => setEditData({ ...editData, email: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl h-12 px-4 text-slate-700 dark:text-slate-200 outline-none focus:border-primary transition-colors font-medium"
-                      placeholder="Tu correo electrónico"
-                    />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      className="flex-1 h-11 rounded-xl text-slate-500 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-700"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="flex-1 h-11 rounded-xl bg-primary text-slate-900 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-transform disabled:opacity-50"
-                    >
-                      {loading ? 'Guardando...' : 'Guardar'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <>
-                  <p className="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight tracking-tight text-center">{user?.nombre_apellido || 'Cargando...'}</p>
-                  <p className="text-primary font-medium text-base leading-normal text-center mb-1">{user?.email || 'N/A'}</p>
+                </div>
 
-                  {user?.municipio && (
-                    <p className="text-slate-600 dark:text-slate-300 font-medium text-sm mt-1 text-center bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <span className="material-symbols-outlined text-[14px] align-text-bottom mr-1 text-primary">apartment</span>
-                      {user.municipio}
-                    </p>
-                  )}
-                  {user?.barrio && (
-                    <p className="text-slate-600 dark:text-slate-300 font-medium text-sm mt-1 text-center bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <span className="material-symbols-outlined text-[14px] align-text-bottom mr-1 text-primary">location_on</span>
-                      {user.barrio}
-                    </p>
-                  )}
-                  {user?.direccion && (
-                    <p className="text-slate-600 dark:text-slate-300 font-medium text-sm mt-1 text-center bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <span className="material-symbols-outlined text-[14px] align-text-bottom mr-1 text-primary">location_on</span>
-                      {user.direccion}
-                    </p>
-                  )}
-                  {user?.telefono && (
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 text-center bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                      <span className="material-symbols-outlined text-[14px] align-text-bottom mr-1 text-primary">call</span>
-                      {user.telefono}
-                    </p>
-                  )}
-                  <p className="text-slate-500 font-medium text-sm leading-normal text-center uppercase tracking-widest mt-2">{user?.rol}</p>
+                <div className="flex gap-4 pt-4">
                   <button
-                    onClick={() => setIsEditing(true)}
-                    className="mt-6 flex min-w-[140px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-11 px-6 bg-primary text-slate-900 text-sm font-bold shadow-sm active:scale-95 transition-transform"
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="flex-1 py-4 rounded-2xl text-stone-500 font-black uppercase tracking-widest text-[10px] bg-stone-100 dark:bg-stone-900 active:scale-95 transition-all"
                   >
-                    <span className="truncate">Editar Perfil</span>
+                    Cancelar
                   </button>
-                </>
-              )}
-            </div>
-          </div>
-          {statusMsg.text && (
-            <div className={`mt-2 p-3 rounded-xl text-xs font-bold text-center animate-in fade-in slide-in-from-top-2 border ${statusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
-              statusMsg.type === 'error' ? 'bg-red-500/20 text-red-300 border-red-500/30' :
-                'bg-primary/20 text-primary-light border-primary/30'
-              }`}>
-              {statusMsg.text}
-            </div>
-          )}
-        </div>
-      </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 py-4 rounded-2xl bg-[#245b31] text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#245b31]/20 active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {loading ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="w-full text-center space-y-4">
+                <div>
+                  <h2 className="text-2xl font-black text-stone-800 dark:text-white uppercase italic tracking-tighter leading-none font-display">{user?.nombre_apellido}</h2>
+                  <p className="text-[#a87f5d] text-[10px] font-black uppercase tracking-[0.2em] mt-1">{user?.email}</p>
+                </div>
 
-      <div className="flex-1 px-4 pb-24">
-        <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest pb-3 pt-4 px-2">Configuración</h3>
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-primary/5 overflow-hidden">
-          {user?.rol !== 'ADMIN' && (
-            <Link to="/cambio-password" className="flex items-center gap-4 px-4 py-4 border-b border-slate-50 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800 transition-colors cursor-pointer">
-              <div className="flex items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0 size-10">
-                <span className="material-symbols-outlined">lock</span>
+                <div className="grid grid-cols-2 gap-3 pt-4">
+                  {[
+                    { icon: 'apartment', text: user?.municipio || 'No especificado', label: 'Localidad' },
+                    { icon: 'location_on', text: user?.direccion || 'Sin dirección', label: 'Dirección' },
+                    { icon: 'call', text: user?.telefono || 'Sin teléfono', label: 'Teléfono' },
+                    { icon: 'badge', text: user?.rol || 'Socio', label: 'Rol' }
+                  ].map((item, idx) => (
+                    <div key={idx} className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-900/50 border border-stone-200/50 dark:border-stone-700/50 text-left">
+                      <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest mb-1 block">{item.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-stone-400 text-sm">{item.icon}</span>
+                        <span className="text-xs font-bold text-stone-700 dark:text-stone-300 truncate">{item.text}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="w-full mt-6 py-4 rounded-2xl bg-[#f4eedd] border border-[#e5dfce] text-[#784e32] text-[10px] font-black uppercase tracking-[0.2em] shadow-sm hover:bg-[#e5dfce] active:scale-95 transition-all"
+                >
+                  Editar Perfil
+                </button>
               </div>
-              <p className="text-slate-700 dark:text-slate-300 text-base font-medium flex-1">Seguridad</p>
-              <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
-            </Link>
-          )}
-          <div className="flex items-center gap-4 px-4 py-4 border-b border-slate-50 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800 transition-colors">
-            <div className="flex items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0 size-10">
-              <span className="material-symbols-outlined">volume_up</span>
-            </div>
-            <p className="text-slate-700 dark:text-slate-300 text-base font-medium flex-1">Sonido de Notificaciones</p>
-            <button
-              onClick={handleSoundToggle}
-              className={`shrink-0 w-12 h-7 rounded-full transition-all ${
-                soundEnabled
-                  ? 'bg-primary shadow-lg shadow-primary/50'
-                  : 'bg-slate-300 dark:bg-slate-600'
-              } relative`}
+            )}
+          </section>
+
+          {statusMsg.text && (
+             <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center border ${
+                statusMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 
+                statusMsg.type === 'error' ? 'bg-red-500/10 text-red-600 border-red-500/20' : 
+                'bg-[#245b31]/10 text-[#245b31] border-[#245b31]/20'
+              }`}
             >
-              <div
-                className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
-                  soundEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-          <Link to="/preferencias" className="flex items-center gap-4 px-4 py-4 active:bg-slate-50 dark:active:bg-slate-800 transition-colors cursor-pointer">
-            <div className="flex items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0 size-10">
-              <span className="material-symbols-outlined">settings</span>
+              {statusMsg.text}
+            </motion.div>
+          )}
+
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-400 px-2">Configuración y Seguridad</h3>
+            <div className="bg-white dark:bg-stone-800 rounded-[2rem] shadow-xl border border-stone-200/50 dark:border-stone-700/50 overflow-hidden">
+              {user?.rol !== 'ADMIN' && (
+                <Link to="/cambio-password" title="Seguridad" className="flex items-center gap-4 p-5 border-b border-stone-100 dark:border-stone-700/50 active:bg-stone-50 dark:active:bg-stone-900 transition-all">
+                  <div className="size-12 rounded-2xl bg-stone-100 dark:bg-stone-900 text-stone-500 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-2xl">lock</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-stone-800 dark:text-stone-100">Seguridad</p>
+                    <p className="text-[10px] font-medium text-stone-400 uppercase tracking-widest">Cambiar contraseña</p>
+                  </div>
+                  <span className="material-symbols-outlined text-stone-300">chevron_right</span>
+                </Link>
+              )}
+              
+              <div className="flex items-center gap-4 p-5 border-b border-stone-100 dark:border-stone-700/50 active:bg-stone-50 dark:active:bg-stone-900 transition-all">
+                <div className="size-12 rounded-2xl bg-stone-100 dark:bg-stone-900 text-stone-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-2xl">notifications_active</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-stone-800 dark:text-stone-100">Notificaciones</p>
+                  <p className="text-[10px] font-medium text-stone-400 uppercase tracking-widest">Sonido habilitado</p>
+                </div>
+                <button
+                  onClick={handleSoundToggle}
+                  className={`relative w-12 h-6 rounded-full transition-all duration-300 ${soundEnabled ? 'bg-[#245b31]' : 'bg-stone-200 dark:bg-stone-700'}`}
+                >
+                  <motion.div 
+                    animate={{ x: soundEnabled ? 26 : 4 }}
+                    className="absolute top-1 size-4 rounded-full bg-white shadow-sm"
+                  />
+                </button>
+              </div>
+
+              <Link to="/preferencias" title="Preferencias" className="flex items-center gap-4 p-5 active:bg-stone-50 dark:active:bg-stone-900 transition-all">
+                <div className="size-12 rounded-2xl bg-stone-100 dark:bg-stone-900 text-stone-500 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-2xl">tune</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-stone-800 dark:text-stone-100">Preferencias</p>
+                  <p className="text-[10px] font-medium text-stone-400 uppercase tracking-widest">Personalizar app</p>
+                </div>
+                <span className="material-symbols-outlined text-stone-300">chevron_right</span>
+              </Link>
             </div>
-            <p className="text-slate-700 dark:text-slate-300 text-base font-medium flex-1">Preferencias</p>
-            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
-          </Link>
-        </div>
+          </section>
 
-        {user?.rol !== 'COMERCIO' && <GestionDependientes />}
+          {user?.rol !== 'COMERCIO' && <GestionDependientes />}
 
+          <div className="pt-4 space-y-8">
+            <button 
+              onClick={handleLogout} 
+              className="w-full py-5 rounded-[2rem] bg-white dark:bg-stone-800 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-red-500/5 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined">logout</span>
+              Cerrar Sesión
+            </button>
 
-        <div className="mt-8 px-2">
-          <button onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-xl h-12 border border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 font-semibold active:bg-red-100 dark:active:bg-red-900/20 transition-colors">
-            <span className="material-symbols-outlined text-lg">logout</span>
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
+            <div className="text-center opacity-40">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-stone-500">Sociedad Rural</p>
+              <p className="text-[8px] font-black uppercase tracking-[0.4em] text-stone-400 mt-1">Versión 2.4.0 • 2024</p>
+            </div>
+          </div>
+        </main>
 
-        <div className="mt-12 mb-8 text-center">
-          <p className="text-slate-400 dark:text-slate-500 text-xs font-medium">Sociedad Rural Norte de Corrientes</p>
-          <p className="text-slate-400 dark:text-slate-500 text-[10px] mt-1">Versión 2.4.0</p>
-        </div>
-      </div>
-      <BottomNav />
+        <BottomNav />
       </div>
     </div>
   );

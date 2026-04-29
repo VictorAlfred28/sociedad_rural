@@ -66,28 +66,28 @@ export default function Eventos() {
         }}
       ></div>
       <div className="relative z-10 flex-1 flex flex-col">
-      <header className="sticky top-0 z-50 flex items-center bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-md p-4 justify-between border-b border-emerald-600/10">
-        <Link to="/home" className="text-slate-900 dark:text-slate-100 flex size-10 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
+      <header className="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-stone-900/80 backdrop-blur-md p-4 justify-between border-b border-stone-200/50 dark:border-stone-700/50">
+        <Link to="/home" className="text-stone-800 dark:text-stone-100 flex size-10 items-center justify-center rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
           <span className="material-symbols-outlined">arrow_back</span>
         </Link>
-        <h1 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center">Eventos y Remates</h1>
+        <h1 className="text-stone-800 dark:text-stone-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display uppercase italic">Agenda Rural</h1>
         <div className="flex w-10 items-center justify-end">
-          <button className="flex size-10 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
-            <span className="material-symbols-outlined text-slate-900 dark:text-slate-100">search</span>
+          <button className="flex size-10 items-center justify-center rounded-full hover:bg-stone-100 transition-colors">
+            <span className="material-symbols-outlined text-stone-800 dark:text-stone-100">search</span>
           </button>
         </div>
       </header>
 
       <div className="px-4 py-4 space-y-3">
         {filtroMunicipio && (
-          <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 text-sm text-primary">
-            <div className="flex items-center gap-2 font-medium">
+          <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 rounded-2xl px-4 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
+            <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[10px]">
               <span className="material-symbols-outlined text-[18px]">location_on</span>
-              <span>Mostrando en: <strong>{filtroMunicipio}</strong></span>
+              <span>Zona: <strong>{filtroMunicipio}</strong></span>
             </div>
             <button
               onClick={() => setFiltroMunicipio(null)}
-              className="flex items-center justify-center size-6 rounded-md hover:bg-primary/20 transition-colors"
+              className="flex items-center justify-center size-6 rounded-full bg-emerald-100 dark:bg-emerald-800/50 hover:bg-emerald-200 transition-colors"
               title="Ver todos los municipios"
             >
               <span className="material-symbols-outlined text-[16px]">close</span>
@@ -96,51 +96,46 @@ export default function Eventos() {
         )}
 
         {!filtroMunicipio && user?.municipio && (
-          <div className="flex items-center justify-between text-xs text-slate-500 italic pb-1">
-            <span>Mostrando todos los municipios</span>
-            <button onClick={() => setFiltroMunicipio(user.municipio)} className="text-primary hover:underline font-medium">
-              Filtrar por mi municipio
+          <div className="flex items-center justify-between text-[10px] text-stone-400 font-bold uppercase tracking-widest px-1">
+            <span>Todas las localidades</span>
+            <button onClick={() => setFiltroMunicipio(user.municipio)} className="text-emerald-600 dark:text-emerald-400 hover:underline">
+              Ver mi zona
             </button>
           </div>
         )}
 
-        <div className="flex h-12 items-center justify-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50 p-1 border border-primary/5">
-
-          <label className="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-slate-700 has-[:checked]:shadow-sm has-[:checked]:text-primary text-slate-600 dark:text-slate-400 text-sm font-semibold transition-all">
-            <span>Próximos</span>
-            <input
-              checked={tab === 'upcoming'}
-              onChange={() => setTab('upcoming')}
-              className="hidden" name="event-toggle" type="radio" value="upcoming"
-            />
-          </label>
-          <label className="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-slate-700 has-[:checked]:shadow-sm has-[:checked]:text-primary text-slate-600 dark:text-slate-400 text-sm font-semibold transition-all">
-            <span>Anteriores</span>
-            <input
-              checked={tab === 'past'}
-              onChange={() => setTab('past')}
-              className="hidden" name="event-toggle" type="radio" value="past"
-            />
-          </label>
+        <div className="flex h-11 items-center justify-center rounded-2xl bg-stone-200/50 dark:bg-stone-800/50 p-1 border border-stone-200/50">
+          <button
+            onClick={() => setTab('upcoming')}
+            className={`flex-1 flex items-center justify-center h-full rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'upcoming' ? 'bg-white dark:bg-stone-700 text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-stone-400'}`}
+          >
+            Próximos
+          </button>
+          <button
+            onClick={() => setTab('past')}
+            className={`flex-1 flex items-center justify-center h-full rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'past' ? 'bg-white dark:bg-stone-700 text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-stone-400'}`}
+          >
+            Anteriores
+          </button>
         </div>
       </div>
 
-      <main className="flex-1 px-4 space-y-6 pb-24">
+      <main className="flex-1 px-4 space-y-5 pb-24">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
-            <span className="material-symbols-outlined text-4xl animate-spin text-primary">autorenew</span>
-            <p className="font-semibold tracking-wide">Cargando eventos...</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-stone-400">
+            <span className="material-symbols-outlined text-4xl animate-spin text-emerald-600">autorenew</span>
+            <p className="font-bold text-xs uppercase tracking-widest">Cargando eventos...</p>
           </div>
         ) : error ? (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center gap-3">
+          <div className="p-5 rounded-3xl bg-red-50 dark:bg-red-900/20 border border-red-200/50 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-3">
             <span className="material-symbols-outlined">error</span>
             {error}
           </div>
         ) : displayedEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
-            <span className="material-symbols-outlined text-5xl opacity-50">event_busy</span>
-            <p className="font-semibold tracking-wide text-center px-4">
-              {tab === 'upcoming' ? 'No hay próximos eventos programados.' : 'No hay eventos finalizados.'}
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-stone-400">
+            <span className="material-symbols-outlined text-5xl opacity-20">event_busy</span>
+            <p className="font-bold text-xs uppercase tracking-widest text-center px-8 leading-relaxed">
+              {tab === 'upcoming' ? 'No hay próximos eventos programados para esta zona.' : 'No hay historial de eventos finalizados.'}
             </p>
           </div>
         ) : (
@@ -150,36 +145,47 @@ export default function Eventos() {
             const day = dateObj.toLocaleDateString('es-AR', { day: '2-digit' });
 
             return (
-              <div key={ev.id} className="group relative flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-primary/10 hover:shadow-md transition-shadow">
-                <div className="relative w-full aspect-[16/9] bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                  <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+              <div key={ev.id} className="group relative flex flex-col overflow-hidden rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm border border-[#e5dfce] dark:border-stone-700/50 active:scale-[0.98] transition-transform">
+                <div className="relative w-full aspect-[16/9] bg-stone-200 dark:bg-stone-900 overflow-hidden">
+                  <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
                     style={{ backgroundImage: `url("${getImage(ev)}")` }}></div>
+                  
+                  <div className="absolute inset-0 bg-gradient-to-t from-stone-900/60 to-transparent"></div>
 
-                  <div className="absolute top-3 left-3 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
+                  <div className="absolute top-4 left-4 bg-emerald-700 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-lg">
                     {ev.tipo}
                   </div>
-                  <div className="absolute top-3 right-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-lg flex flex-col items-center shadow-lg border border-primary/10">
-                    <span className="text-xs font-bold text-primary leading-none uppercase">{month}</span>
-                    <span className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-none mt-1">{day}</span>
+                  <div className="absolute top-4 right-4 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md px-3 py-2 rounded-2xl flex flex-col items-center shadow-lg border border-stone-200/50">
+                    <span className="text-[10px] font-black text-emerald-700 leading-none uppercase tracking-tighter">{month}</span>
+                    <span className="text-2xl font-black text-stone-900 dark:text-stone-100 leading-none mt-1">{day}</span>
                   </div>
                 </div>
-                <div className="flex flex-col p-4 gap-3">
-                  <div>
-                    <h3 className="text-slate-900 dark:text-slate-100 text-xl font-bold leading-snug">{ev.titulo}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 line-clamp-2">{ev.descripcion}</p>
 
-                    <div className="mt-3 space-y-1">
+                <div className="absolute -bottom-4 -right-4 w-24 h-24 text-[#8b9172] dark:text-stone-600 opacity-20 group-hover:opacity-30 transition-opacity pointer-events-none z-0">
+                  <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M50 100 C 50 70, 70 50, 90 40 C 70 45, 55 60, 50 80 C 45 60, 30 45, 10 40 C 30 50, 50 70, 50 100 Z"/><path d="M50 70 C 50 50, 70 30, 80 20 C 65 30, 55 45, 50 60 C 45 45, 35 30, 20 20 C 30 30, 50 50, 50 70 Z"/></svg>
+                </div>
+
+                <div className="flex flex-col p-5 gap-3 relative z-10">
+                  <div>
+                    <h3 className="text-stone-800 dark:text-stone-100 text-lg font-bold leading-tight font-display italic pr-4 uppercase tracking-tighter">{ev.titulo}</h3>
+                    <p className="text-xs text-stone-600 dark:text-stone-400 mt-2 line-clamp-2 leading-relaxed">{ev.descripcion}</p>
+
+                    <div className="mt-4 flex flex-col gap-2">
                       <a
                         href={`https://maps.google.com/?q=${encodeURIComponent(ev.lugar)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-sm hover:text-primary transition-colors group/link"
+                        className="flex items-center gap-2 text-stone-700 dark:text-stone-300 text-[11px] font-bold hover:text-emerald-700 transition-colors group/link"
                       >
-                        <span className="material-symbols-outlined text-sm text-primary group-hover/link:animate-bounce">location_on</span>
-                        <span className="group-hover/link:underline">{ev.lugar}</span>
+                        <div className="size-7 rounded-full bg-emerald-700/10 text-emerald-700 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-[16px]">location_on</span>
+                        </div>
+                        <span className="underline decoration-stone-300 underline-offset-2">{ev.lugar}</span>
                       </a>
-                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-sm">
-                        <span className="material-symbols-outlined text-sm text-primary">schedule</span>
+                      <div className="flex items-center gap-2 text-stone-700 dark:text-stone-300 text-[11px] font-bold">
+                        <div className="size-7 rounded-full bg-emerald-700/10 text-emerald-700 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-[16px]">schedule</span>
+                        </div>
                         <span>{ev.hora.slice(0, 5)} HS</span>
                       </div>
                     </div>

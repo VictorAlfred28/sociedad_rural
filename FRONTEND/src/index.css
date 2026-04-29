@@ -7,6 +7,15 @@
   --color-background-light: #f6f8f6;
   --color-background-dark: #102213;
 
+  /* Rural Moderna Design System */
+  --color-rural-beige: #f4eedd;
+  --color-rural-beige-border: #e5dfce;
+  --color-rural-green: #245b31;
+  --color-rural-green-earth: #4b5e4a;
+  --color-rural-terracotta: #995c27;
+  --color-rural-brown: #784e32;
+  --color-rural-paper: #faf9f6;
+
   /* Diseño Panel Administrador default (Cyber) */
   --color-admin-bg: #030a05;
   --color-admin-card: #08110a;

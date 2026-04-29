@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { PasswordInput } from '../components/ui/PasswordInput';
+import { motion } from 'framer-motion';
 
 export default function CambioPassword() {
     const { token, logout, updateUser } = useAuth();
@@ -69,8 +70,8 @@ export default function CambioPassword() {
     };
 
     return (
-        <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
-            {/* Fondo con imagen sutil de ganadería/campo */}
+        <div className="relative min-h-screen flex flex-col font-display bg-[#f4eedd] text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+            {/* Fondo con imagen sutil */}
             <div 
                 className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
                 style={{
@@ -80,69 +81,93 @@ export default function CambioPassword() {
                     backgroundRepeat: "no-repeat"
                 }}
             ></div>
+
             <div className="relative z-10 flex-1 flex flex-col">
-            <header className="flex flex-col gap-2 p-6 pb-2 pt-12 items-center text-center">
-                <div className="flex size-16 items-center justify-center rounded-3xl bg-primary text-slate-900 shadow-md mb-2">
-                    <span className="material-symbols-outlined text-3xl">lock_reset</span>
-                </div>
-                <h1 className="text-2xl font-bold tracking-tight">Cambio de Contraseña</h1>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Por seguridad, debes actualizar tu contraseña temporal antes de continuar.
-                </p>
-            </header>
+                <header className="flex flex-col gap-2 p-8 pb-4 pt-12 items-center text-center">
+                    <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="size-20 flex items-center justify-center rounded-[2rem] bg-[#245b31] text-white shadow-xl mb-4"
+                    >
+                        <span className="material-symbols-outlined text-4xl">lock_reset</span>
+                    </motion.div>
+                    <h1 className="text-3xl font-black text-stone-800 dark:text-white uppercase italic tracking-tighter font-display leading-none">Seguridad</h1>
+                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em] mt-2 max-w-[240px]">
+                        Actualiza tu contraseña para proteger tu cuenta
+                    </p>
+                </header>
 
-            <main className="flex-1 p-6 flex flex-col justify-center">
-                {successMsg && (
-                    <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-600 dark:text-emerald-400 text-sm font-medium text-center">
-                        {successMsg}
+                <main className="flex-1 p-6 space-y-8 flex flex-col">
+                    <section className="bg-white dark:bg-stone-800 p-8 rounded-[2.5rem] shadow-xl border border-stone-200/50 dark:border-stone-700/50 space-y-6 relative overflow-hidden">
+                        {/* Ornamento */}
+                        <div className="absolute -top-4 -right-4 p-6 text-[#245b31]/5 opacity-10 pointer-events-none">
+                            <span className="material-symbols-outlined text-7xl">shield</span>
+                        </div>
+
+                        {successMsg && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 text-[10px] font-black uppercase tracking-widest text-center"
+                            >
+                                {successMsg}
+                            </motion.div>
+                        )}
+
+                        {errorMsg && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-600 text-[10px] font-black uppercase tracking-widest text-center"
+                            >
+                                {errorMsg}
+                            </motion.div>
+                        )}
+
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Nueva Contraseña</label>
+                                <PasswordInput
+                                    id="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="h-14 w-full rounded-2xl bg-stone-50 dark:bg-stone-900 px-6 text-sm font-bold shadow-sm outline-none border border-stone-200 dark:border-stone-800 focus:border-[#245b31] transition-all"
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-stone-400 uppercase tracking-widest ml-1">Confirmar Contraseña</label>
+                                <PasswordInput
+                                    id="confirmPassword"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="h-14 w-full rounded-2xl bg-stone-50 dark:bg-stone-900 px-6 text-sm font-bold shadow-sm outline-none border border-stone-200 dark:border-stone-800 focus:border-[#245b31] transition-all"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isLoading || !!successMsg}
+                                className="w-full py-5 rounded-[2rem] bg-[#245b31] text-white font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-[#245b31]/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isLoading ? 'Actualizando...' : 'Actualizar Contraseña'}
+                            </button>
+                        </form>
+                    </section>
+
+                    <div className="text-center pt-4">
+                        <button 
+                            onClick={logout} 
+                            className="text-stone-400 font-black uppercase tracking-[0.3em] text-[10px] hover:text-[#784e32] transition-colors decoration-[#784e32]/30 underline underline-offset-8"
+                        >
+                            Cerrar Sesión
+                        </button>
                     </div>
-                )}
-
-                {errorMsg && (
-                    <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm font-medium text-center">
-                        {errorMsg}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-1.5 focus-within:text-primary transition-colors">
-                        <label htmlFor="password" className="text-xs font-bold uppercase tracking-widest pl-1">Nueva Contraseña</label>
-                        <PasswordInput
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Minimo 6 caracteres"
-                            className="h-12 w-full rounded-xl bg-white dark:bg-slate-900 px-4 text-sm font-medium shadow-sm outline-none border border-slate-200 dark:border-slate-800 focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400"
-                            required
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 focus-within:text-primary transition-colors">
-                        <label htmlFor="confirmPassword" className="text-xs font-bold uppercase tracking-widest pl-1">Confirmar Contraseña</label>
-                        <PasswordInput
-                            id="confirmPassword"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Repite tu nueva contraseña"
-                            className="h-12 w-full rounded-xl bg-white dark:bg-slate-900 px-4 text-sm font-medium shadow-sm outline-none border border-slate-200 dark:border-slate-800 focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400"
-                            required
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={isLoading || !!successMsg}
-                        className="mt-4 flex w-full items-center justify-center rounded-xl h-14 bg-primary text-slate-900 text-base font-bold shadow-md active:scale-95 transition-transform disabled:opacity-50 disabled:pointer-events-none">
-                        {isLoading ? 'Actualizando...' : 'Actualizar Contraseña'}
-                    </button>
-                </form>
-
-                <div className="mt-8 text-center pt-8 border-t border-slate-200 dark:border-slate-800">
-                    <button onClick={logout} className="text-slate-500 font-medium text-sm underline underline-offset-4 decoration-slate-300">
-                        Cerrar Sesión
-                    </button>
-                </div>
-            </main>
+                </main>
             </div>
         </div>
     );
