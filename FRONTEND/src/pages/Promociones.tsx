@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import FeaturedCarousel from '../components/FeaturedCarousel';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
+import paisaje from '../assets/paisaje.png';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface Oferta {

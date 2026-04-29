@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { AppLauncher } from '@capacitor/app-launcher';
 import BottomNav from '../components/BottomNav';
 import { useAuth } from '../context/AuthContext';
+import paisaje from '../assets/paisaje.png';
 
 interface Pago {
   id: string;
@@ -189,8 +190,8 @@ export default function Cuotas() {
             </div>
             <div className="mt-6 flex gap-4">
               <div className="flex-1 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
-                <p className="text-[9px] font-bold uppercase tracking-widest opacity-60">Matrícula</p>
-                <p className="text-sm font-black mt-0.5">#{user?.matricula || '0000'}</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest opacity-60">Socio</p>
+                <p className="text-sm font-black mt-0.5">#{user?.numero_socio || '0000'}</p>
               </div>
               <div className="flex-1 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10">
                 <p className="text-[9px] font-bold uppercase tracking-widest opacity-60">DNI</p>

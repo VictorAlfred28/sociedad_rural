@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import BottomNav from '../components/BottomNav';
 import GestionDependientes from '../components/GestionDependientes';
 import { motion } from 'framer-motion';
+import paisaje from '../assets/paisaje.png';
 
 export default function Perfil() {
   const { user, token, logout, updateUser } = useAuth();

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import BottomNav from '../components/BottomNav';
+import paisaje from '../assets/paisaje.png';
 
 export default function Preferencias() {
     const { theme, toggleTheme } = useTheme();

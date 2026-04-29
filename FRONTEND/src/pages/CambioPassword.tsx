@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { PasswordInput } from '../components/ui/PasswordInput';
 import { motion } from 'framer-motion';
+import paisaje from '../assets/paisaje.png';
 
 export default function CambioPassword() {
     const { token, logout, updateUser } = useAuth();

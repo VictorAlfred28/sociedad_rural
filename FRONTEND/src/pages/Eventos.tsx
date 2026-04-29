@@ -3,6 +3,7 @@ import BottomNav from '../components/BottomNav';
 import { Link } from 'react-router-dom';
 import { Evento } from '../components/admin/GestionEventos';
 import { useAuth } from '../context/AuthContext';
+import paisaje from '../assets/paisaje.png';
 
 export default function Eventos() {
   const { user } = useAuth();
