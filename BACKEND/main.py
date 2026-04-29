@@ -1444,7 +1444,7 @@ async def chat_with_assistant(
         # 1. Recuperar historial previo (últimos 20 mensajes)
         history_res = (
             supabase.table("chat_history")
-            .select("role, content")
+            .select("role, content, metadata")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .limit(20)
@@ -1473,6 +1473,7 @@ async def chat_with_assistant(
                 "metadata": {
                     "mode": data.mode,
                     "has_image": data.image_url is not None,
+                    "image_url": data.image_url,
                 },
             }
         ).execute()
@@ -1482,10 +1483,10 @@ async def chat_with_assistant(
             {"user_id": user_id, "role": "assistant", "content": assistant_response}
         ).execute()
 
-        # 5. Si hay imagen, programar su borrado automático
-        if data.image_url and "chat-images" in data.image_url:
-            path_coords = data.image_url.split("/")[-1]
-            background_tasks.add_task(delete_chat_image, path_coords)
+        # 5. Si hay imagen, NO programar su borrado automático para permitir diagnóstico guiado
+        # if data.image_url and "chat-images" in data.image_url:
+        #     path_coords = data.image_url.split("/")[-1]
+        #     background_tasks.add_task(delete_chat_image, path_coords)
 
         logger.info(f"[/api/chat] Respuesta enviada al usuario {user_id}")
         return {"response": assistant_response, "history_count": len(history) + 2}
