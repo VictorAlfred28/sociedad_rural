@@ -7,13 +7,26 @@ export default function Preferencias() {
     const { theme, toggleTheme } = useTheme();
 
     return (
-        <div className="relative flex min-h-screen w-full flex-col max-w-[430px] mx-auto bg-background-light dark:bg-background-dark shadow-2xl overflow-x-hidden">
-            <div className="flex items-center bg-background-light dark:bg-background-dark p-4 sticky top-0 z-10 border-b border-primary/10 justify-between">
-                <Link to="/perfil" className="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center cursor-pointer">
-                    <span className="material-symbols-outlined">arrow_back</span>
-                </Link>
-                <h2 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">Preferencias</h2>
-            </div>
+        <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+            {/* Fondo con imagen sutil de ganadería/campo */}
+            <div 
+                className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+                style={{
+                    backgroundImage: "url('/src/assets/vaquita.png')",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat"
+                }}
+            ></div>
+            <div className="relative z-10 flex-1 flex flex-col">
+            <header className="sticky top-0 z-20 bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-md border-b border-stone-200 dark:border-stone-800">
+                <div className="flex items-center px-4 py-3 justify-between">
+                    <Link to="/perfil" className="text-slate-900 dark:text-slate-100 flex size-10 shrink-0 items-center justify-center cursor-pointer">
+                        <span className="material-symbols-outlined">arrow_back</span>
+                    </Link>
+                    <h2 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">Preferencias</h2>
+                </div>
+            </header>
 
             <div className="flex-1 px-4 py-6">
                 <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest pb-3 px-2">Visualización</h3>
@@ -40,6 +53,7 @@ export default function Preferencias() {
             </div>
 
             <BottomNav />
+            </div>
         </div>
     );
 }

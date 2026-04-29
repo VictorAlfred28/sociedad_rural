@@ -62,7 +62,17 @@ export default function CarnetDigital() {
   const pasaporteMode = viewMode === 'pasaporte';
 
   return (
-    <div className={`relative flex min-h-screen w-full flex-col overflow-hidden mx-auto max-w-[430px] shadow-2xl pb-28 transition-colors duration-500 ${pasaporteMode ? 'bg-[#f4f2ee] dark:bg-slate-900' : 'bg-background-light dark:bg-background-dark'}`}>
+    <div className={`relative flex min-h-screen w-full flex-col overflow-hidden mx-auto max-w-[430px] shadow-2xl pb-28 transition-colors duration-500 font-display ${pasaporteMode ? 'bg-[#f4f2ee] dark:bg-slate-900' : 'bg-stone-50 dark:bg-stone-900'}`}>
+      {/* Fondo con imagen sutil de ganadería/campo */}
+      <div 
+        className={`fixed inset-0 z-0 pointer-events-none transition-opacity duration-500 ${pasaporteMode ? 'opacity-0' : 'opacity-[0.03] dark:opacity-[0.05]'}`}
+        style={{
+          backgroundImage: "url('/src/assets/vaquita.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        }}
+      ></div>
       <style>
         {`
           @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Jost:wght@400;500;700&display=swap');

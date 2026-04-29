@@ -54,8 +54,19 @@ export default function Eventos() {
   };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden max-w-md mx-auto shadow-2xl bg-background-light dark:bg-background-dark">
-      <header className="sticky top-0 z-50 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md p-4 justify-between border-b border-primary/10">
+    <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+      {/* Fondo con imagen sutil de ganadería/campo */}
+      <div 
+        className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+        style={{
+          backgroundImage: "url('/src/assets/vaquita.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        }}
+      ></div>
+      <div className="relative z-10 flex-1 flex flex-col">
+      <header className="sticky top-0 z-50 flex items-center bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-md p-4 justify-between border-b border-emerald-600/10">
         <Link to="/home" className="text-slate-900 dark:text-slate-100 flex size-10 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
           <span className="material-symbols-outlined">arrow_back</span>
         </Link>
@@ -180,6 +191,7 @@ export default function Eventos() {
         )}
       </main>
       <BottomNav />
+      </div>
     </div>
   );
 }

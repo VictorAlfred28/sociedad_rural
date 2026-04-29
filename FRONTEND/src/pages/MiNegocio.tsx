@@ -386,14 +386,26 @@ export default function MiNegocio() {
         'w-full rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 h-12 px-4 text-sm';
 
     return (
-        <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-display relative">
+        <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
+            {/* Fondo con imagen sutil de ganadería/campo */}
+            <div 
+                className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+                style={{
+                    backgroundImage: "url('/src/assets/vaquita.png')",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat"
+                }}
+            ></div>
+
+            <div className="relative z-10 flex-1 flex flex-col">
             {/* Header */}
-            <header className="bg-gradient-to-br from-slate-800 to-slate-900 px-6 pt-12 pb-6 text-white">
+            <header className="px-6 pt-12 pb-6">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest">Panel de Comercio</p>
-                        <h1 className="text-2xl font-extrabold mt-1">Mi Negocio</h1>
-                        <p className="text-slate-300 text-sm mt-0.5">{user?.nombre_apellido}</p>
+                        <p className="text-stone-500 dark:text-stone-400 text-xs font-semibold uppercase tracking-widest">Panel de Comercio</p>
+                        <h1 className="text-2xl font-extrabold mt-1 text-stone-800 dark:text-stone-100">Mi Negocio</h1>
+                        <p className="text-emerald-700 dark:text-emerald-500 font-medium text-sm mt-0.5">{user?.nombre_apellido}</p>
                     </div>
                     <div className="flex items-center gap-4">
                         <NotificationBell />
@@ -446,10 +458,10 @@ export default function MiNegocio() {
                         const count = ofertas.filter(o => o.tipo === tipo && o.activo).length;
                         const cfg = TIPO_CONFIG[tipo];
                         return (
-                            <div key={tipo} className="bg-white/10 rounded-xl p-3 text-center">
-                                <span className="material-symbols-outlined text-xl block mb-1">{cfg.icon}</span>
-                                <span className="text-xl font-bold block">{count}</span>
-                                <span className="text-[10px] text-slate-300 uppercase tracking-wide">{cfg.label}s</span>
+                            <div key={tipo} className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm border border-emerald-600/20 rounded-2xl p-3 text-center shadow-sm">
+                                <span className={`material-symbols-outlined text-xl block mb-1 ${cfg.text}`}>{cfg.icon}</span>
+                                <span className="text-xl font-bold block text-stone-800 dark:text-stone-100">{count}</span>
+                                <span className="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-wide">{cfg.label}s</span>
                             </div>
                         );
                     })}
@@ -913,7 +925,7 @@ export default function MiNegocio() {
             )}
 
             <BottomNav />
+            </div>
         </div>
     );
 }
-

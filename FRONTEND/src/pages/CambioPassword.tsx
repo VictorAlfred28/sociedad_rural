@@ -69,7 +69,18 @@ export default function CambioPassword() {
     };
 
     return (
-        <div className="flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
+        <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+            {/* Fondo con imagen sutil de ganadería/campo */}
+            <div 
+                className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+                style={{
+                    backgroundImage: "url('/src/assets/vaquita.png')",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat"
+                }}
+            ></div>
+            <div className="relative z-10 flex-1 flex flex-col">
             <header className="flex flex-col gap-2 p-6 pb-2 pt-12 items-center text-center">
                 <div className="flex size-16 items-center justify-center rounded-3xl bg-primary text-slate-900 shadow-md mb-2">
                     <span className="material-symbols-outlined text-3xl">lock_reset</span>
@@ -132,6 +143,7 @@ export default function CambioPassword() {
                     </button>
                 </div>
             </main>
+            </div>
         </div>
     );
 }

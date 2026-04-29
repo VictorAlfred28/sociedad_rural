@@ -151,8 +151,19 @@ export default function Cuotas() {
   };
 
   return (
-    <div className="relative mx-auto min-h-screen max-w-md bg-slate-50 dark:bg-background-dark flex flex-col shadow-2xl overflow-hidden border-x border-slate-200 dark:border-slate-800 font-display">
-      <header className="sticky top-0 z-20 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+    <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden border-x border-slate-200 dark:border-slate-800">
+      {/* Fondo con imagen sutil de ganadería/campo */}
+      <div 
+        className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+        style={{
+          backgroundImage: "url('/src/assets/vaquita.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        }}
+      ></div>
+      <div className="relative z-10 flex-1 flex flex-col">
+      <header className="sticky top-0 z-20 bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-md border-b border-stone-200 dark:border-stone-800">
         <div className="flex items-center px-4 py-3 justify-between">
           <Link to="/home" className="flex items-center justify-center p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <span className="material-symbols-outlined text-slate-900 dark:text-slate-100">arrow_back_ios_new</span>
@@ -439,6 +450,7 @@ export default function Cuotas() {
       )}
 
       <BottomNav />
+      </div>
     </div>
   );
 }

@@ -225,10 +225,21 @@ export default function Promociones() {
 
   /* ─── Render ─────────────────────────────────────────────────────────────── */
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-display">
+    <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+      {/* Fondo con imagen sutil de ganadería/campo */}
+      <div 
+        className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+        style={{
+          backgroundImage: "url('/src/assets/vaquita.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        }}
+      ></div>
+      <div className="relative z-10 flex-1 flex flex-col">
 
       {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
-      <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 transition-all duration-300 shadow-sm">
+      <header className="sticky top-0 z-40 bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-xl border-b border-stone-200/60 dark:border-stone-800/60 transition-all duration-300 shadow-sm">
         <div className="flex items-center px-4 pt-4 pb-3 gap-3">
           <Link to="/home" className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors border border-slate-200/50 dark:border-slate-700/50 shadow-sm">
             <span className="material-symbols-outlined text-slate-600 dark:text-slate-300">arrow_back</span>
@@ -738,6 +749,7 @@ export default function Promociones() {
       </main>
 
       <BottomNav />
+      </div>
     </div>
   );
 }
