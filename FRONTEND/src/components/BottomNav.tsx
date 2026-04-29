@@ -54,7 +54,7 @@ export default function BottomNav() {
               className="flex flex-col items-center gap-1"
             >
               <span className={`material-symbols-outlined transition-colors ${path === '/carnet' ? 'text-[#245b31] dark:text-emerald-500' : 'text-stone-400 group-hover:text-[#245b31]'}`} style={path === '/carnet' ? { fontVariationSettings: "'FILL' 1" } : {}}>badge</span>
-              <span className={`text-[9px] font-black transition-colors tracking-[0.2em] ${path === '/carnet' ? 'text-[#245b31] dark:text-emerald-500' : 'text-stone-500 group-hover:text-[#245b31]'}`}>PASAPORTE</span>
+              <span className={`text-[9px] font-black transition-colors tracking-[0.2em] ${path === '/carnet' ? 'text-[#245b31] dark:text-emerald-500' : 'text-stone-500 group-hover:text-[#245b31]'}`}>ÑANDE PASAPORTE</span>
             </motion.div>
           </Link>
         )}

@@ -61,7 +61,7 @@ export default function CarnetDigital() {
             onClick={() => setViewMode('pasaporte')}
             className={`flex-1 py-1.5 px-2 rounded-full text-[9px] font-bold tracking-wider transition-colors ${pasaporteMode ? 'bg-[#1e4c27] text-white shadow-sm' : 'bg-transparent text-gray-500'}`}
           >
-            ÑANDE PASAPORTE
+            PASAPORTE CORRENTINO
           </button>
           <button
             onClick={() => setViewMode('carnet')}
@@ -84,17 +84,17 @@ export default function CarnetDigital() {
               className="flex flex-col items-center px-4"
             >
               {/* Tarjeta de Carnet */}
-              <div 
+              <div
                 className="relative w-full aspect-[1.58/1] rounded-[1.5rem] overflow-hidden shadow-[0_15px_30px_-10px_rgba(0,0,0,0.3)] flex flex-col justify-between p-5 text-white bg-gray-900"
               >
                 {/* Simulated Rural Background with Gradient Overlay */}
-                <div 
+                <div
                   className="absolute inset-0"
                   style={{
                     background: 'linear-gradient(to bottom, #112a38 0%, #2b3935 40%, #524736 100%)',
                   }}
                 />
-                
+
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div className="flex justify-between items-start">
                     <div className="flex flex-col">
@@ -132,7 +132,7 @@ export default function CarnetDigital() {
               {/* Sección QR */}
               <div className="mt-8 flex flex-col items-center w-full">
                 <div className="bg-[#e2f3e8] p-5 rounded-[2rem] w-full max-w-[280px] relative shadow-sm">
-                  <button 
+                  <button
                     onClick={generarQR}
                     disabled={isLoadingQR}
                     className="w-full bg-white rounded-3xl border-2 border-dashed border-[#1e4c27] py-10 flex flex-col items-center justify-center gap-3 shadow-sm active:scale-95 transition-transform"
@@ -143,7 +143,7 @@ export default function CarnetDigital() {
                     </p>
                   </button>
                 </div>
-                
+
                 <div className="mt-6 text-center">
                   <h3 className="text-sm font-bold tracking-[0.2em] text-gray-800">ID ÚNICO DE SOCIO</h3>
                   <p className="text-[13px] text-gray-500 mt-2 px-8 leading-relaxed">El comercio escaneará este QR para aplicar tus beneficios.</p>
@@ -158,13 +158,13 @@ export default function CarnetDigital() {
               exit={{ opacity: 0, x: 20 }}
               className="bg-white px-6 pt-8 pb-12 w-full min-h-[80vh] flex flex-col items-center font-sans relative"
             >
-              <h1 className="text-center font-black text-4xl tracking-tighter leading-none mb-6 mt-2" style={{fontFamily: 'Impact, Arial Black, sans-serif'}}>REPUBLICA DE CORRIENTES</h1>
-              
+              <h1 className="text-center font-black text-4xl tracking-tighter leading-none mb-6 mt-2" style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}>REPUBLICA DE CORRIENTES</h1>
+
               <div className="relative mb-10 text-center w-full flex flex-col items-center">
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 z-0">
                   <img src={mapaCorrientes} alt="Mapa Corrientes" className="w-[18rem] object-contain" />
                 </div>
-                
+
                 <div className="relative z-10 text-[17px] font-medium leading-[1.3] text-black w-full max-w-[320px]">
                   <p>Me marea el agua ardiente</p>
                   <p>Pero ni nunca la plata</p>
@@ -174,14 +174,14 @@ export default function CarnetDigital() {
                   <p>Puedo pelearle a la vida</p>
                   <p>Yo no soy causa perdida</p>
                   <p>Yo soy nacido en Corrientes.</p>
-                  
+
                   <p className="mt-6 text-[14px] leading-snug px-2">
                     Juro que como correntino, sabré aguantar con entereza lo que venga, andaré a cielo abierto, sin vallas para mis sueños y pensamientos.
                   </p>
                 </div>
               </div>
 
-              <h2 className="text-center font-black text-5xl mb-8" style={{fontFamily: 'Impact, Arial Black, sans-serif'}}>DATOS</h2>
+              <h2 className="text-center font-black text-5xl mb-8" style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}>DATOS</h2>
 
               <div className="w-full flex gap-5 px-1 max-w-[340px]">
                 {/* Columna Izquierda: Formulario */}
@@ -190,7 +190,7 @@ export default function CarnetDigital() {
                     <span className="text-[15px] font-bold text-black mb-1">Nombre</span>
                     <div className="border-b-[1.5px] border-black w-full h-5 text-sm flex items-end pb-0.5">{user?.nombre_apellido.split(' ')[0]}</div>
                   </div>
-                  
+
                   <div className="flex flex-col">
                     <span className="text-[15px] font-bold text-black mb-1">Apellido</span>
                     <div className="border-b-[1.5px] border-black w-full h-5 text-sm flex items-end pb-0.5">{user?.nombre_apellido.split(' ').slice(1).join(' ')}</div>
@@ -222,15 +222,15 @@ export default function CarnetDigital() {
                       <span className="material-symbols-outlined text-5xl text-gray-400">person</span>
                     )}
                   </div>
-                  
+
                   <div className="w-[100px] aspect-square bg-white border-[3px] border-black p-1.5 mb-1">
-                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user?.dni || '000000'}`} 
-                      alt="QR Static" 
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${user?.dni || '000000'}`}
+                      alt="QR Static"
                       className="w-full h-full"
                     />
                   </div>
-                  
+
                   <div className="text-center w-full flex flex-col">
                     <span className="text-[12px] font-medium leading-none mb-0.5">Pasaporte numero</span>
                     <span className="text-[14px] text-[#cc0000] font-bold tracking-wider">{user?.numero_socio ? String(user.numero_socio).padStart(10, '0') : '0000000000'}</span>
@@ -268,9 +268,9 @@ export default function CarnetDigital() {
 
               <div className="size-64 bg-white p-4 rounded-3xl shadow-sm border border-gray-200 flex items-center justify-center">
                 {dynamicQR ? (
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://sociedadruraldelnorte.agentech.ar/qr-valida/${dynamicQR.token}`} 
-                    alt="QR Dynamic" 
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://sociedadruraldelnorte.agentech.ar/qr-valida/${dynamicQR.token}`}
+                    alt="QR Dynamic"
                     className="w-full h-full object-contain"
                   />
                 ) : (
@@ -284,7 +284,7 @@ export default function CarnetDigital() {
               <div className="mt-8 w-full flex flex-col gap-4">
                 {dynamicQR && (
                   <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div 
+                    <motion.div
                       initial={{ width: "100%" }}
                       animate={{ width: "0%" }}
                       transition={{ duration: 60, ease: "linear" }}
@@ -292,7 +292,7 @@ export default function CarnetDigital() {
                     />
                   </div>
                 )}
-                <button 
+                <button
                   onClick={() => setShowQRModal(false)}
                   className="w-full py-4 rounded-xl bg-gray-100 text-sm font-black uppercase tracking-widest text-gray-700 active:scale-95 transition-transform"
                 >
