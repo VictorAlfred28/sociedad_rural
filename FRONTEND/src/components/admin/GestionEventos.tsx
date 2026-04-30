@@ -385,8 +385,9 @@ export default function GestionEventos() {
                             </thead>
                             <tbody className="divide-y divide-admin-border/50">
                                 {(activeSubTab === 'inst' ? eventos : socialEventos).map(ev => {
-                                    const dateObj = new Date(ev.fecha + 'T' + ev.hora);
-                                    const isPast = dateObj < new Date();
+                                    const fechaStr = ev.fecha || null;
+                                    const dateObj = fechaStr ? new Date(fechaStr + 'T' + (ev.hora || '12:00:00')) : null;
+                                    const isPast = dateObj ? dateObj < new Date() : false;
 
                                     return (
                                         <tr key={ev.id} className="hover:bg-admin-card-hover/50 transition-colors group">
@@ -408,23 +409,33 @@ export default function GestionEventos() {
                                             </td>
                                             <td className="py-4 px-6">
                                                 <div className="flex flex-col text-sm">
-                                                    <span className={`font-semibold ${isPast ? 'text-slate-500 line-through decoration-slate-500/50' : 'text-admin-text'}`}>
-                                                        {new Date(ev.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: 'short' })}
-                                                    </span>
-                                                    <span className="text-slate-400 font-mono text-xs">{ev.hora.slice(0, 5)} HS</span>
+                                                    {ev.fecha ? (
+                                                        <>
+                                                            <span className={`font-semibold ${isPast ? 'text-slate-500 line-through decoration-slate-500/50' : 'text-admin-text'}`}>
+                                                                {new Date(ev.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                                                            </span>
+                                                            <span className="text-slate-400 font-mono text-xs">{ev.hora ? ev.hora.slice(0, 5) + ' HS' : 'Hora a confirmar'}</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-slate-400 text-xs italic">Fecha a confirmar</span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="py-4 px-6">
-                                                <a
-                                                    href={`https://maps.google.com/?q=${encodeURIComponent(ev.lugar)}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-sm font-semibold text-admin-text line-clamp-1 flex items-center gap-1.5 opacity-80 hover:text-admin-accent transition-colors group/link"
-                                                    title="Ver en Google Maps"
-                                                >
-                                                    <span className="material-symbols-outlined text-[16px] group-hover/link:animate-bounce">pin_drop</span>
-                                                    <span className="group-hover/link:underline">{ev.lugar}</span>
-                                                </a>
+                                                {ev.lugar && ev.lugar !== 'A definir' ? (
+                                                    <a
+                                                        href={`https://maps.google.com/?q=${encodeURIComponent(ev.lugar)}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-sm font-semibold text-admin-text line-clamp-1 flex items-center gap-1.5 opacity-80 hover:text-admin-accent transition-colors group/link"
+                                                        title="Ver en Google Maps"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[16px] group-hover/link:animate-bounce">pin_drop</span>
+                                                        <span className="group-hover/link:underline">{ev.lugar}</span>
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-xs text-slate-500 italic">Lugar a confirmar</span>
+                                                )}
                                             </td>
                                             {activeSubTab === 'social' && (
                                                 <td className="py-4 px-6 text-center">

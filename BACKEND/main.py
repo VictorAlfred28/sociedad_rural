@@ -333,7 +333,7 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Webhook-Token", "X-Webhook-Secret", "x-webhook-secret"],
 )
 
 
@@ -436,9 +436,9 @@ class EventUpdate(BaseModel):
 
 class WebhookEventoPayload(BaseModel):
     post_id: str
-    caption: str
-    media_url: str
-    timestamp: str
+    caption: Optional[str] = ""          # Algunos posts pueden no tener texto
+    media_url: Optional[str] = None      # Reels/carruseles pueden no retornar URL directa
+    timestamp: Optional[str] = None
 
 
 class UpdateSupportNoteRequest(BaseModel):
@@ -447,6 +447,7 @@ class UpdateSupportNoteRequest(BaseModel):
 
 # ── UTILIDADES PARA EL WEBHOOK DE EVENTOS SOCIALES ───────────────────────────
 def procesar_texto_evento(caption: str) -> dict:
+    caption = caption or ""  # Guard: evitar None de posts sin texto
     # 1. Extraer Lugar
     lugar_match = re.search(r"(?i)Lugar:\s*(.*)", caption)
     lugar = lugar_match.group(1).strip() if lugar_match else "A definir"
