@@ -41,6 +41,15 @@ from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse, StreamingResponse
 from schemas.comercio import ComercioDTO
 from schemas.profesional import ProfesionalDTO
+from schemas.eventos import (
+    MunicipioCreate,
+    MunicipioUpdate,
+    MunicipioResponse,
+    EventoCreate,
+    EventoUpdate,
+    EventoResponse,
+    EventoPublicResponse,
+)
 
 """
 FUNCIONALIDAD DESACTIVADA TEMPORALMENTE
@@ -5114,6 +5123,482 @@ def calcular_cuota_dinamica(current_user=Depends(get_current_user)):
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 12. ENDPOINTS: MUNICIPIOS Y EVENTOS (SPEC AVANZADO)
+# ═════════════════════════════════════════════════════════════════════════════
+
+# ────────────────────────────────────────────────────────────────────────────
+# UTILIDADES PARA MUNICIPIOS Y EVENTOS
+# ────────────────────────────────────────────────────────────────────────────
+
+def validar_url(url: Optional[str]) -> bool:
+    """Valida que una URL sea válida"""
+    if not url:
+        return True
+    url_pattern = re.compile(
+        r'^https?://'
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'
+        r'localhost|'
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+        r'(?::\d+)?'
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+    return bool(url_pattern.match(url))
+
+
+def generar_slug_unico(titulo: str) -> str:
+    """Genera un slug único basado en el título"""
+    import re
+    from datetime import datetime
+    
+    slug = titulo.lower()
+    slug = re.sub(r'[^a-z0-9]+', '-', slug)
+    slug = slug.strip('-')
+    
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    base_slug = f"{slug}-{timestamp}"
+    
+    try:
+        existing = supabase.table("eventos").select("id").eq("slug", base_slug).execute()
+        if not existing.data:
+            return base_slug
+    except Exception:
+        pass
+    
+    for i in range(1, 100):
+        slug_candidate = f"{base_slug}-{i}"
+        try:
+            existing = supabase.table("eventos").select("id").eq("slug", slug_candidate).execute()
+            if not existing.data:
+                return slug_candidate
+        except Exception:
+            return slug_candidate
+    
+    return base_slug
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# ENDPOINTS: MUNICIPIOS (CRUD)
+# ────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/municipios")
+def listar_municipios(activo_solo: bool = Query(True)):
+    """
+    Lista todos los municipios disponibles.
+    
+    - **activo_solo**: Si True, solo retorna municipios activos
+    """
+    try:
+        query = supabase.table("municipios").select("*")
+        if activo_solo:
+            query = query.eq("activo", True)
+        
+        res = query.order("nombre", desc=False).execute()
+        return {"municipios": res.data or []}
+    except Exception as e:
+        logger.error(f"Error listando municipios: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener municipios: {str(e)}"
+        )
+
+
+@app.post("/api/admin/municipios", status_code=201)
+def crear_municipio(
+    municipio: MunicipioCreate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    admin_user=Depends(get_current_admin),
+):
+    """Crea un nuevo municipio (solo admins)"""
+    try:
+        municipio_data = municipio.dict()
+        
+        existing = supabase.table("municipios").select("id").eq("nombre", municipio_data["nombre"]).execute()
+        if existing.data:
+            raise HTTPException(
+                status_code=400,
+                detail="Ya existe un municipio con ese nombre"
+            )
+        
+        res = supabase.table("municipios").insert(municipio_data).execute()
+        
+        if res.data:
+            background_tasks.add_task(
+                registrar_auditoria,
+                usuario_id=admin_user.id,
+                email_usuario=admin_user.email,
+                rol_usuario="ADMIN",
+                accion="CREATE",
+                tabla="municipios",
+                registro_id=res.data[0]["id"],
+                datos_anteriores=None,
+                datos_nuevos=municipio_data,
+                modulo="Gestión Municipios",
+                request=request,
+            )
+            return {"message": "Municipio creado exitosamente", "municipio": res.data[0]}
+        
+        raise HTTPException(status_code=500, detail="Error al crear municipio")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creando municipio: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.put("/api/admin/municipios/{municipio_id}")
+def actualizar_municipio(
+    municipio_id: str,
+    municipio: MunicipioUpdate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    admin_user=Depends(get_current_admin),
+):
+    """Actualiza un municipio (solo admins)"""
+    try:
+        existing = supabase.table("municipios").select("*").eq("id", municipio_id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Municipio no encontrado")
+        
+        datos_anteriores = existing.data[0]
+        update_data = {k: v for k, v in municipio.dict().items() if v is not None}
+        
+        if not update_data:
+            return {"municipio": datos_anteriores}
+        
+        res = supabase.table("municipios").update(update_data).eq("id", municipio_id).execute()
+        
+        if res.data:
+            background_tasks.add_task(
+                registrar_auditoria,
+                usuario_id=admin_user.id,
+                email_usuario=admin_user.email,
+                rol_usuario="ADMIN",
+                accion="UPDATE",
+                tabla="municipios",
+                registro_id=municipio_id,
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=update_data,
+                modulo="Gestión Municipios",
+                request=request,
+            )
+            return {"message": "Municipio actualizado correctamente", "municipio": res.data[0]}
+        
+        raise HTTPException(status_code=500, detail="Error al actualizar municipio")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error actualizando municipio: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.delete("/api/admin/municipios/{municipio_id}")
+def eliminar_municipio(
+    municipio_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    admin_user=Depends(get_current_admin),
+):
+    """Elimina un municipio (solo admins)"""
+    try:
+        existing = supabase.table("municipios").select("*").eq("id", municipio_id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Municipio no encontrado")
+        
+        datos_anteriores = existing.data[0]
+        
+        eventos = supabase.table("eventos").select("id").eq("municipio_id", municipio_id).execute()
+        if eventos.data:
+            raise HTTPException(
+                status_code=400,
+                detail="No se puede eliminar municipio con eventos asociados. Marcar como inactivo en su lugar."
+            )
+        
+        supabase.table("municipios").delete().eq("id", municipio_id).execute()
+        
+        background_tasks.add_task(
+            registrar_auditoria,
+            usuario_id=admin_user.id,
+            email_usuario=admin_user.email,
+            rol_usuario="ADMIN",
+            accion="DELETE",
+            tabla="municipios",
+            registro_id=municipio_id,
+            datos_anteriores=datos_anteriores,
+            datos_nuevos=None,
+            modulo="Gestión Municipios",
+            request=request,
+        )
+        return {"message": "Municipio eliminado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error eliminando municipio: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# ENDPOINTS: EVENTOS (CRUD - ACTUALIZADOS)
+# ────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/eventos/publicos")
+def listar_eventos_publicos(
+    municipio_id: Optional[str] = None,
+    tipo: Optional[str] = None,
+    destacado_solo: Optional[bool] = None,
+    fecha_desde: Optional[str] = None,
+):
+    """
+    Lista eventos públicos y publicados (accesible a todos).
+    
+    Filtrado por:
+    - municipio_id
+    - tipo (Remate, Festival, Exposición, Charla, Otro)
+    - destacado_solo
+    - fecha_desde
+    """
+    try:
+        query = supabase.table("eventos").select("*")
+        query = query.eq("estado", "publicado")
+        query = query.eq("publico", True)
+        
+        if municipio_id:
+            query = query.eq("municipio_id", municipio_id)
+        if tipo:
+            query = query.eq("tipo", tipo)
+        if destacado_solo:
+            query = query.eq("destacado", True)
+        if fecha_desde:
+            query = query.gte("fecha_inicio", fecha_desde)
+        
+        res = query.order("fecha_inicio", desc=False).execute()
+        return {"eventos": res.data or []}
+    except Exception as e:
+        logger.error(f"Error listando eventos públicos: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.get("/api/eventos/destacados")
+def listar_eventos_destacados(limit: int = Query(6, ge=1, le=20)):
+    """Lista eventos destacados (máximo 6 por defecto)"""
+    try:
+        res = supabase.table("eventos").select("*")\
+            .eq("estado", "publicado")\
+            .eq("publico", True)\
+            .eq("destacado", True)\
+            .order("fecha_inicio", desc=False)\
+            .limit(limit)\
+            .execute()
+        return {"eventos": res.data or []}
+    except Exception as e:
+        logger.error(f"Error listando eventos destacados: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.get("/api/eventos/proximos")
+def listar_proximos_eventos(
+    dias: int = Query(30, ge=1, le=365),
+    limit: int = Query(10, ge=1, le=50),
+):
+    """Lista próximos eventos en los próximos N días"""
+    try:
+        hoy = datetime.now().isoformat()
+        futuro = (datetime.now() + timedelta(days=dias)).isoformat()
+        
+        res = supabase.table("eventos").select("*")\
+            .eq("estado", "publicado")\
+            .eq("publico", True)\
+            .gte("fecha_inicio", hoy)\
+            .lte("fecha_inicio", futuro)\
+            .order("fecha_inicio", desc=False)\
+            .limit(limit)\
+            .execute()
+        return {"eventos": res.data or []}
+    except Exception as e:
+        logger.error(f"Error listando próximos eventos: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.get("/api/eventos/{evento_id}")
+def obtener_evento_detalle(evento_id: str):
+    """Obtiene detalles completos de un evento público"""
+    try:
+        res = supabase.table("eventos").select("*")\
+            .eq("id", evento_id)\
+            .eq("estado", "publicado")\
+            .execute()
+        
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        
+        return res.data[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error obteniendo evento: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.post("/api/admin/eventos", status_code=201)
+def crear_evento(
+    evento: EventoCreate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    admin_user=Depends(get_current_admin),
+):
+    """Crea un nuevo evento (solo admins)"""
+    try:
+        evento_data = evento.dict()
+        
+        # Validar que municipio existe
+        municipio = supabase.table("municipios").select("id").eq("id", str(evento_data["municipio_id"])).execute()
+        if not municipio.data:
+            raise HTTPException(status_code=400, detail="Municipio especificado no existe")
+        
+        # Validar URLs
+        for url_field in ["link_instagram", "link_facebook", "link_whatsapp", "link_externo", "imagen_principal", "video_url"]:
+            if evento_data.get(url_field) and not validar_url(evento_data[url_field]):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"URL inválida en campo {url_field}"
+                )
+        
+        # Generar slug si no se proporciona
+        if not evento_data.get("slug"):
+            evento_data["slug"] = generar_slug_unico(evento_data["titulo"])
+        else:
+            existing = supabase.table("eventos").select("id").eq("slug", evento_data["slug"]).execute()
+            if existing.data:
+                raise HTTPException(status_code=400, detail="Slug ya existe. Usar uno único.")
+        
+        evento_data["creado_por"] = str(admin_user.id)
+        
+        res = supabase.table("eventos").insert(evento_data).execute()
+        
+        if res.data:
+            background_tasks.add_task(
+                registrar_auditoria,
+                usuario_id=admin_user.id,
+                email_usuario=admin_user.email,
+                rol_usuario="ADMIN",
+                accion="CREATE",
+                tabla="eventos",
+                registro_id=res.data[0]["id"],
+                datos_anteriores=None,
+                datos_nuevos=evento_data,
+                modulo="Gestión Eventos",
+                request=request,
+            )
+            return {"message": "Evento creado exitosamente", "evento": res.data[0]}
+        
+        raise HTTPException(status_code=500, detail="Error al crear evento")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creando evento: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.put("/api/admin/eventos/{evento_id}")
+def actualizar_evento(
+    evento_id: str,
+    evento: EventoUpdate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    admin_user=Depends(get_current_admin),
+):
+    """Actualiza un evento (solo admins)"""
+    try:
+        existing = supabase.table("eventos").select("*").eq("id", evento_id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        
+        datos_anteriores = existing.data[0]
+        update_data = {k: v for k, v in evento.dict().items() if v is not None}
+        
+        if not update_data:
+            return {"evento": datos_anteriores}
+        
+        # Validar URLs si se proporcionan
+        for url_field in ["link_instagram", "link_facebook", "link_whatsapp", "link_externo", "imagen_principal", "video_url"]:
+            if update_data.get(url_field) and not validar_url(update_data[url_field]):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"URL inválida en campo {url_field}"
+                )
+        
+        # Validar municipio si se actualiza
+        if "municipio_id" in update_data:
+            municipio = supabase.table("municipios").select("id").eq("id", str(update_data["municipio_id"])).execute()
+            if not municipio.data:
+                raise HTTPException(status_code=400, detail="Municipio especificado no existe")
+        
+        res = supabase.table("eventos").update(update_data).eq("id", evento_id).execute()
+        
+        if res.data:
+            background_tasks.add_task(
+                registrar_auditoria,
+                usuario_id=admin_user.id,
+                email_usuario=admin_user.email,
+                rol_usuario="ADMIN",
+                accion="UPDATE",
+                tabla="eventos",
+                registro_id=evento_id,
+                datos_anteriores=datos_anteriores,
+                datos_nuevos=update_data,
+                modulo="Gestión Eventos",
+                request=request,
+            )
+            return {"message": "Evento actualizado correctamente", "evento": res.data[0]}
+        
+        raise HTTPException(status_code=500, detail="Error al actualizar evento")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error actualizando evento: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.delete("/api/admin/eventos/{evento_id}")
+def eliminar_evento(
+    evento_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    admin_user=Depends(get_current_admin),
+):
+    """Elimina un evento (solo admins)"""
+    try:
+        existing = supabase.table("eventos").select("*").eq("id", evento_id).execute()
+        if not existing.data:
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        
+        datos_anteriores = existing.data[0]
+        supabase.table("eventos").delete().eq("id", evento_id).execute()
+        
+        background_tasks.add_task(
+            registrar_auditoria,
+            usuario_id=admin_user.id,
+            email_usuario=admin_user.email,
+            rol_usuario="ADMIN",
+            accion="DELETE",
+            tabla="eventos",
+            registro_id=evento_id,
+            datos_anteriores=datos_anteriores,
+            datos_nuevos=None,
+            modulo="Gestión Eventos",
+            request=request,
+        )
+        return {"message": "Evento eliminado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error eliminando evento: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 
