@@ -164,14 +164,23 @@ export default function Eventos() {
               const lugarDisplay = ev.lugar && ev.lugar !== 'A definir' ? ev.lugar : null;
 
               return (
-                <div key={ev.id} className="group relative flex flex-col overflow-hidden rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm border border-[#e5dfce] dark:border-stone-700/50 active:scale-[0.98] transition-transform">
+                <div 
+                  key={ev.id} 
+                  onClick={() => {
+                    const link = ev.link_instagram || ev.link_facebook || ev.link_externo;
+                    if (link) window.open(link, '_blank');
+                  }}
+                  className="group relative flex flex-col overflow-hidden rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm border border-[#e5dfce] dark:border-stone-700/50 hover:shadow-md cursor-pointer active:scale-[0.98] transition-all"
+                >
 
                   {/* Imagen del evento */}
                   <div className="relative w-full aspect-[16/9] bg-stone-200 dark:bg-stone-900 overflow-hidden">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                      style={{ backgroundImage: `url("${getImage(ev)}")` }}
-                    ></div>
+                    <img 
+                      src={getImage(ev)} 
+                      alt={ev.titulo}
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-stone-900/60 to-transparent"></div>
 
                     {/* Badge tipo — diferenciado para Social (Instagram/FB) */}
