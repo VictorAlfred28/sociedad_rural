@@ -3332,7 +3332,7 @@ def get_combined_eventos(
 
         # 4. Combinar y ordenar por fecha
         combined = eventos_inst + social_normalized
-        combined.sort(key=lambda x: x["fecha"])
+        combined.sort(key=lambda x: x.get("fecha") or "9999-12-31")
 
         return {"eventos": combined}
     except Exception as e:
