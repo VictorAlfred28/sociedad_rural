@@ -179,6 +179,10 @@ export default function Eventos() {
                       src={getImage(ev)} 
                       alt={ev.titulo}
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1472653431158-6364773b2a56?q=80&w=800&auto=format&fit=crop';
+                        e.currentTarget.onerror = null;
+                      }}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-stone-900/60 to-transparent"></div>
@@ -255,7 +259,7 @@ export default function Eventos() {
                         ) : esSocial ? (
                           <div className="flex items-center gap-2 text-stone-400 text-[11px]">
                             <div className="size-7 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-500 flex items-center justify-center">
-                              <span className="material-symbols-outlined text-[16px]">instagram</span>
+                              <span className="material-symbols-outlined text-[16px]">photo_camera</span>
                             </div>
                             <span className="font-semibold text-stone-500 dark:text-stone-400">Publicación de redes sociales</span>
                           </div>
