@@ -12,50 +12,64 @@ export default function HomeSocio() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="relative min-h-screen flex flex-col font-display text-stone-900 max-w-md mx-auto shadow-2xl overflow-hidden">
+    <div className="relative min-h-screen flex flex-col font-display max-w-md mx-auto shadow-2xl overflow-hidden">
 
-      {/* ── ZONA SUPERIOR: PAISAJE ─────────────────────────── */}
+      {/* ════════════════════════════════════════════════════════
+          FONDO ÚNICO: paisaje cubre TODA la pantalla (fixed)
+          La zona del header y la zona de tarjetas son el mismo
+          fondo continuo — sólo los overlays difieren por zona.
+      ════════════════════════════════════════════════════════ */}
       <div
-        className="relative w-full shrink-0"
-        style={{ height: '240px' }}
-      >
-        {/* Imagen */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `url(${paisaje})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 30%',
-          }}
-        />
-        {/* Overlay oscuro arriba para legibilidad del header */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 60%, rgba(0,0,0,0.0) 100%)',
-          }}
-        />
-        {/* Fade hacia el panel verde */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-[56px]"
-          style={{
-            background:
-              'linear-gradient(to bottom, rgba(75,100,55,0) 0%, rgba(75,100,55,1) 100%)',
-          }}
-        />
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: `url(${paisaje})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 20%',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
 
-        {/* HEADER flotante sobre el paisaje */}
-        <header className="absolute inset-x-0 top-0 px-5 pt-11 pb-3">
+      {/* ── Overlay global: película oscura muy suave para tono unificado */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{ background: 'rgba(10, 18, 8, 0.22)' }}
+      />
+
+      {/* ── Overlay zona inferior: velo blanco semitransparente desde el 40%
+             Esto hace que las tarjetas se lean mejor sin cortar el paisaje */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(to bottom, ' +
+            'rgba(232,224,200,0.00) 0%, ' +
+            'rgba(232,224,200,0.00) 35%, ' +
+            'rgba(232,224,200,0.55) 55%, ' +
+            'rgba(232,224,200,0.82) 100%)',
+        }}
+      />
+
+      {/* ════════════════════════════════════════════════════════
+          LAYOUT: scroll en el contenedor principal
+      ════════════════════════════════════════════════════════ */}
+      <div
+        ref={scrollRef}
+        className="relative z-10 flex-1 overflow-y-auto flex flex-col"
+      >
+
+        {/* ── HEADER sobre el paisaje (zona superior) ─────── */}
+        <header className="shrink-0 px-5 pt-11 pb-4 relative">
+
+          {/* Widget clima */}
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             className="absolute top-3 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-[20px] z-20"
             style={{
-              background: 'rgba(0,0,0,0.28)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(0,0,0,0.30)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.18)',
             }}
           >
             <span className="text-[13px]">🌤️</span>
@@ -64,44 +78,42 @@ export default function HomeSocio() {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Link to="/perfil" className="relative group shrink-0">
+              {/* Avatar */}
+              <Link to="/perfil" className="relative shrink-0">
                 <div
-                  className="size-14 rounded-[1.2rem] border-[3px] border-white/60 overflow-hidden flex items-center justify-center font-black text-xl uppercase transition-transform active:scale-95 shadow-lg"
-                  style={{ background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(4px)' }}
+                  className="size-14 rounded-[1.2rem] border-[3px] border-white/55 overflow-hidden flex items-center justify-center text-xl uppercase transition-transform active:scale-95 shadow-xl"
+                  style={{ background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(6px)' }}
                 >
-                  {user?.foto_url ? (
-                    <img className="w-full h-full object-cover" src={user.foto_url} alt="Profile" />
-                  ) : (
-                    <span className="text-white">{user?.nombre_apellido?.charAt(0) || 'S'}</span>
-                  )}
+                  {user?.foto_url
+                    ? <img className="w-full h-full object-cover" src={user.foto_url} alt="Perfil" />
+                    : <span className="font-black text-white">{user?.nombre_apellido?.charAt(0) || 'S'}</span>
+                  }
                 </div>
-                <div className="absolute -bottom-1 -right-1 size-4 bg-[#4caf50] border-2 border-white rounded-full" />
+                <div className="absolute -bottom-1 -right-1 size-[14px] bg-emerald-400 border-2 border-white rounded-full" />
               </Link>
 
+              {/* Texto */}
               <div>
                 <motion.p
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="text-[9px] font-black uppercase tracking-[0.3em] text-white/60 leading-none"
+                  initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                  className="text-[9px] font-black uppercase tracking-[0.32em] text-white/55 leading-none mb-0.5"
                 >
                   Sociedad Rural
                 </motion.p>
                 <motion.h1
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.08 }}
-                  className="text-[22px] font-black text-white drop-shadow-md uppercase italic tracking-tight leading-tight"
+                  initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.07 }}
+                  className="text-[23px] font-black text-white drop-shadow-lg uppercase italic tracking-tight leading-none"
                 >
                   Hola, {user?.nombre_apellido?.split(' ')[0] || 'Socio'}
                 </motion.h1>
                 <motion.p
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.16 }}
-                  className="text-[9px] font-bold text-[#f0d7b0] uppercase tracking-widest leading-none mt-0.5"
+                  initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.14 }}
+                  className="text-[9px] font-bold text-amber-200/90 uppercase tracking-widest leading-none mt-1"
                 >
                   {user?.rol || 'N/A'} •{' '}
-                  <span className={user?.estado === 'PENDIENTE' ? 'text-amber-400' : 'text-[#7dd98a]'}>
+                  <span className={user?.estado === 'PENDIENTE' ? 'text-amber-400' : 'text-emerald-300'}>
                     {user?.estado || 'DESCONOCIDO'}
                   </span>
                 </motion.p>
@@ -110,53 +122,29 @@ export default function HomeSocio() {
             <NotificationBell />
           </div>
         </header>
-      </div>
 
-      {/* ── ZONA INFERIOR: PANEL VERDE + TARJETAS ─────────── */}
-      {/*
-        Modo claro : verde hierba suave con textura en degradado
-        Modo oscuro: verde profundo sobrio
-      */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto"
-        style={{
-          /* Light mode */
-          background: `
-            radial-gradient(ellipse at 60% 0%, rgba(255,255,255,0.18) 0%, transparent 60%),
-            linear-gradient(160deg, #5a7a3a 0%, #4b6430 40%, #3d5228 100%)
-          `,
-        }}
-      >
-        {/* Textura vegetal sutil (puntos/fibras como cesped) */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}
-        />
+        {/* ── Espacio visual: zona de paisaje protagonista visible ── */}
+        {/* El usuario ve el campo / horizonte en esta franja libre   */}
+        <div className="shrink-0 h-[105px]" />
 
-        {/* Borde redondeado superior que se integra con el fade del paisaje */}
-        <div
-          className="sticky top-0 h-0 pointer-events-none"
-          style={{ zIndex: 0 }}
-        />
-
-        <main className="relative z-10 px-5 pt-4 pb-28">
-          {/* Título de sección */}
+        {/* ── SECCIÓN DE MÓDULOS: tarjetas sobre el paisaje ──────── */}
+        <main className="flex-1 px-4 pt-3 pb-28">
+          {/* Etiqueta de sección */}
           <motion.p
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-[10px] font-black uppercase tracking-[0.35em] text-white/50 mb-3 pl-1"
+            transition={{ delay: 0.22 }}
+            className="text-[9.5px] font-black uppercase tracking-[0.38em] text-stone-600/70 mb-3 pl-1 drop-shadow-sm"
           >
             Accesos rápidos
           </motion.p>
+
           <SocioHomeContent />
         </main>
-
-        <BottomNav scrollContainerRef={scrollRef} />
       </div>
+
+      {/* BottomNav fuera del scroll para que no se desplace */}
+      <BottomNav scrollContainerRef={scrollRef} />
     </div>
   );
 }
