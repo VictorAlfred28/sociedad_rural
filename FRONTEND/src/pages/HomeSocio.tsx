@@ -12,55 +12,45 @@ export default function HomeSocio() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="relative min-h-screen flex flex-col font-display max-w-md mx-auto shadow-2xl overflow-hidden">
+    <div className="relative min-h-screen flex flex-col font-display max-w-md mx-auto shadow-2xl overflow-hidden bg-[#3d5228]">
 
-      {/* ════════════════════════════════════════════════════════
-          FONDO ÚNICO: paisaje cubre TODA la pantalla (fixed)
-          La zona del header y la zona de tarjetas son el mismo
-          fondo continuo — sólo los overlays difieren por zona.
-      ════════════════════════════════════════════════════════ */}
-      <div
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{
-          backgroundImage: `url(${paisaje})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 20%',
-          backgroundRepeat: 'no-repeat',
-        }}
-      />
+      {/* ══════════════════════════════════════════════════════
+          ZONA SUPERIOR: HERO — intacto, igual que antes
+          240px fijos, imagen encuadrada arriba, header flotante
+      ══════════════════════════════════════════════════════ */}
+      <div className="relative shrink-0" style={{ height: '240px' }}>
 
-      {/* ── Overlay global: película oscura muy suave para tono unificado */}
-      <div
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{ background: 'rgba(10, 18, 8, 0.22)' }}
-      />
+        {/* Imagen del hero */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${paisaje})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center 30%',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
 
-      {/* ── Overlay zona inferior: velo blanco semitransparente desde el 40%
-             Esto hace que las tarjetas se lean mejor sin cortar el paisaje */}
-      <div
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(to bottom, ' +
-            'rgba(232,224,200,0.00) 0%, ' +
-            'rgba(232,224,200,0.00) 35%, ' +
-            'rgba(232,224,200,0.55) 55%, ' +
-            'rgba(232,224,200,0.82) 100%)',
-        }}
-      />
+        {/* Overlay oscuro arriba para legibilidad del header */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 60%, rgba(0,0,0,0.0) 100%)',
+          }}
+        />
 
-      {/* ════════════════════════════════════════════════════════
-          LAYOUT: scroll en el contenedor principal
-      ════════════════════════════════════════════════════════ */}
-      <div
-        ref={scrollRef}
-        className="relative z-10 flex-1 overflow-y-auto flex flex-col"
-      >
+        {/* Fade inferior hacia el panel de tarjetas */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-[52px]"
+          style={{
+            background:
+              'linear-gradient(to bottom, rgba(61,82,40,0) 0%, rgba(61,82,40,0.90) 100%)',
+          }}
+        />
 
-        {/* ── HEADER sobre el paisaje (zona superior) ─────── */}
-        <header className="shrink-0 px-5 pt-11 pb-4 relative">
-
-          {/* Widget clima */}
+        {/* HEADER flotante sobre el hero */}
+        <header className="absolute inset-x-0 top-0 px-5 pt-11 pb-3">
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -78,7 +68,6 @@ export default function HomeSocio() {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* Avatar */}
               <Link to="/perfil" className="relative shrink-0">
                 <div
                   className="size-14 rounded-[1.2rem] border-[3px] border-white/55 overflow-hidden flex items-center justify-center text-xl uppercase transition-transform active:scale-95 shadow-xl"
@@ -92,7 +81,6 @@ export default function HomeSocio() {
                 <div className="absolute -bottom-1 -right-1 size-[14px] bg-emerald-400 border-2 border-white rounded-full" />
               </Link>
 
-              {/* Texto */}
               <div>
                 <motion.p
                   initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
@@ -122,28 +110,67 @@ export default function HomeSocio() {
             <NotificationBell />
           </div>
         </header>
+      </div>
 
-        {/* ── Espacio visual: zona de paisaje protagonista visible ── */}
-        {/* El usuario ve el campo / horizonte en esta franja libre   */}
-        <div className="shrink-0 h-[105px]" />
+      {/* ══════════════════════════════════════════════════════
+          ZONA INFERIOR: PANEL CON PAISAJE EXTENDIDO
+          Usa la misma imagen pero posicionada en la parte baja
+          del campo (como si fuera la continuación del encuadre),
+          con un overlay semitransparente para legibilidad.
+      ══════════════════════════════════════════════════════ */}
+      <div
+        ref={scrollRef}
+        className="relative flex-1 overflow-y-auto"
+      >
+        {/* Imagen extendida: misma foto, encuadre desplazado hacia la zona inferior del campo */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${paisaje})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center 72%',   // muestra la parte baja del campo
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'local',
+          }}
+        />
 
-        {/* ── SECCIÓN DE MÓDULOS: tarjetas sobre el paisaje ──────── */}
-        <main className="flex-1 px-4 pt-3 pb-28">
-          {/* Etiqueta de sección */}
+        {/* Overlay modo claro: velo beige luminoso — deja ver el campo difuso detrás */}
+        <div
+          className="absolute inset-0 pointer-events-none dark:hidden"
+          style={{
+            background:
+              'linear-gradient(to bottom, ' +
+              'rgba(235,224,190,0.70) 0%, ' +
+              'rgba(235,224,190,0.78) 50%, ' +
+              'rgba(235,224,190,0.84) 100%)',
+          }}
+        />
+
+        {/* Overlay modo oscuro: velo verde profundo */}
+        <div
+          className="absolute inset-0 pointer-events-none hidden dark:block"
+          style={{
+            background:
+              'linear-gradient(to bottom, ' +
+              'rgba(25,42,18,0.72) 0%, ' +
+              'rgba(25,42,18,0.82) 100%)',
+          }}
+        />
+
+        {/* Contenido de tarjetas sobre el paisaje */}
+        <div className="relative z-10 px-4 pt-4 pb-28">
           <motion.p
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.22 }}
-            className="text-[9.5px] font-black uppercase tracking-[0.38em] text-stone-600/70 mb-3 pl-1 drop-shadow-sm"
+            className="text-[9.5px] font-black uppercase tracking-[0.38em] text-stone-600/65 dark:text-stone-300/50 mb-3 pl-1"
           >
             Accesos rápidos
           </motion.p>
-
           <SocioHomeContent />
-        </main>
+        </div>
       </div>
 
-      {/* BottomNav fuera del scroll para que no se desplace */}
       <BottomNav scrollContainerRef={scrollRef} />
     </div>
   );
