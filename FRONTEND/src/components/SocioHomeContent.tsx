@@ -116,8 +116,8 @@ export default function SocioHomeContent() {
         backgroundImage: `${paperTexture}, linear-gradient(145deg, #F6F1E3 0%, #EBE0C8 100%)`,
         backgroundBlendMode: 'overlay, normal',
         minHeight: '170px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.7)',
-        border: '1px solid rgba(139, 94, 52, 0.1)'
+        boxShadow: '0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.75)',
+        border: '1px solid rgba(255,255,255,0.55)'
     };
 
     return (
