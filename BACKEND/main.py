@@ -3327,7 +3327,7 @@ def get_combined_eventos(
                     "hora": ev["hora_evento"],
                     "tipo": "Social",  # Etiqueta para distinguir origen
                     "imagen_url": ev.get("imagen_url"),
-                    "link_instagram": ev.get("metadata", {}).get("permalink", "https://instagram.com/sociedad_rural"),
+                    "link_instagram": ev.get("metadata", {}).get("permalink", "https://www.instagram.com/sociedadruralnc?igsh=MTMwcWNzbHh6aHdyMg%3D%3D"),
                 }
             )
 
