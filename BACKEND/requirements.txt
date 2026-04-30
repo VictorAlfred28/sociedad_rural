@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+pydantic[email]
+supabase
+python-dotenv
+requests
+slowapi
+redis
+python-multipart
+firebase-admin
+apscheduler
+pytz
+pandas
+openpyxl
+reportlab
+openai

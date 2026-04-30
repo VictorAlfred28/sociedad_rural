@@ -1,0 +1,44 @@
+# Dependencias
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+*.log
+
+# Capacitor / Android
+FRONTEND/android/app/build/
+FRONTEND/android/build/
+FRONTEND/android/app/google-services.json
+*.jks
+*.keystore
+
+# Python / Backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+.pytest_cache/
+.ruff_cache/
+
+# Archivos de Producción / Residuales
+proyecto-produccion.zip
+*.zip
+*.tar.gz
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
