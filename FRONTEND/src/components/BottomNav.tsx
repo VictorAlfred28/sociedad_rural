@@ -147,7 +147,7 @@ export default function BottomNav({ scrollContainerRef }: BottomNavProps) {
     ? { to: '/mi-negocio', label: 'NEGOCIO',  icon: 'storefront'           }
     : isAdmin
     ? { to: '/admin',      label: 'ADMIN',     icon: 'admin_panel_settings' }
-    : { to: '/carnet',     label: 'PASAPORTE', icon: 'badge'                };
+    : { to: '/eventos',    label: 'NOVEDADES', icon: 'event_note'           };
 
   const tabs = [
     { to: '/home',   label: 'INICIO',  icon: 'home'   },
