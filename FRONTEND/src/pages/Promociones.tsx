@@ -41,11 +41,29 @@ interface Municipio {
 }
 
 // ─── Datos de configuración ───────────────────────────────────────────────────
+const normalizeText = (text: string) => text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+const SYNONYMS: Record<string, string[]> = {
+  "nafta": ["estacion de servicio", "combustible", "ypf", "shell"],
+  "ropa": ["vestimentas", "indumentaria", "ropa", "calzado", "accesorio"],
+  "ropas": ["vestimentas", "indumentaria"],
+  "ninos": ["gurises", "infantil", "juguetes", "niños"]
+};
+
+const normalizeRubro = (original: string) => {
+  if (!original) return 'otro';
+  const text = normalizeText(original);
+  if (text.includes('nin') || text.includes('infantil') || text.includes('juguete') || text.includes('gurises')) return 'gurises';
+  if (text.includes('ropa') || text.includes('indumentaria') || text.includes('vestimenta') || text.includes('calzado') || text.includes('accesorio')) return 'vestimentas';
+  return original;
+};
+
 const RUBRO_LABELS: Record<string, string> = {
   agropecuario: 'Agropecuario', veterinaria: 'Veterinaria',
   maquinaria_agricola: 'Maquinaria', insumos_agricolas: 'Insumos Agríc.',
   alimentacion: 'Alimentación', construccion: 'Construcción',
   transporte: 'Transporte', socios_profesionales: 'Profesionales',
+  vestimentas: 'Vestimentas e Indumentarias', gurises: 'Gurises',
   comercio_general: 'Comercio Gral.', otro: 'Otro',
 };
 const RUBRO_ICON: Record<string, string> = {
@@ -53,6 +71,7 @@ const RUBRO_ICON: Record<string, string> = {
   maquinaria_agricola: 'precision_manufacturing', insumos_agricolas: 'science',
   alimentacion: 'restaurant', construccion: 'construction',
   transporte: 'local_shipping', socios_profesionales: 'work',
+  vestimentas: 'checkroom', gurises: 'child_care',
   comercio_general: 'storefront', otro: 'category',
 };
 const RUBRO_COLOR: Record<string, string> = {
@@ -60,6 +79,7 @@ const RUBRO_COLOR: Record<string, string> = {
   maquinaria_agricola: 'bg-orange-500', insumos_agricolas: 'bg-emerald-500',
   alimentacion: 'bg-amber-500', construccion: 'bg-stone-500',
   transporte: 'bg-blue-500', socios_profesionales: 'bg-violet-500',
+  vestimentas: 'bg-pink-500', gurises: 'bg-yellow-500',
   comercio_general: 'bg-rose-500', otro: 'bg-slate-500',
 };
 
@@ -81,7 +101,7 @@ const TIPO_CFG = {
   },
 };
 
-const RUBROS = ['todos', 'socios_profesionales', 'veterinaria', 'maquinaria_agricola', 'insumos_agricolas', 'alimentacion', 'construccion', 'transporte', 'agropecuario'];
+const RUBROS = ['todos', 'vestimentas', 'gurises', 'socios_profesionales', 'veterinaria', 'maquinaria_agricola', 'insumos_agricolas', 'alimentacion', 'construccion', 'transporte', 'agropecuario'];
 
 type Tab = 'ofertas' | 'comercios' | 'profesionales';
 
@@ -117,22 +137,15 @@ export default function Promociones() {
         ]);
 
         setOfertas(ofData.ofertas || []);
-        setComercios(comData.comercios || []);
+        
+        const rawComercios = comData.comercios || [];
+        setComercios(rawComercios.map((c: any) => ({
+          ...c,
+          rubro: normalizeRubro(c.rubro)
+        })));
 
         const list = munData.municipios || [];
-        const ordenManual = [
-          'Capital', 'Itatí', 'Ramada Paso', 'San Cosme',
-          'Santa Ana', 'Riachuelo', 'El Sombrero', 'Paso de la Patria'
-        ];
-
-        const sorted = [...list].sort((a: any, b: any) => {
-          const idxA = ordenManual.indexOf(a.nombre);
-          const idxB = ordenManual.indexOf(b.nombre);
-          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-          if (idxA !== -1) return -1;
-          if (idxB !== -1) return 1;
-          return a.nombre.localeCompare(b.nombre);
-        });
+        const sorted = [...list].sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
         setMunicipios(sorted);
       } catch (err) {
         console.error("Error cargando datos de promociones:", err);
@@ -216,11 +229,25 @@ export default function Promociones() {
   const comerciosFiltrados = comercios.filter(c => {
     const matchRubro = filtroRubro === 'todos' || c.rubro === filtroRubro;
     const matchMun = filtroMunicipio === 'todos' || c.municipio === filtroMunicipio;
-    const q = busqueda.toLowerCase();
-    const matchQ = !busqueda ||
-      c.nombre_apellido.toLowerCase().includes(q) ||
-      (RUBRO_LABELS[c.rubro] || '').toLowerCase().includes(q) ||
-      (c.municipio || '').toLowerCase().includes(q);
+    
+    const q = normalizeText(busqueda);
+    const searchTerms = [q];
+    
+    // Lupa Inteligente: expandir búsqueda con sinónimos
+    if (q) {
+      Object.entries(SYNONYMS).forEach(([key, values]) => {
+        if (normalizeText(key).includes(q) || values.some(v => normalizeText(v).includes(q))) {
+          searchTerms.push(normalizeText(key), ...values.map(normalizeText));
+        }
+      });
+    }
+
+    const matchQ = !busqueda || searchTerms.some(term => 
+      normalizeText(c.nombre_apellido).includes(term) ||
+      normalizeText(RUBRO_LABELS[c.rubro] || c.rubro).includes(term) ||
+      normalizeText(c.municipio || '').includes(term)
+    );
+    
     return matchRubro && matchQ && matchMun;
   });
 

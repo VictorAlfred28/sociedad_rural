@@ -27,15 +27,7 @@ export function ProfesionalForm({
             .then(res => res.json())
             .then(data => {
                 const list = data.municipios || [];
-                const ordenManual = ['Capital', 'Itatí', 'Ramada Paso', 'San Cosme', 'Santa Ana', 'Riachuelo', 'El Sombrero', 'Paso de la Patria'];
-                const sorted = [...list].sort((a, b) => {
-                    const idxA = ordenManual.indexOf(a.nombre);
-                    const idxB = ordenManual.indexOf(b.nombre);
-                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                    if (idxA !== -1) return -1;
-                    if (idxB !== -1) return 1;
-                    return a.nombre.localeCompare(b.nombre);
-                });
+                const sorted = [...list].sort((a, b) => a.nombre.localeCompare(b.nombre));
                 setMunicipios(sorted);
             })
             .catch(err => console.error("Error cargando municipios:", err));

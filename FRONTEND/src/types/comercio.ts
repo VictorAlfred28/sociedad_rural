@@ -19,6 +19,8 @@ export const RUBROS_COMERCIO = [
   { value: "alimentacion", label: "Alimentación" },
   { value: "construccion", label: "Construcción" },
   { value: "transporte", label: "Transporte" },
+  { value: "vestimentas", label: "Vestimentas e Indumentarias" },
+  { value: "gurises", label: "Gurises (Ropa y Art. Infantiles)" },
   { value: "servicios_profesionales", label: "Servicios Profesionales" },
   { value: "comercio_general", label: "Comercio General" },
   { value: "otro", label: "Otro" }
