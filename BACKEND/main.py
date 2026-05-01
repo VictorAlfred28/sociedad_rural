@@ -5,6 +5,7 @@ import io
 import uuid
 import secrets
 import smtplib
+import traceback
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import requests
@@ -2866,22 +2867,60 @@ class OfertaUpdateRequest(BaseModel):
 # ── ENDPOINT PÚBLICO: ver ofertas por municipio (para socios) ─────────────────
 @app.get("/api/ofertas/publicas")
 def get_ofertas_publicas(municipio: Optional[str] = None):
+    """
+    Retorna promociones/ofertas activas de comercios aprobados.
+    Tabla real: 'promociones' (con FK a 'comercios' -> profiles).
+    """
     try:
-        # Traemos la oferta y los datos del comercio asociado (en este caso, usando perfiles o comercios)
-        # Asumiendo que la tabla ofertas tiene un comercio_id
-        res = supabase.table("ofertas").select("*, profiles!inner(nombre_apellido, municipio, rubro)").eq("activo", True).order("created_at", desc=True).execute()
-        
+        query = (
+            supabase.table("promociones")
+            .select(
+                "id, titulo, descripcion, tipo, descuento_porcentaje, "
+                "valor_descuento, tipo_descuento, imagen_url, "
+                "instagram_url, facebook_url, fecha_inicio, fecha_fin, "
+                "activo, es_exclusiva_profesionales, created_at, "
+                "comercio:comercios(id, nombre_apellido:profiles(nombre_apellido), "
+                "municipio:profiles(municipio), rubro:profiles(rubro))"
+            )
+            .eq("activo", True)
+            .order("created_at", desc=True)
+        )
+
+        res = query.execute()
         ofertas = res.data or []
-        
+
+        # Aplanar la relación anidada para compatibilidad con el frontend
+        result = []
+        for o in ofertas:
+            comercio_data = o.pop("comercio", {}) or {}
+            # comercio_data puede tener sub-relaciones anidadas de profiles
+            nombre = comercio_data.get("nombre_apellido") or {}
+            if isinstance(nombre, dict):
+                nombre = nombre.get("nombre_apellido", "")
+            mun = comercio_data.get("municipio") or {}
+            if isinstance(mun, dict):
+                mun = mun.get("municipio", "")
+            rub = comercio_data.get("rubro") or {}
+            if isinstance(rub, dict):
+                rub = rub.get("rubro", "")
+
+            o["comercio"] = {
+                "nombre_apellido": nombre,
+                "municipio":       mun,
+                "rubro":           rub,
+            }
+            result.append(o)
+
         if municipio:
-            # Filtramos en memoria por el municipio del perfil creador de la oferta
-            ofertas = [
-                o for o in ofertas 
-                if o.get("profiles", {}).get("municipio") == municipio
+            result = [
+                o for o in result
+                if o["comercio"].get("municipio") == municipio
             ]
-            
-        return {"ofertas": ofertas}
+
+        return {"ofertas": result}
+
     except Exception as e:
+        logger.error(f"[/api/ofertas/publicas] Error: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error al obtener ofertas: {str(e)}")
 @app.put("/api/perfil")
