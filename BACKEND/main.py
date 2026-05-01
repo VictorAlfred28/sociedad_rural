@@ -3380,16 +3380,47 @@ def notificar_olvido_password(
 def get_support_notifications(admin_user=Depends(get_current_admin)):
     """Retorna las notificaciones de soporte pendientes para el administrador"""
     try:
+        # 1. Query principal sin join (siempre funciona, independiente de FK config en PostgREST)
         res = (
             supabase.table("notificaciones_admin")
-            .select("*, profiles!usuario_id(nombre_apellido, dni, email, rol)")
+            .select("*")
             .eq("estado", "PENDIENTE")
             .order("created_at", desc=True)
             .execute()
         )
-        return {"notificaciones": res.data}
+        notificaciones = res.data or []
+
+        if not notificaciones:
+            return {"notificaciones": []}
+
+        # 2. Enriquecer con datos de profiles en memoria (evita dependencia de FK en PostgREST)
+        user_ids = list({n["usuario_id"] for n in notificaciones if n.get("usuario_id")})
+        profiles_map: dict = {}
+
+        if user_ids:
+            try:
+                prof_res = (
+                    supabase.table("profiles")
+                    .select("id, nombre_apellido, dni, email, rol")
+                    .in_("id", user_ids)
+                    .execute()
+                )
+                profiles_map = {p["id"]: p for p in (prof_res.data or [])}
+            except Exception as prof_err:
+                logger.warning(f"[notificaciones-soporte] No se pudo enriquecer con profiles: {prof_err}")
+
+        # 3. Combinar resultados
+        for n in notificaciones:
+            uid = n.get("usuario_id")
+            n["profiles"] = profiles_map.get(uid) if uid else None
+
+        return {"notificaciones": notificaciones}
+
     except Exception as e:
+        logger.error(f"[/api/admin/notificaciones-soporte] Error: {type(e).__name__}: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.put("/api/admin/notificaciones-soporte/{notif_id}/resolver")
