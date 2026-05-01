@@ -328,12 +328,25 @@ export default function Promociones() {
                 setShowSearch(true);
               }
             }}
-            className={`flex px-3 h-10 shrink-0 items-center justify-center gap-1.5 rounded-2xl transition-all shadow-sm active:scale-95 ${showSearch ? 'bg-[#245b31] text-white' : 'bg-[#f4eedd] dark:bg-stone-800 text-stone-500 size-10'} ${showSearch && busqueda.trim() ? 'ring-2 ring-[#245b31]/30' : ''}`}
+            aria-label="Buscar"
+            className={`
+              flex shrink-0 items-center justify-center gap-1.5 rounded-2xl
+              transition-all shadow-sm active:scale-95
+              ${showSearch
+                ? 'bg-[#245b31] text-white h-10 px-2 md:px-3'
+                : 'bg-[#f4eedd] dark:bg-stone-800 text-stone-500 size-10'}
+              ${showSearch && busqueda.trim() ? 'ring-2 ring-[#245b31]/30' : ''}
+            `}
           >
-            {showSearch ? (
-              <span className="text-[10px] font-black uppercase tracking-widest">Ir</span>
-            ) : null}
-            <span className="material-symbols-outlined text-lg">{showSearch ? 'arrow_forward' : 'search'}</span>
+            {/* Texto "IR" — solo visible en md+ (tablet/desktop) */}
+            {showSearch && (
+              <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest">
+                Ir
+              </span>
+            )}
+            <span className="material-symbols-outlined text-lg">
+              {showSearch ? 'arrow_forward' : 'search'}
+            </span>
           </button>
 
         </div>
