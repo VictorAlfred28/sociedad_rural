@@ -475,13 +475,15 @@ ON CONFLICT (nombre) DO NOTHING;
 -- ── 19. DATOS INICIALES: MUNICIPIOS ─────────────────────────────────────
 
 INSERT INTO public.municipios (nombre, provincia) VALUES
-    ('Gobernador Virasoro', 'Corrientes'),
-    ('Santo Tomé', 'Corrientes'),
+    ('Capital', 'Corrientes'),
+    ('San Cosme', 'Corrientes'),
+    ('Santa Ana', 'Corrientes'),
+    ('Itatí', 'Corrientes'),
     ('Ituzaingó', 'Corrientes'),
-    ('San Carlos', 'Corrientes'),
-    ('Garruchos', 'Corrientes'),
-    ('Colonia Carlos Pellegrini', 'Corrientes'),
-    ('Yapeyú', 'Corrientes')
+    ('Ramada Paso', 'Corrientes'),
+    ('Riachuelo', 'Corrientes'),
+    ('El Sombrero', 'Corrientes'),
+    ('Paso de la Patria', 'Corrientes')
 ON CONFLICT DO NOTHING;
 
 -- ── FIN DEL SCHEMA ────────────────────────────────────────────────────────

@@ -14,21 +14,15 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 municipios_seed = [
-    {"nombre": "Gobernador Virasoro", "provincia": "Corrientes"},
-    {"nombre": "Santo Tomé", "provincia": "Corrientes"},
-    {"nombre": "Ituzaingó", "provincia": "Corrientes"},
-    {"nombre": "San Carlos", "provincia": "Corrientes"},
-    {"nombre": "Garruchos", "provincia": "Corrientes"},
-    {"nombre": "Colonia Carlos Pellegrini", "provincia": "Corrientes"},
-    {"nombre": "Yapeyú", "provincia": "Corrientes"},
-    {"nombre": "Itatí", "provincia": "Corrientes"},
-    {"nombre": "Ramada Paso", "provincia": "Corrientes"},
+    {"nombre": "Capital", "provincia": "Corrientes"},
     {"nombre": "San Cosme", "provincia": "Corrientes"},
     {"nombre": "Santa Ana", "provincia": "Corrientes"},
-    {"nombre": "Paso de la Patria", "provincia": "Corrientes"},
-    {"nombre": "Capital", "provincia": "Corrientes"},
+    {"nombre": "Itatí", "provincia": "Corrientes"},
+    {"nombre": "Ituzaingó", "provincia": "Corrientes"},
+    {"nombre": "Ramada Paso", "provincia": "Corrientes"},
     {"nombre": "Riachuelo", "provincia": "Corrientes"},
-    {"nombre": "El Sombrero", "provincia": "Corrientes"}
+    {"nombre": "El Sombrero", "provincia": "Corrientes"},
+    {"nombre": "Paso de la Patria", "provincia": "Corrientes"}
 ]
 
 for m in municipios_seed:
