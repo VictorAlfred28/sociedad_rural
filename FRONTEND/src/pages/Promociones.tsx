@@ -286,9 +286,14 @@ export default function Promociones() {
                 autoFocus
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && busqueda.trim()) setShowSearch(false);
+                  if (e.key === 'Escape') { setBusqueda(''); setShowSearch(false); }
+                }}
                 placeholder="Buscar beneficios, comercios, socios..."
                 className="w-full h-11 rounded-2xl bg-white dark:bg-stone-800 pl-4 pr-10 text-sm outline-none border-2 border-[#245b31]/20 focus:border-[#245b31] transition-all shadow-inner text-stone-800 dark:text-stone-100 font-medium"
               />
+
               {busqueda && (
                 <button 
                   onClick={() => setBusqueda('')}
@@ -312,16 +317,25 @@ export default function Promociones() {
 
           <button
             onClick={() => {
-              if (showSearch && !busqueda) setShowSearch(false);
-              else setShowSearch(true);
+              if (showSearch && busqueda.trim()) {
+                // Hay texto → confirmar búsqueda: cerrar panel y dejar filtro activo
+                setShowSearch(false);
+              } else if (showSearch && !busqueda.trim()) {
+                // Panel abierto sin texto → cerrar sin búsqueda
+                setShowSearch(false);
+              } else {
+                // Panel cerrado → abrir
+                setShowSearch(true);
+              }
             }}
-            className={`flex px-3 h-10 shrink-0 items-center justify-center gap-1.5 rounded-2xl transition-all shadow-sm ${showSearch ? 'bg-[#245b31] text-white' : 'bg-[#f4eedd] dark:bg-stone-800 text-stone-500 size-10'}`}
+            className={`flex px-3 h-10 shrink-0 items-center justify-center gap-1.5 rounded-2xl transition-all shadow-sm active:scale-95 ${showSearch ? 'bg-[#245b31] text-white' : 'bg-[#f4eedd] dark:bg-stone-800 text-stone-500 size-10'} ${showSearch && busqueda.trim() ? 'ring-2 ring-[#245b31]/30' : ''}`}
           >
             {showSearch ? (
               <span className="text-[10px] font-black uppercase tracking-widest">Ir</span>
             ) : null}
             <span className="material-symbols-outlined text-lg">{showSearch ? 'arrow_forward' : 'search'}</span>
           </button>
+
         </div>
 
         {/* ── Tab switcher tipo "segmento" — 3 pestañas ── */}
