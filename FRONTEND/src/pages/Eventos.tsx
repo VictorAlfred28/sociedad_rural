@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import BottomNav from '../components/BottomNav';
 import { Link, useNavigate } from 'react-router-dom';
 import { Evento } from '../components/admin/GestionEventos';
 import { useAuth } from '../context/AuthContext';
 import paisaje from '../assets/paisaje.png';
+
+const STORAGE_KEY = 'eventos_filtro_municipio';
 
 export default function Eventos() {
   const navigate = useNavigate();
@@ -11,13 +13,20 @@ export default function Eventos() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isAutoRetrying, setIsAutoRetrying] = useState(false); // Mejora 2: feedback visual
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
-  const [filtroMunicipio, setFiltroMunicipio] = useState<string | null>(null);
+  // Mejora 4: restaurar filtro desde localStorage
+  const [filtroMunicipio, setFiltroMunicipio] = useState<string | null>(
+    () => localStorage.getItem(STORAGE_KEY) || null
+  );
   const [municipiosList, setMunicipiosList] = useState<{id: string, nombre: string}[]>([]);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
+  const autoRetried = useRef(false);
 
   useEffect(() => {
-    if (user?.municipio) {
-      setFiltroMunicipio(user.municipio);
+    // Solo aplicar el municipio del usuario si no hay filtro guardado previamente
+    if (user?.municipio && !localStorage.getItem(STORAGE_KEY)) {
+      setFiltroMunicipioSynced(user.municipio);
     }
   }, [user]);
 
@@ -34,6 +43,21 @@ export default function Eventos() {
     fetchMunicipios();
   }, []);
 
+  // Mejora 4: sincronizar filtro con localStorage al cambiar
+  const setFiltroMunicipioSynced = (val: string | null) => {
+    setFiltroMunicipio(val);
+    if (val) localStorage.setItem(STORAGE_KEY, val);
+    else localStorage.removeItem(STORAGE_KEY);
+  };
+
+  // Mejora 1: scroll condicional — solo si el usuario está > 200px del top
+  const handleClearFilter = () => {
+    setFiltroMunicipioSynced(null);
+    if (window.scrollY > 200) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   useEffect(() => {
     const fetchEventos = async () => {
       try {
@@ -45,14 +69,35 @@ export default function Eventos() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Error al obtener eventos');
         setEventos(data.eventos || []);
+        autoRetried.current = false;
+        setIsAutoRetrying(false);
       } catch (err: any) {
-        setError(err.message);
+        // Mejora 2: reintento automático único con estado visual
+        if (!autoRetried.current) {
+          autoRetried.current = true;
+          setIsAutoRetrying(true);
+          setError('');
+          setTimeout(() => {
+            setIsAutoRetrying(false);
+            setFetchTrigger(t => t + 1);
+          }, 1500);
+        } else {
+          setIsAutoRetrying(false);
+          setError(err.message);
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchEventos();
-  }, [filtroMunicipio]);
+  }, [filtroMunicipio, fetchTrigger]);
+
+  const handleRetry = () => {
+    autoRetried.current = true;
+    setError('');
+    setIsAutoRetrying(false);
+    setFetchTrigger(t => t + 1);
+  };
 
   const now = new Date();
 
@@ -115,7 +160,7 @@ export default function Eventos() {
             <div className="relative">
               <select
                 value={filtroMunicipio || ''}
-                onChange={(e) => setFiltroMunicipio(e.target.value || null)}
+                onChange={(e) => setFiltroMunicipioSynced(e.target.value || null)}
                 className="w-full appearance-none bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 rounded-2xl px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-sm"
               >
                 <option value="">Todas las localidades</option>
@@ -146,22 +191,90 @@ export default function Eventos() {
         </div>
 
         <main className="flex-1 px-4 space-y-5 pb-24">
-          {loading ? (
+          {loading || isAutoRetrying ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4 text-stone-400">
               <span className="material-symbols-outlined text-4xl animate-spin text-emerald-600">autorenew</span>
-              <p className="font-bold text-xs uppercase tracking-widest">Cargando eventos...</p>
+              <p className="font-bold text-xs uppercase tracking-widest">
+                {isAutoRetrying ? 'Reintentando...' : 'Cargando eventos...'}
+              </p>
+              {isAutoRetrying && (
+                <p className="text-[10px] text-stone-300 dark:text-stone-600">
+                  Verificando conexión
+                </p>
+              )}
             </div>
           ) : error ? (
-            <div className="p-5 rounded-3xl bg-red-50 dark:bg-red-900/20 border border-red-200/50 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-3">
-              <span className="material-symbols-outlined">error</span>
-              {error}
+            /* CASO 4 — Error de red o backend (falló el auto-retry) */
+            <div className="flex flex-col items-center justify-center py-20 gap-5">
+              <div className="size-16 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-700/30 flex items-center justify-center">
+                <span className="material-symbols-outlined text-3xl text-amber-500">wifi_off</span>
+              </div>
+              <div className="text-center px-8 space-y-2">
+                <p className="font-bold text-sm text-stone-700 dark:text-stone-300">
+                  No pudimos cargar los eventos en este momento
+                </p>
+                <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed">
+                  Intentá nuevamente en unos segundos
+                </p>
+              </div>
+              <button
+                onClick={handleRetry}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-700 text-white text-xs font-bold uppercase tracking-widest hover:bg-emerald-800 active:scale-95 transition-all shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[16px]">refresh</span>
+                Reintentar
+              </button>
             </div>
           ) : displayedEvents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4 text-stone-400">
-              <span className="material-symbols-outlined text-5xl opacity-20">event_busy</span>
-              <p className="font-bold text-xs uppercase tracking-widest text-center px-8 leading-relaxed">
-                {tab === 'upcoming' ? 'No hay próximos eventos programados para esta zona.' : 'No hay historial de eventos finalizados.'}
-              </p>
+            /* CASOS 1, 2, 3 — Sin resultados (con o sin filtro) */
+            <div className="flex flex-col items-center justify-center py-20 gap-5">
+              <div className="size-16 rounded-2xl bg-stone-100 dark:bg-stone-800 border border-stone-200/50 dark:border-stone-700/50 flex items-center justify-center">
+                <span className="material-symbols-outlined text-3xl text-stone-300 dark:text-stone-600">
+                  {tab === 'upcoming' ? 'event_upcoming' : 'event_busy'}
+                </span>
+              </div>
+              <div className="text-center px-8 space-y-2">
+                {filtroMunicipio ? (
+                  /* CASO 2 — Filtro de municipio sin resultados */
+                  <>
+                    <p className="font-bold text-sm text-stone-700 dark:text-stone-300">
+                      No hay {tab === 'upcoming' ? 'próximos' : 'eventos pasados'} para {filtroMunicipio}
+                    </p>
+                    <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed">
+                      Podés explorar otros municipios o ver todos los eventos
+                    </p>
+                    <button
+                      onClick={handleClearFilter}
+                      className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-50 dark:hover:bg-emerald-900/20 active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">public</span>
+                      Ver todos los municipios
+                    </button>
+                  </>
+                ) : (
+                  /* CASO 1 — Sin eventos en absoluto */
+                  <>
+                    <p className="font-bold text-sm text-stone-700 dark:text-stone-300">
+                      {tab === 'upcoming'
+                        ? 'No hay eventos disponibles en este momento'
+                        : 'No hay historial de eventos finalizados'}
+                    </p>
+                    <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed">
+                      {tab === 'upcoming'
+                        ? 'Pronto se publicarán nuevas actividades y novedades'
+                        : 'Los eventos pasados aparecerán aquí una vez que hayan finalizado'}
+                    </p>
+                    {/* CASO 3 — Mensaje dinámico según municipios disponibles */}
+                    {tab === 'upcoming' && (
+                      <p className="mt-4 text-xs text-stone-400 dark:text-stone-500 leading-relaxed">
+                        {municipiosList.length > 0
+                          ? 'Próximamente se sumarán eventos locales de cada municipio'
+                          : 'Próximamente se incorporarán nuevas localidades y eventos'}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           ) : (
             displayedEvents.map(ev => {

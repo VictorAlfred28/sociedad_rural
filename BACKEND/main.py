@@ -3,6 +3,10 @@ import re
 import csv
 import io
 import uuid
+import secrets
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import requests
 import pytz
 from fastapi import (
@@ -458,6 +462,9 @@ class WebhookEventoPayload(BaseModel):
     media_url: Optional[str] = None      # Reels/carruseles pueden no retornar URL directa
     timestamp: Optional[str] = None
     permalink: Optional[str] = None
+    # FASE 2: Campos para diferenciación de fuente (backward compatible)
+    fuente: Optional[str] = "sociedad_rural"  # 'sociedad_rural' | 'municipio'
+    municipio_id: Optional[str] = None        # UUID del municipio origen (si aplica)
 
 
 class UpdateSupportNoteRequest(BaseModel):
@@ -470,6 +477,117 @@ def slugify(value: str) -> str:
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
     value = re.sub(r'[^\w\s-]', '', value.lower())
     return re.sub(r'[-\s]+', '-', value).strip('-_')
+
+
+# ── UTILIDAD DE EMAIL ──────────────────────────────────────────────────────────
+def enviar_email_html(destinatario: str, asunto: str, html_body: str) -> bool:
+    """
+    Envía un email HTML. Intenta Resend API primero (si hay RESEND_API_KEY).
+    Fallback a SMTP (si hay SMTP_HOST + SMTP_USER + SMTP_PASS).
+    Nunca lanza excepción — retorna True si éxito, False si falla.
+    """
+    resend_key = os.getenv("RESEND_API_KEY", "")
+    if resend_key:
+        return _enviar_via_resend(destinatario, asunto, html_body, resend_key)
+    return _enviar_via_smtp(destinatario, asunto, html_body)
+
+
+def _enviar_via_resend(destinatario: str, asunto: str, html_body: str, api_key: str) -> bool:
+    """Envía usando la API HTTP de Resend (resend.com)."""
+    from_email = os.getenv("RESEND_FROM", os.getenv("SMTP_FROM", "noreply@sociedadruraldelnorte.com"))
+    try:
+        r = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from":    from_email,
+                "to":      [destinatario],
+                "subject": asunto,
+                "html":    html_body,
+            },
+            timeout=12,
+        )
+        if r.status_code in (200, 201):
+            logger.info(f"[RESEND] Email enviado a {destinatario}")
+            return True
+        logger.warning(f"[RESEND] Error {r.status_code}: {r.text[:200]}")
+        # Fallback a SMTP si Resend falla
+        return _enviar_via_smtp(destinatario, asunto, html_body)
+    except Exception as e:
+        logger.error(f"[RESEND] Excepción: {e}")
+        return _enviar_via_smtp(destinatario, asunto, html_body)
+
+
+def _enviar_via_smtp(destinatario: str, asunto: str, html_body: str) -> bool:
+    """Envía usando SMTP estándar (starttls). Requiere SMTP_HOST, SMTP_USER, SMTP_PASS."""
+    smtp_host = os.getenv("SMTP_HOST", "")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASS", "")
+    smtp_from = os.getenv("SMTP_FROM", smtp_user)
+
+    if not all([smtp_host, smtp_user, smtp_pass]):
+        logger.warning(f"[EMAIL] Sin proveedor configurado. No se envió email a {destinatario}")
+        return False
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = asunto
+        msg["From"]    = smtp_from
+        msg["To"]      = destinatario
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_from, destinatario, msg.as_string())
+
+        logger.info(f"[SMTP] Email enviado a {destinatario}")
+        return True
+    except Exception as e:
+        logger.error(f"[SMTP] Error enviando a {destinatario}: {str(e)}")
+        return False
+
+
+def _html_verificacion(nombre: str, url: str) -> str:
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;">
+      <h2 style="color:#245b31;margin-bottom:8px;">Verificación de correo electrónico</h2>
+      <p style="color:#444;font-size:15px;">Hola <strong>{nombre}</strong>,</p>
+      <p style="color:#444;font-size:15px;">
+        Gracias por registrarte en <strong>Sociedad Rural Norte de Corrientes</strong>.
+        Para completar tu registro, verificá tu dirección de correo electrónico.
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="{url}" style="background:#357a38;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+          Verificar mi correo
+        </a>
+      </div>
+      <p style="color:#888;font-size:12px;">Este enlace expira en 48 horas. Si no te registraste, ignorá este mensaje.</p>
+    </div>
+    """
+
+
+def _html_aprobacion(nombre: str, login_url: str) -> str:
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;">
+      <h2 style="color:#245b31;margin-bottom:8px;">Tu cuenta fue aprobada ✅</h2>
+      <p style="color:#444;font-size:15px;">Hola <strong>{nombre}</strong>,</p>
+      <p style="color:#444;font-size:15px;">
+        Tu cuenta en <strong>Sociedad Rural Norte de Corrientes</strong> fue aprobada por el administrador.
+        Ya podés ingresar al portal.
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="{login_url}" style="background:#357a38;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+          Ingresar al Portal
+        </a>
+      </div>
+    </div>
+    """
 
 # ── UTILIDADES PARA EL WEBHOOK DE EVENTOS SOCIALES ───────────────────────────
 def procesar_texto_evento(caption: str) -> dict:
@@ -633,14 +751,18 @@ def register(
             "rol": rol_asignado,
             "estado": "PENDIENTE",
             "municipio": socio.municipio,
-            "provincia": socio.provincia,  # Provincia del socio o comercio
+            "provincia": socio.provincia,
             "direccion": socio.direccion,
             "rubro": socio.rubro,
-            "barrio": socio.barrio,  # Barrio/localidad (nuevo)
+            "barrio": socio.barrio,
             "es_profesional": socio.es_profesional,
-            "password_changed": user_password_was_set,  # Solo True si NO es una de las default
+            "password_changed": user_password_was_set,
             "es_estudiante": socio.isStudent,
             "constancia_estudiante_url": constancia_url,
+            # Email verification
+            "email_verificado": False,
+            "email_verificacion_token": secrets.token_urlsafe(32),
+            "email_verificacion_expira": (datetime.now() + timedelta(hours=48)).isoformat(),
         }
 
         # Inserción en tabla profiles - con rollback al auth si falla
@@ -709,8 +831,16 @@ def register(
             tipo_usuario=rol_asignado,
         )
 
+        # Enviar email de verificación (best-effort, no bloquea el registro)
+        background_tasks.add_task(
+            _enviar_email_verificacion_bg,
+            email=socio.email,
+            nombre=socio.nombre_apellido,
+            token=profile_data["email_verificacion_token"],
+        )
+
         return {
-            "message": f"{rol_asignado.capitalize()} registrado correctamente. Pendiente de aprobación por Admin.",
+            "message": f"{rol_asignado.capitalize()} registrado correctamente. Revisá tu correo para verificar tu cuenta.",
             "socio": profile_data,
         }
 
@@ -932,11 +1062,18 @@ def login(
 
         profile = profile_res.data[0]
 
-        # Validar si está pendiente o suspendido (Bloquear aquí en el login)
+        # Bloqueo 1: Email no verificado
+        if not profile.get("email_verificado", False):
+            raise HTTPException(
+                status_code=403,
+                detail="EMAIL_NO_VERIFICADO",
+            )
+
+        # Bloqueo 2: Estado pendiente/suspendido/rechazado
         if profile.get("estado") not in ["APROBADO", "RESTRINGIDO"]:
             raise HTTPException(
                 status_code=403,
-                detail=f"Su usuario se encuentra {profile.get('estado')}. Contacte a la Administración.",
+                detail=f"CUENTA_{profile.get('estado')}",
             )
 
         # Validación: PRIMER LOGIN OBLIGATORIO SI USA PASS POR DEFECTO O FUE RESTABLECIDA POR ADMIN
@@ -1021,6 +1158,102 @@ def login(
 
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+# ── EMAIL VERIFICATION BACKGROUND HELPER ────────────────────────────────────
+def _enviar_email_verificacion_bg(email: str, nombre: str, token: str):
+    frontend_url = os.getenv("FRONTEND_URL", "https://sociedadruraldelnorte.agentech.ar")
+    url = f"{frontend_url}/verificar-email?token={token}"
+    enviar_email_html(
+        destinatario=email,
+        asunto="Verificá tu correo — Sociedad Rural Norte de Corrientes",
+        html_body=_html_verificacion(nombre, url),
+    )
+
+
+# 4.1 VERIFICAR EMAIL POR TOKEN
+@app.get("/api/verificar-email")
+def verificar_email(token: str):
+    """Valida el token de verificación de correo y marca email_verificado = true."""
+    if not token:
+        raise HTTPException(status_code=400, detail="Token requerido")
+
+    res = (
+        supabase.table("profiles")
+        .select("id, nombre_apellido, email_verificado, email_verificacion_expira")
+        .eq("email_verificacion_token", token)
+        .execute()
+    )
+
+    if not res.data:
+        raise HTTPException(status_code=404, detail="TOKEN_INVALIDO")
+
+    profile = res.data[0]
+
+    if profile.get("email_verificado"):
+        return {"message": "Tu correo ya fue verificado anteriormente. Podés iniciar sesión."}
+
+    # Verificar expiración
+    expira_str = profile.get("email_verificacion_expira")
+    if expira_str:
+        expira = datetime.fromisoformat(expira_str.replace("Z", "+00:00"))
+        if datetime.now(expira.tzinfo) > expira:
+            raise HTTPException(status_code=400, detail="TOKEN_EXPIRADO")
+
+    # Marcar verificado e invalidar el token
+    supabase.table("profiles").update({
+        "email_verificado": True,
+        "email_verificacion_token": None,
+        "email_verificacion_expira": None,
+    }).eq("id", profile["id"]).execute()
+
+    return {
+        "message": "¡Correo verificado! Tu cuenta está en revisión por el administrador.",
+        "nombre": profile.get("nombre_apellido"),
+    }
+
+
+# 4.2 REENVIAR VERIFICACIÓN
+@app.post("/api/reenviar-verificacion")
+@limiter.limit("3/minute")
+def reenviar_verificacion(request: Request, body: dict):
+    """Genera un nuevo token de verificación y reenvía el email."""
+    email = (body.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email requerido")
+
+    res = (
+        supabase.table("profiles")
+        .select("id, nombre_apellido, email_verificado")
+        .eq("email", email)
+        .execute()
+    )
+
+    if not res.data:
+        # No revelamos si el email existe o no (seguridad)
+        return {"message": "Si el correo está registrado, recibirás un nuevo enlace de verificación."}
+
+    profile = res.data[0]
+
+    if profile.get("email_verificado"):
+        return {"message": "Tu correo ya fue verificado. Podés iniciar sesión."}
+
+    nuevo_token  = secrets.token_urlsafe(32)
+    nueva_expira = (datetime.now() + timedelta(hours=48)).isoformat()
+
+    supabase.table("profiles").update({
+        "email_verificacion_token":  nuevo_token,
+        "email_verificacion_expira": nueva_expira,
+    }).eq("id", profile["id"]).execute()
+
+    _enviar_email_verificacion_bg(
+        email=email,
+        nombre=profile.get("nombre_apellido", ""),
+        token=nuevo_token,
+    )
+
+    return {"message": "Si el correo está registrado, recibirás un nuevo enlace de verificación."}
+
+
 
 security = HTTPBearer()
 
@@ -1940,6 +2173,9 @@ def approve_user(
         if not res.data:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+        # Recuperar email y nombre del usuario para el email de notificación
+        usuario_aprobado = res.data[0] if res.data else {}
+
         background_tasks.add_task(
             registrar_auditoria,
             usuario_id=admin_user.id,
@@ -1953,6 +2189,20 @@ def approve_user(
             modulo="Gestión Usuarios",
             request=request,
         )
+
+        # Email de aprobación (best-effort)
+        if usuario_aprobado.get("email"):
+            frontend_url = os.getenv("FRONTEND_URL", "https://sociedadruraldelnorte.agentech.ar")
+            background_tasks.add_task(
+                enviar_email_html,
+                destinatario=usuario_aprobado["email"],
+                asunto="¡Tu cuenta fue aprobada! — Sociedad Rural Norte de Corrientes",
+                html_body=_html_aprobacion(
+                    nombre=usuario_aprobado.get("nombre_apellido", ""),
+                    login_url=f"{frontend_url}/login",
+                ),
+            )
+
         return {"message": "Usuario aprobado correctamente"}
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -3306,7 +3556,10 @@ def get_combined_eventos(
 
         # 2. Obtener eventos de redes sociales (aprobados)
         query2 = supabase.table("eventos_sociales").select("*").eq("status", "aprobado")
-        if municipio:
+        # FASE 2: Filtrar por municipio_id (UUID) cuando está disponible, fallback a texto
+        if resolved_municipio_id:
+            query2 = query2.eq("municipio_id", resolved_municipio_id)
+        elif municipio:
             query2 = query2.ilike("lugar", f"%{municipio}%")
         if tipo:
             # Buscamos en el titulo para eventos sociales
@@ -3320,6 +3573,13 @@ def get_combined_eventos(
         # 3. Normalizar eventos sociales al esquema que espera el frontend
         social_normalized = []
         for ev in eventos_soc:
+            # FASE 2: fallback IG depende de la fuente para no apuntar a cuenta incorrecta
+            ev_fuente = ev.get("fuente", "sociedad_rural")
+            fallback_ig = (
+                "https://www.instagram.com/sociedadruralnc?igsh=MTMwcWNzbHh6aHdyMg%3D%3D"
+                if ev_fuente == "sociedad_rural"
+                else None  # Municipios sin permalink no heredan la cuenta de SR
+            )
             social_normalized.append(
                 {
                     "id": ev["id"],
@@ -3330,11 +3590,13 @@ def get_combined_eventos(
                     "hora": ev["hora_evento"],
                     "tipo": "Social",  # Etiqueta para distinguir origen
                     "imagen_url": ev.get("imagen_url"),
-                    "link_instagram": ev.get("link_instagram") or ev.get("metadata", {}).get("permalink", "https://www.instagram.com/sociedadruralnc?igsh=MTMwcWNzbHh6aHdyMg%3D%3D"),
+                    "link_instagram": ev.get("link_instagram") or ev.get("metadata", {}).get("permalink") or fallback_ig,
                     "link_facebook": ev.get("link_facebook"),
                     "link_whatsapp": ev.get("link_whatsapp"),
                     "slug": ev.get("slug"),
                     "estado": "publicado",
+                    "fuente": ev_fuente,
+                    "municipio_id": ev.get("municipio_id"),
                 }
             )
 
@@ -3568,8 +3830,40 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
         )
 
     try:
+        # FASE 2: Determinar fuente (backward compatible: sin fuente → sociedad_rural)
+        fuente = payload.fuente or "sociedad_rural"
+        municipio_id_validado = None
+        nombre_municipio = None
+
+        # FASE 2: Validar municipio_id si viene en el payload
+        if payload.municipio_id:
+            mun_res = (
+                supabase.table("municipios")
+                .select("id, nombre")
+                .eq("id", payload.municipio_id)
+                .eq("activo", True)
+                .execute()
+            )
+            if not mun_res.data:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"El municipio_id '{payload.municipio_id}' no existe o no está activo.",
+                )
+            municipio_id_validado = mun_res.data[0]["id"]
+            nombre_municipio = mun_res.data[0]["nombre"]
+
         # 2. Procesar Texto con Regex
         datos_procesados = procesar_texto_evento(payload.caption)
+
+        # FASE 2: Título enriquecido para municipios sin caption
+        titulo = datos_procesados["titulo"]
+        if fuente == "municipio" and not (payload.caption and payload.caption.strip()) and nombre_municipio:
+            titulo = f"Novedad de {nombre_municipio}"
+
+        # FASE 2: Determinar status según fuente
+        # sociedad_rural → aprobado automáticamente (backward compatible)
+        # municipio → borrador (requiere moderación admin)
+        status_evento = "aprobado" if fuente == "sociedad_rural" else "borrador"
 
         # 3. Procesar Imagen (Descargar y subir a Supabase Storage)
         url_final_imagen = procesar_imagen_evento(payload.media_url, payload.post_id)
@@ -3577,7 +3871,7 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
         # 4. Preparar datos para inserción/actualización
         remate_data = {
             "external_id": payload.post_id,
-            "titulo": datos_procesados["titulo"],
+            "titulo": titulo,
             "descripcion_limpia": datos_procesados["descripcion_limpia"],
             "lugar": datos_procesados["lugar"],
             "fecha_evento": datos_procesados["fecha_evento"],
@@ -3589,10 +3883,15 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
                 "timestamp": payload.timestamp,
                 "permalink": payload.permalink,
             },
-            "status": "aprobado",  # Eventos de Make.com se publican automáticamente
-            "slug": f"{slugify(datos_procesados['titulo'])}-{uuid4().hex[:6]}",
+            "status": status_evento,
+            "fuente": fuente,
+            "slug": f"{slugify(titulo)}-{uuid4().hex[:6]}",
             "link_instagram": payload.permalink,
         }
+
+        # FASE 2: Incluir municipio_id si fue validado
+        if municipio_id_validado:
+            remate_data["municipio_id"] = municipio_id_validado
 
         # 5. Persistencia (Upsert por external_id)
         # La tabla debe tener external_id como UNIQUE
@@ -3603,12 +3902,35 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
         )
 
         if res.data:
-            logger.info(f"Evento importado exitosamente: {payload.post_id}")
+            evento_id = res.data[0].get("id")
+            logger.info(f"Evento importado exitosamente: {payload.post_id} [fuente={fuente}, status={status_evento}]")
+
+            # FASE 2: Notificar admins cuando llega evento de municipio (requiere moderación)
+            if fuente == "municipio" and nombre_municipio:
+                try:
+                    admins_res = (
+                        supabase.table("profiles")
+                        .select("id")
+                        .eq("rol", "ADMIN")
+                        .execute()
+                    )
+                    for admin in (admins_res.data or []):
+                        enviar_notificacion_push_inapp(
+                            usuario_id=admin["id"],
+                            titulo="📍 Nuevo Evento de Municipio",
+                            mensaje=f"Publicación de {nombre_municipio} pendiente de moderación: {titulo}",
+                            link_url="/admin",
+                        )
+                except Exception as notif_err:
+                    logger.error(f"[WEBHOOK] Error notificando admins sobre evento de municipio: {notif_err}")
+
             return {
                 "status": "success",
                 "message": "Evento procesado correctamente",
-                "id": res.data[0].get("id"),
+                "id": evento_id,
                 "external_id": payload.post_id,
+                "fuente": fuente,
+                "status_evento": status_evento,
             }
 
         return {"status": "success", "external_id": payload.post_id}
@@ -3627,17 +3949,22 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
 # ── ENDPOINTS GESTIÓN DE EVENTOS DE REDES SOCIALES (ADMIN) ───────────────────
 @app.get("/api/admin/eventos-sociales")
 def get_all_social_eventos(
-    limit: int = 50, offset: int = 0, admin_user=Depends(get_current_admin)
+    limit: int = 50,
+    offset: int = 0,
+    fuente: Optional[str] = None,  # FASE 2: filtro por origen (sociedad_rural / municipio)
+    admin_user=Depends(get_current_admin),
 ):
     """Retorna todos los eventos importados de redes sociales para gestión admin"""
     try:
-        response = (
+        query = (
             supabase.table("eventos_sociales")
             .select("*")
             .order("created_at", desc=True)
-            .range(offset, offset + limit - 1)
-            .execute()
         )
+        # FASE 2: Filtro opcional por fuente
+        if fuente:
+            query = query.eq("fuente", fuente)
+        response = query.range(offset, offset + limit - 1).execute()
         return {"eventos": response.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

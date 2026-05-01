@@ -3,6 +3,7 @@ import BottomNav from '../components/BottomNav';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from '../components/NotificationBell';
 import SocioHomeContent from '../components/SocioHomeContent';
+import Lupita from '../components/Lupita';
 import { motion } from 'framer-motion';
 import { useRef, useState, useEffect } from 'react';
 import paisaje from '../assets/paisaje.png';
@@ -211,10 +212,19 @@ export default function HomeSocio() {
 
         {/* Contenido de tarjetas sobre el paisaje */}
         <div className="relative z-10 px-4 pt-4 pb-28">
+          {/* Buscador Lupita */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18 }}
+            className="mb-4"
+          >
+            <Lupita />
+          </motion.div>
           <motion.p
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.22 }}
+            transition={{ delay: 0.25 }}
             className="text-[9.5px] font-black uppercase tracking-[0.38em] text-stone-600/65 dark:text-stone-300/50 mb-3 pl-1"
           >
             Accesos rápidos

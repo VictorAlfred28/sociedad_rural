@@ -9,11 +9,16 @@ export default function Login() {
   const { login } = useAuth();
 
   const [identificador, setIdentificador] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [password,       setPassword]       = useState('');
+  const [loading,        setLoading]        = useState(false);
+  const [resetLoading,   setResetLoading]   = useState(false);
+  const [errorMsg,       setErrorMsg]       = useState('');
+  const [successMsg,     setSuccessMsg]     = useState('');
+  // Email verification state
+  const [emailNoVerificado, setEmailNoVerificado] = useState(false);
+  const [reenvioEmail,      setReenvioEmail]      = useState('');
+  const [reenvioLoading,    setReenvioLoading]    = useState(false);
+  const [reenvioMsg,        setReenvioMsg]        = useState('');
 
   const handleForgotPassword = async () => {
     if (!identificador) {
@@ -45,6 +50,8 @@ export default function Login() {
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
+    setEmailNoVerificado(false);
+    setReenvioMsg('');
 
     try {
       const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/login`, {
@@ -56,36 +63,43 @@ export default function Login() {
       const data = await resp.json();
 
       if (!resp.ok) {
-        throw new Error(data.detail || 'Error al iniciar sesión');
+        const detail = data.detail || '';
+        if (detail === 'EMAIL_NO_VERIFICADO') {
+          setEmailNoVerificado(true);
+          // Pre-rellenar el campo de reenvío si el identificador es un email
+          if (identificador.includes('@')) setReenvioEmail(identificador);
+          setErrorMsg('Debe verificar su correo electrónico antes de ingresar.');
+        } else if (detail.startsWith('CUENTA_')) {
+          const estado = detail.replace('CUENTA_', '');
+          const msgs: Record<string, string> = {
+            PENDIENTE:   'Tu cuenta está en revisión por el administrador. Te avisaremos cuando esté aprobada.',
+            RECHAZADO:   'Tu cuenta fue rechazada. Contactá a la administración para más información.',
+            SUSPENDIDO:  'Tu cuenta fue suspendida. Contactá a la administración.',
+            RESTRINGIDO: 'Tu cuenta tiene acceso restringido. Contactá a la administración.',
+          };
+          setErrorMsg(msgs[estado] || `Tu cuenta se encuentra ${estado}.`);
+        } else {
+          setErrorMsg(detail || 'Error al iniciar sesión');
+        }
+        return;
       }
 
       setSuccessMsg(`¡Bienvenido! Rol asignado: ${data.socio?.rol || 'USUARIO'}`);
-
-      // Guardado de sesión básica con Global Context
       login(data.token, data.socio, data.refresh_token);
-
-      // Pequeño delay para que se vea el successMsg
       setTimeout(() => {
-        // LÓGICA CRÍTICA DEL NEGOCIO
         if (data.necesita_cambio_password) {
           navigate('/cambio-password');
         } else {
-          if (data.socio.rol === 'ADMIN') {
-            navigate('/admin');
-          } else if (data.socio.rol === 'CAMARA') {
-            navigate('/camara');
-          } else {
-            navigate('/home');
-          }
+          if (data.socio.rol === 'ADMIN')   navigate('/admin');
+          else if (data.socio.rol === 'CAMARA') navigate('/camara');
+          else navigate('/home');
         }
       }, 1000);
 
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
-      if (!successMsg) {
-        setLoading(false);
-      }
+      if (!successMsg) setLoading(false);
     }
   };
 
@@ -129,10 +143,55 @@ export default function Login() {
           )}
 
           {errorMsg && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm font-medium">
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm font-medium">
               {errorMsg}
             </div>
           )}
+
+          {/* Bloque reenvío de verificación */}
+          {emailNoVerificado && (
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
+              <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">Reenviar enlace de verificación</p>
+              <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
+                <li>Revisá tu carpeta de <strong>spam o correo no deseado</strong></li>
+                <li>El email puede tardar <strong>unos minutos</strong> en llegar</li>
+                <li>Asegurate de que el correo ingresado sea correcto</li>
+              </ul>
+              <input
+                type="email"
+                value={reenvioEmail}
+                onChange={e => setReenvioEmail(e.target.value)}
+                placeholder="Tu correo electrónico"
+                className="w-full px-3 h-9 rounded-lg border border-amber-300 bg-white text-sm outline-none focus:ring-1 focus:ring-amber-500"
+              />
+              <button
+                type="button"
+                disabled={reenvioLoading || !reenvioEmail}
+                onClick={async () => {
+                  setReenvioLoading(true);
+                  setReenvioMsg('');
+                  try {
+                    const r = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/reenviar-verificacion`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: reenvioEmail }),
+                    });
+                    const d = await r.json();
+                    setReenvioMsg(d.message || 'Revisá tu bandeja de entrada.');
+                  } catch {
+                    setReenvioMsg('Error al enviar. Intentá nuevamente.');
+                  } finally {
+                    setReenvioLoading(false);
+                  }
+                }}
+                className="w-full h-9 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
+              >
+                {reenvioLoading ? 'Enviando...' : 'Reenviar enlace'}
+              </button>
+              {reenvioMsg && <p className="text-xs text-amber-700 font-medium">{reenvioMsg}</p>}
+            </div>
+          )}
+
 
           <form className="space-y-6" onSubmit={handleLogin}>
 

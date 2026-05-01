@@ -24,6 +24,7 @@ const Preferencias = React.lazy(() => import('./pages/Preferencias'));
 const ValidaSocioPublico = React.lazy(() => import('./pages/ValidaSocioPublico'));
 const ValidaQRDinamico = React.lazy(() => import('./pages/ValidaQRDinamico'));
 const EnConstruccion = React.lazy(() => import('./pages/EnConstruccion'));
+const VerificarEmail = React.lazy(() => import('./pages/VerificarEmail'));
 
 // ── Spinner de carga para Suspense ───────────────────────────────────────
 const PageLoader = () => (
@@ -98,6 +99,7 @@ export default function App() {
 
           <Route path="/valida-socio/:id" element={<ValidaSocioPublico />} />
           <Route path="/qr-valida/:token" element={<ValidaQRDinamico />} />
+          <Route path="/verificar-email" element={<VerificarEmail />} />
 
           {/* Rutas Protegidas para cualquier Socio/Comercio Aprobado */}
           <Route path="/home" element={<ProtectedRoute><HomeSocio /></ProtectedRoute>} />
