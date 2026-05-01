@@ -4,12 +4,53 @@ import { useAuth } from '../context/AuthContext';
 import NotificationBell from '../components/NotificationBell';
 import SocioHomeContent from '../components/SocioHomeContent';
 import { motion } from 'framer-motion';
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import paisaje from '../assets/paisaje.png';
 
 export default function HomeSocio() {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [clima, setClima] = useState<{ temp: number; desc: string; icon: string } | null>(null);
+
+  useEffect(() => {
+    const fetchClima = async () => {
+      try {
+        const municipioName = user?.municipio || 'Corrientes';
+        const query = `${municipioName}, Corrientes, Argentina`;
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=es&format=json`);
+        const geoData = await geoRes.json();
+        
+        let lat = -27.4678; // Default Corrientes Capital
+        let lon = -58.8344;
+        let shortName = municipioName.split(' ')[0].substring(0, 5);
+        if (shortName.toLowerCase() === 'corrientes') shortName = 'Ctes';
+
+        if (geoData.results && geoData.results.length > 0) {
+          lat = geoData.results[0].latitude;
+          lon = geoData.results[0].longitude;
+        }
+
+        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        const weatherData = await weatherRes.json();
+        const code = weatherData.current_weather.weathercode;
+        const temp = Math.round(weatherData.current_weather.temperature);
+        
+        let icon = '🌤️';
+        if (code === 0) icon = '☀️';
+        else if (code === 1 || code === 2 || code === 3) icon = '⛅';
+        else if (code >= 45 && code <= 48) icon = '🌫️';
+        else if (code >= 51 && code <= 67) icon = '🌧️';
+        else if (code >= 71 && code <= 77) icon = '❄️';
+        else if (code >= 80 && code <= 82) icon = '🌦️';
+        else if (code >= 95) icon = '⛈️';
+
+        setClima({ temp, desc: shortName, icon });
+      } catch (error) {
+        console.error("Error fetching weather:", error);
+      }
+    };
+    fetchClima();
+  }, [user?.municipio]);
 
   return (
     <div className="relative min-h-screen flex flex-col font-display max-w-md mx-auto shadow-2xl overflow-hidden bg-[#3d5228]">
@@ -62,8 +103,19 @@ export default function HomeSocio() {
               border: '1px solid rgba(255,255,255,0.18)',
             }}
           >
-            <span className="text-[13px]">🌤️</span>
-            <span className="text-[12px] font-semibold text-white leading-none">24°C | Ctes</span>
+            {clima ? (
+              <>
+                <span className="text-[13px]">{clima.icon}</span>
+                <span className="text-[12px] font-semibold text-white leading-none tracking-tight">
+                  {clima.temp}°C | {clima.desc}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-[13px] animate-pulse">☁️</span>
+                <span className="text-[12px] font-semibold text-white/70 leading-none">Cargando...</span>
+              </>
+            )}
           </motion.div>
 
           <div className="flex items-center justify-between">

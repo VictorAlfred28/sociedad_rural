@@ -1228,30 +1228,18 @@ def get_current_admin_or_camara(
 def get_municipios():
     """Retorna la lista de localidades/municipios activos desde la base de datos."""
     try:
-        # Consultamos la tabla localidades filtrando por active = true
+        # Consultamos la tabla municipios filtrando por activo = true
         res = (
-            supabase.table("localidades")
+            supabase.table("municipios")
             .select("id, nombre")
-            .eq("active", True)
+            .eq("activo", True)
             .order("nombre")
             .execute()
         )
         return {"municipios": res.data or []}
     except Exception as e:
         logger.error(f"Error cargando municipios: {str(e)}")
-        # Fallback de seguridad para no romper funcionalidad si la tabla no existe aún
-        return {
-            "municipios": [
-                {"id": "itati", "nombre": "Itatí"},
-                {"id": "ramada-paso", "nombre": "Ramada Paso"},
-                {"id": "san-cosme", "nombre": "San Cosme"},
-                {"id": "santa-ana", "nombre": "Santa Ana"},
-                {"id": "paso-de-la-patria", "nombre": "Paso de la Patria"},
-                {"id": "capital", "nombre": "Capital"},
-                {"id": "riachuelo", "nombre": "Riachuelo"},
-                {"id": "el-sombrero", "nombre": "El Sombrero"},
-            ]
-        }
+        raise HTTPException(status_code=500, detail="Error interno al cargar municipios")
 
 
 # ── ENDPOINT PÚBLICO: listar comercios adheridos ─────────────────────────────
@@ -3294,11 +3282,19 @@ def get_combined_eventos(
     eventos importados de redes sociales (aprobados).
     """
     try:
+        resolved_municipio_id = municipio_id
+        if not resolved_municipio_id and municipio:
+            # Intentar resolver el UUID real del municipio por nombre
+            mun_res = supabase.table("municipios").select("id").ilike("nombre", municipio).execute()
+            if mun_res.data:
+                resolved_municipio_id = mun_res.data[0]["id"]
+
         # 1. Obtener eventos institucionales (solo publicados)
         query1 = supabase.table("eventos").select("*").eq("estado", "publicado")
-        if municipio_id:
-            query1 = query1.eq("municipio_id", municipio_id)
+        if resolved_municipio_id:
+            query1 = query1.eq("municipio_id", resolved_municipio_id)
         elif municipio:
+            # Fallback a texto solo si no se encontró en la tabla municipios
             query1 = query1.ilike("lugar", f"%{municipio}%")
         if tipo:
             query1 = query1.ilike("tipo", f"%{tipo}%")

@@ -13,12 +13,26 @@ export default function Eventos() {
   const [error, setError] = useState('');
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [filtroMunicipio, setFiltroMunicipio] = useState<string | null>(null);
+  const [municipiosList, setMunicipiosList] = useState<{id: string, nombre: string}[]>([]);
 
   useEffect(() => {
     if (user?.municipio) {
       setFiltroMunicipio(user.municipio);
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchMunicipios = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/municipios`);
+        const data = await res.json();
+        setMunicipiosList(data.municipios || []);
+      } catch (err) {
+        console.error('Error fetching municipios', err);
+      }
+    };
+    fetchMunicipios();
+  }, []);
 
   useEffect(() => {
     const fetchEventos = async () => {
@@ -94,30 +108,26 @@ export default function Eventos() {
         </header>
 
         <div className="px-4 py-4 space-y-3">
-          {filtroMunicipio && (
-            <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 rounded-2xl px-4 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
-              <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[10px]">
-                <span className="material-symbols-outlined text-[18px]">location_on</span>
-                <span>Zona: <strong>{filtroMunicipio}</strong></span>
-              </div>
-              <button
-                onClick={() => setFiltroMunicipio(null)}
-                className="flex items-center justify-center size-6 rounded-full bg-emerald-100 dark:bg-emerald-800/50 hover:bg-emerald-200 transition-colors"
-                title="Ver todos los municipios"
+          <div className="flex flex-col space-y-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 px-1">
+              Filtrar por localidad
+            </label>
+            <div className="relative">
+              <select
+                value={filtroMunicipio || ''}
+                onChange={(e) => setFiltroMunicipio(e.target.value || null)}
+                className="w-full appearance-none bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 rounded-2xl px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-sm"
               >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
+                <option value="">Todas las localidades</option>
+                {municipiosList.map(m => (
+                  <option key={m.id} value={m.nombre}>{m.nombre}</option>
+                ))}
+              </select>
+              <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-600 dark:text-emerald-400">
+                expand_more
+              </span>
             </div>
-          )}
-
-          {!filtroMunicipio && user?.municipio && (
-            <div className="flex items-center justify-between text-[10px] text-stone-400 font-bold uppercase tracking-widest px-1">
-              <span>Todas las localidades</span>
-              <button onClick={() => setFiltroMunicipio(user.municipio)} className="text-emerald-600 dark:text-emerald-400 hover:underline">
-                Ver mi zona
-              </button>
-            </div>
-          )}
+          </div>
 
           <div className="flex h-11 items-center justify-center rounded-2xl bg-stone-200/50 dark:bg-stone-800/50 p-1 border border-stone-200/50">
             <button

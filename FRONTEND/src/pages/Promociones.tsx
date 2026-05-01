@@ -211,44 +211,48 @@ export default function Promociones() {
     window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
   };
 
+  const matchSearch = (textArray: (string | undefined | null)[]) => {
+    if (!busqueda) return true;
+    const q = normalizeText(busqueda);
+    const searchTerms = [q];
+    Object.entries(SYNONYMS).forEach(([key, values]) => {
+      if (normalizeText(key).includes(q) || values.some(v => normalizeText(v).includes(q))) {
+        searchTerms.push(normalizeText(key), ...values.map(normalizeText));
+      }
+    });
+    
+    const combined = textArray.filter(Boolean).map(t => normalizeText(t!)).join(' ');
+    return searchTerms.some(term => combined.includes(term));
+  };
+
   const ofertasFiltradas = ofertas.filter(o => {
     const matchRubro = filtroRubro === 'todos' || o.comercio?.rubro === filtroRubro;
 
     let matchMun = false;
     const ofMunicipio = o.comercio?.municipio;
     if (filtroMunicipio === 'todos') {
-      // Mostrar todas las que NO son del municipio del socio (incluyendo "No especificado" y null)
       matchMun = ofMunicipio !== user?.municipio;
     } else {
       matchMun = ofMunicipio === filtroMunicipio;
     }
 
-    return matchRubro && matchMun;
+    const matchQ = matchSearch([o.titulo, o.descripcion, o.comercio?.nombre_apellido, o.comercio?.rubro ? RUBRO_LABELS[o.comercio.rubro] : '', ofMunicipio]);
+
+    return matchRubro && matchMun && matchQ;
   });
 
   const comerciosFiltrados = comercios.filter(c => {
     const matchRubro = filtroRubro === 'todos' || c.rubro === filtroRubro;
     const matchMun = filtroMunicipio === 'todos' || c.municipio === filtroMunicipio;
+    const matchQ = matchSearch([c.nombre_apellido, c.rubro ? RUBRO_LABELS[c.rubro] : '', c.municipio]);
     
-    const q = normalizeText(busqueda);
-    const searchTerms = [q];
-    
-    // Lupa Inteligente: expandir búsqueda con sinónimos
-    if (q) {
-      Object.entries(SYNONYMS).forEach(([key, values]) => {
-        if (normalizeText(key).includes(q) || values.some(v => normalizeText(v).includes(q))) {
-          searchTerms.push(normalizeText(key), ...values.map(normalizeText));
-        }
-      });
-    }
+    return matchRubro && matchMun && matchQ;
+  });
 
-    const matchQ = !busqueda || searchTerms.some(term => 
-      normalizeText(c.nombre_apellido).includes(term) ||
-      normalizeText(RUBRO_LABELS[c.rubro] || c.rubro).includes(term) ||
-      normalizeText(c.municipio || '').includes(term)
-    );
-    
-    return matchRubro && matchQ && matchMun;
+  const profesionalesFiltrados = profesionales.filter(p => {
+    const matchMun = filtroMunicipio === 'todos' || p.municipio === filtroMunicipio;
+    const matchQ = matchSearch([p.nombre_apellido, p.rubro, p.municipio]);
+    return matchMun && matchQ;
   });
 
   /* ─── Render ─────────────────────────────────────────────────────────────── */
@@ -275,33 +279,48 @@ export default function Promociones() {
           </Link>
 
           {showSearch ? (
-            <motion.input
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              autoFocus
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              onBlur={() => !busqueda && setShowSearch(false)}
-              placeholder="Buscar..."
-              className="flex-1 h-11 rounded-2xl bg-white dark:bg-stone-800 px-4 text-sm outline-none border-2 border-[#245b31]/20 focus:border-[#245b31] transition-all shadow-inner"
-            />
+            <div className="flex-1 relative flex items-center">
+              <motion.input
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                autoFocus
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                placeholder="Buscar beneficios, comercios, socios..."
+                className="w-full h-11 rounded-2xl bg-white dark:bg-stone-800 pl-4 pr-10 text-sm outline-none border-2 border-[#245b31]/20 focus:border-[#245b31] transition-all shadow-inner text-stone-800 dark:text-stone-100 font-medium"
+              />
+              {busqueda && (
+                <button 
+                  onClick={() => setBusqueda('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center size-6 rounded-full bg-stone-100 dark:bg-stone-700 hover:bg-stone-200 dark:hover:bg-stone-600 text-stone-500 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              )}
+            </div>
           ) : (
             <div className="flex-1">
               <h1 className="text-xl font-black italic tracking-tighter text-stone-800 dark:text-white uppercase leading-none font-display">Beneficios</h1>
               <div className="flex items-center gap-1.5 mt-1.5">
                 <div className="size-1.5 rounded-full bg-[#245b31] animate-pulse"></div>
                 <p className="text-[10px] uppercase tracking-widest font-black text-stone-400">
-                  {tab === 'ofertas' ? `${ofertasFiltradas.length} ofertas activas` : tab === 'comercios' ? `${comerciosFiltrados.length} comercios` : `${profesionales.length} profesionales`}
+                  {tab === 'ofertas' ? `${ofertasFiltradas.length} ofertas activas` : tab === 'comercios' ? `${comerciosFiltrados.length} comercios` : `${profesionalesFiltrados.length} profesionales`}
                 </p>
               </div>
             </div>
           )}
 
           <button
-            onClick={() => setShowSearch(!showSearch)}
-            className={`flex size-10 shrink-0 items-center justify-center rounded-2xl transition-all ${showSearch ? 'bg-[#245b31] text-white' : 'bg-[#f4eedd] dark:bg-stone-800 text-stone-500'}`}
+            onClick={() => {
+              if (showSearch && !busqueda) setShowSearch(false);
+              else setShowSearch(true);
+            }}
+            className={`flex px-3 h-10 shrink-0 items-center justify-center gap-1.5 rounded-2xl transition-all shadow-sm ${showSearch ? 'bg-[#245b31] text-white' : 'bg-[#f4eedd] dark:bg-stone-800 text-stone-500 size-10'}`}
           >
-            <span className="material-symbols-outlined">{showSearch ? 'close' : 'search'}</span>
+            {showSearch ? (
+              <span className="text-[10px] font-black uppercase tracking-widest">Ir</span>
+            ) : null}
+            <span className="material-symbols-outlined text-lg">{showSearch ? 'arrow_forward' : 'search'}</span>
           </button>
         </div>
 
@@ -474,8 +493,7 @@ export default function Promociones() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
-                  {profesionales
-                    .filter(p => filtroMunicipio === 'todos' || p.municipio === filtroMunicipio)
+                  {profesionalesFiltrados
                     .map((prof, idx) => (
                       <motion.div
                         key={prof.id}

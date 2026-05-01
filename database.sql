@@ -361,14 +361,7 @@ CREATE TABLE IF NOT EXISTS public.qr_tokens (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
 );
 
--- ── 13. LOCALIDADES ───────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.localidades (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nombre     TEXT UNIQUE NOT NULL,
-    active     BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
 
 -- ── 14. ACTIVIDAD ─────────────────────────────────────────────────────────
 
@@ -463,13 +456,13 @@ ALTER TABLE public.notificaciones_admin ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.push_tokens         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_history        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.qr_tokens           ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.localidades         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.municipios          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_log        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comercio_solicitudes ENABLE ROW LEVEL SECURITY;
 
 -- Políticas públicas
-DROP POLICY IF EXISTS "localidades_public_read" ON public.localidades;
-CREATE POLICY "localidades_public_read" ON public.localidades FOR SELECT USING (active = true);
+DROP POLICY IF EXISTS "municipios_public_read" ON public.municipios;
+CREATE POLICY "municipios_public_read" ON public.municipios FOR SELECT USING (activo = true);
 
 -- ── 18. SEED: ROLES INICIALES ────────────────────────────────────────────
 
@@ -479,17 +472,16 @@ INSERT INTO public.roles (nombre, descripcion) VALUES
     ('SOCIO',         'Socio estándar con acceso a promociones, carnet virtual y eventos.')
 ON CONFLICT (nombre) DO NOTHING;
 
--- ── 19. DATOS INICIALES: LOCALIDADES ─────────────────────────────────────
+-- ── 19. DATOS INICIALES: MUNICIPIOS ─────────────────────────────────────
 
-INSERT INTO public.localidades (nombre) VALUES
-    ('Gobernador Virasoro'),
-    ('Santo Tomé'),
-    ('Ituzaingó'),
-    ('San Carlos'),
-    ('Garruchos'),
-    ('Virasoro'),
-    ('Colonia Carlos Pellegrini'),
-    ('Yapeyú')
-ON CONFLICT (nombre) DO NOTHING;
+INSERT INTO public.municipios (nombre, provincia) VALUES
+    ('Gobernador Virasoro', 'Corrientes'),
+    ('Santo Tomé', 'Corrientes'),
+    ('Ituzaingó', 'Corrientes'),
+    ('San Carlos', 'Corrientes'),
+    ('Garruchos', 'Corrientes'),
+    ('Colonia Carlos Pellegrini', 'Corrientes'),
+    ('Yapeyú', 'Corrientes')
+ON CONFLICT DO NOTHING;
 
 -- ── FIN DEL SCHEMA ────────────────────────────────────────────────────────
