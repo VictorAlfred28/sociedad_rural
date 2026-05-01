@@ -19,9 +19,7 @@ export const CapacitorUI = () => {
 
         const setupPushNotifications = async () => {
             try {
-                // Si estamos en un entorno sin configuración de Firebase, esto podría fallar.
-                // Usamos un try-catch interno para cada paso crítico.
-                
+                // Verificar permisos antes de registrar
                 let permResult = await PushNotifications.checkPermissions();
                 
                 if (permResult.receive === 'prompt') {
@@ -29,14 +27,19 @@ export const CapacitorUI = () => {
                 }
 
                 if (permResult.receive !== 'granted') {
-                    console.warn('[Push] Permiso denegado.');
+                    console.warn('[Push] Permiso denegado — sin notificaciones push.');
                     return;
                 }
 
-                // 2. Registrar dispositivo con FCM
-                await PushNotifications.register();
+                // Registrar solo si hay permisos — aislado en su propio try/catch
+                // para que un fallo de FCM/google-services.json no crashee la app
+                try {
+                    await PushNotifications.register();
+                } catch (regError) {
+                    console.warn('[Push] PushNotifications.register() falló (¿falta google-services.json?):', regError);
+                    return; // Seguimos sin push, la app continúa normalmente
+                }
 
-                // 3. Recibir el FCM Token y guardarlo en el backend
                 PushNotifications.addListener('registration', async (token) => {
                     console.log('[Push] FCM Token:', token.value);
                     try {
@@ -55,13 +58,10 @@ export const CapacitorUI = () => {
                     }
                 });
 
-                // 4. Error en registro
                 PushNotifications.addListener('registrationError', (err) => {
                     console.error('[Push] Error de registro FCM:', err.error);
-                    // No hacemos toast aquí para no molestar al usuario si falla por falta de google-services.json
                 });
 
-                // 5. Notificación recibida con app en primer plano → mostrar toast
                 PushNotifications.addListener('pushNotificationReceived', (notification) => {
                     toast(notification.title || 'Nueva notificación', {
                         icon: '🔔',
@@ -69,7 +69,6 @@ export const CapacitorUI = () => {
                     });
                 });
 
-                // 6. Tappear una notificación → navegar al destino
                 PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
                     const data = action.notification.data;
                     if (data?.route) {
@@ -77,8 +76,7 @@ export const CapacitorUI = () => {
                     }
                 });
             } catch (e) {
-                console.error('[Push] Error crítico en setup push notifications:', e);
-                // Si falla aquí, la app sigue funcionando pero sin notificaciones push
+                console.error('[Push] Error crítico en setup push notifications — la app continúa sin push:', e);
             }
         };
 

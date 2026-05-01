@@ -3,10 +3,8 @@ import re
 import csv
 import io
 import uuid
-import traceback
 import requests
 import pytz
-from urllib.parse import quote
 from fastapi import (
     FastAPI,
     HTTPException,
@@ -21,7 +19,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, HttpUrl, validator
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 from supabase import create_client, Client, ClientOptions
 from datetime import datetime, timedelta
@@ -77,6 +75,10 @@ if not SUPABASE_ANON_KEY:
 # Inicializar cliente Supabase con ClientOptions
 opts = ClientOptions(auto_refresh_token=False, persist_session=False)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, options=opts)
+
+# Cliente singleton con ANON_KEY para autenticación de usuarios (login)
+# Evita crear un nuevo client en cada request de login (memory leak)
+supabase_anon: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY, options=opts)
 
 # ─── SCHEDULER AUTOMÁTICO DE MORA ──────────────────────────────────────────
 import logging
@@ -266,11 +268,11 @@ except ValueError:
         try:
             cred = credentials.Certificate(firebase_cred_json)
             firebase_admin.initialize_app(cred)
-            print("Firebase Admin configurado correctamente.")
+            logger.info("Firebase Admin configurado correctamente.")
         except Exception as e:
-            print(f"Warning: Firebase Admin no pudo inicializarse: {e}")
+            logger.info(f"Warning: Firebase Admin no pudo inicializarse: {e}")
     else:
-        print(
+        logger.info(
             "Warning: Faltan credenciales de Firebase en el entorno, Push Notifications deshabilitadas."
         )
 
@@ -313,7 +315,7 @@ def registrar_auditoria(
     except Exception as e:
         # La auditoría no debería bloquear el flujo principal si falla,
         # pero idealmente debería registrarse en un log del servidor.
-        print(f"Error crítico en registro de auditoría: {str(e)}")
+        logger.error(f"Error crítico en registro de auditoría: {str(e)}")
 
 
 # 1. CORS ESTRICTO PARA FRONTEND
@@ -543,7 +545,7 @@ def procesar_imagen_evento(media_url: str, post_id: str) -> Optional[str]:
 
         # Subir al bucket 'imagenes-eventos'.
         # Asegurarse que el bucket existe y es público en Supabase.
-        res = supabase.storage.from_("imagenes-eventos").upload(
+        supabase.storage.from_("imagenes-eventos").upload(
             file=file_bytes, path=filename, file_options={"content-type": "image/jpeg"}
         )
 
@@ -679,7 +681,8 @@ def register(
             # Rollback: eliminar usuario de Auth para que pueda reintentar el registro
             try:
                 supabase.auth.admin.delete_user(user_id)
-            except:
+            except Exception as e:
+                logger.error(f"Error: {e}")
                 pass
             raise profile_err
 
@@ -715,8 +718,7 @@ def register(
         # Identificamos el tipo de error (usualmente de Supabase Auth o restricciones Unique)
         if (
             "user already registered" in err_msg
-            or "already exists" in err_msg
-            and "email" in err_msg
+            or ("already exists" in err_msg and "email" in err_msg)
         ):
             friendly_detail = (
                 "El correo electrónico indicado ya se encuentra registrado."
@@ -783,7 +785,8 @@ def register_comercio(
         except Exception as profile_err:
             try:
                 supabase.auth.admin.delete_user(user_id)
-            except:
+            except Exception as e:
+                logger.error(f"Error: {e}")
                 pass
             raise profile_err
 
@@ -817,8 +820,7 @@ def register_comercio(
         err_msg = str(e).lower()
         if (
             "user already registered" in err_msg
-            or "already exists" in err_msg
-            and "email" in err_msg
+            or ("already exists" in err_msg and "email" in err_msg)
         ):
             friendly_detail = (
                 "El correo electrónico indicado ya se encuentra registrado."
@@ -898,13 +900,13 @@ def login(
     if not login_email:
         raise HTTPException(status_code=400, detail="Identificador no válido")
 
-    print(f"Login email resolved: {login_email}")
+    logger.info(f"Login email resolved: {login_email}")
     # 4.B: AUTENTICAR CON SUPABASE AUTH
     try:
-        print("Authenticating with Supabase Auth...")
+        logger.info("Authenticating with Supabase Auth...")
         # NOTA: Para login de usuarios finales, se DEBE usar la ANON_KEY.
         # La validación de SUPABASE_ANON_KEY ya se realiza al inicio del archivo.
-        auth_client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        auth_client = supabase_anon  # Singleton — evita crear client por cada login
 
         auth_session = None
         auth_user = None
@@ -1235,7 +1237,7 @@ def get_municipios():
         )
         return {"municipios": res.data or []}
     except Exception as e:
-        print(f"Error cargando municipios: {str(e)}")
+        logger.error(f"Error cargando municipios: {str(e)}")
         # Fallback de seguridad para no romper funcionalidad si la tabla no existe aún
         return {
             "municipios": [
@@ -1418,9 +1420,9 @@ async def delete_chat_image(path: str):
         # Esperar unos segundos para asegurar que OpenAI terminó de descargarla
         await asyncio.sleep(10)
         supabase.storage.from_("chat-images").remove([path])
-        print(f"Imagen temporal borrada: {path}")
+        logger.info(f"Imagen temporal borrada: {path}")
     except Exception as e:
-        print(f"Error borrando imagen temporal {path}: {e}")
+        logger.error(f"Error borrando imagen temporal {path}: {e}")
 
 
 @app.post("/api/chat/upload-image")
@@ -1446,7 +1448,7 @@ async def upload_chat_image(
         return {"image_url": image_url, "path": path}
     except Exception as e:
         logger.error(f"Error en endpoint upload_chat_image: {str(e)}")
-        print(f"Error subiendo imagen a Supabase Storage: {str(e)}")
+        logger.error(f"Error subiendo imagen a Supabase Storage: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Error en servidor al procesar imagen: {str(e)}"
         )
@@ -1754,7 +1756,8 @@ def create_administrador(
             supabase.table("user_roles").insert(
                 {"user_id": user_id, "role_id": roles_map["SOCIO"]}
             ).execute()
-        except:
+        except Exception as e:
+            logger.error(f"Error: {e}")
             pass  # Si falla no revertimos todo, quizas solo el rol. Lo dejamos así.
 
         background_tasks.add_task(
@@ -2037,7 +2040,14 @@ def get_all_users(
 
 
 class UpdateUserStatusRequest(BaseModel):
-    estado: str  # "APROBADO" | "SUSPENDIDO" | "PENDIENTE" | "RECHAZADO"
+    estado: str  # "APROBADO" | "SUSPENDIDO" | "PENDIENTE" | "RECHAZADO" | "RESTRINGIDO"
+
+    @validator('estado')
+    def validate_estado(cls, v):
+        allowed = {"PENDIENTE", "APROBADO", "RECHAZADO", "SUSPENDIDO", "RESTRINGIDO"}
+        if v not in allowed:
+            raise ValueError(f"Estado inválido: {v}. Valores permitidos: {', '.join(sorted(allowed))}")
+        return v
 
 
 @app.put("/api/admin/users/{user_id}/status")
@@ -2188,7 +2198,8 @@ def delete_user(
         # Si falla porque no existe (ya se borró por cascada), lo ignoramos.
         try:
             supabase.table("profiles").delete().eq("id", user_id).execute()
-        except:
+        except Exception as e:
+            logger.error(f"Error: {e}")
             pass
 
         background_tasks.add_task(
@@ -2271,7 +2282,7 @@ def reset_user_password(
             )
 
         # Actualizar en Auth
-        auth_response = supabase.auth.admin.update_user_by_id(
+        supabase.auth.admin.update_user_by_id(
             user_id, {"password": new_password}
         )
 
@@ -2298,11 +2309,10 @@ def reset_user_password(
             "temporary_password": new_password,
         }
     except Exception as e:
-        import traceback
 
         error_details = traceback.format_exc()
-        print(f"ERROR CRÍTICO RESET PASSWORD ({user_id}): {str(e)}")
-        print(error_details)
+        logger.error(f"ERROR CRÍTICO RESET PASSWORD ({user_id}): {str(e)}")
+        logger.error(error_details)
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
@@ -2314,22 +2324,18 @@ def reset_user_password(
 def get_metrics_overview(admin_user=Depends(get_current_admin)):
     """Endpoint para dashboard principal de KPIs"""
     try:
-        # Extraer todos los perfiles para procesar metricas en memoria es mas facil por ahora
-        # En prod con millones de registros se harian queries SELECT count(*) con raw SQL en rpc()
-        res = supabase.table("profiles").select("rol, estado").execute()
-        profiles = res.data or []
+        # Queries optimizadas: COUNT en lugar de fetch de todos los perfiles
+        socios_res = supabase.table("profiles").select("id", count="exact") \
+            .eq("rol", "SOCIO").eq("estado", "APROBADO").execute()
+        total_socios = socios_res.count if socios_res.count is not None else 0
 
-        total_socios = sum(
-            1
-            for p in profiles
-            if p.get("rol") == "SOCIO" and p.get("estado") == "APROBADO"
-        )
-        total_comercios = sum(
-            1
-            for p in profiles
-            if p.get("rol") == "COMERCIO" and p.get("estado") == "APROBADO"
-        )
-        total_pendientes = sum(1 for p in profiles if p.get("estado") == "PENDIENTE")
+        comercios_res = supabase.table("profiles").select("id", count="exact") \
+            .eq("rol", "COMERCIO").eq("estado", "APROBADO").execute()
+        total_comercios = comercios_res.count if comercios_res.count is not None else 0
+
+        pendientes_res = supabase.table("profiles").select("id", count="exact") \
+            .eq("estado", "PENDIENTE").execute()
+        total_pendientes = pendientes_res.count if pendientes_res.count is not None else 0
 
         # Conteo de validaciones de pago pendientes 2.0
         pagos_res = (
@@ -2557,7 +2563,8 @@ def create_profesional(
         try:
             if 'user_id' in locals():
                 supabase.auth.admin.delete_user(user_id)
-        except:
+        except Exception as e:
+            logger.error(f"Error: {e}")
             pass
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -2636,7 +2643,6 @@ def get_ofertas_publicas(municipio: Optional[str] = None):
             
         return {"ofertas": ofertas}
     except Exception as e:
-        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error al obtener ofertas: {str(e)}")
 @app.put("/api/perfil")
@@ -2923,29 +2929,29 @@ async def upload_foto(
         file_path = f"{current_user.id}/profile.{file_ext}"
 
         # 2. Subir a Supabase Storage (Migrado a bucket único 'business-logos')
-        print(f"Uploading profile photo. Bucket: business-logos, Path: {file_path}")
+        logger.info(f"Uploading profile photo. Bucket: business-logos, Path: {file_path}")
         try:
             # Asegurarse de que el bucket existe antes de subir
             try:
                 supabase.storage.get_bucket("business-logos")
             except Exception:
-                print("Bucket 'business-logos' not found, attempting to create...")
+                logger.info("Bucket 'business-logos' not found, attempting to create...")
                 try:
                     supabase.storage.create_bucket(
                         "business-logos", options={"public": True}
                     )
-                    print("Bucket 'business-logos' created successfully.")
+                    logger.info("Bucket 'business-logos' created successfully.")
                 except Exception as create_err:
-                    print(f"Critical error: Could not create bucket: {create_err}")
+                    logger.error(f"Critical error: Could not create bucket: {create_err}")
 
             res_storage = supabase.storage.from_("business-logos").upload(
                 path=file_path,
                 file=file_content,
                 file_options={"content-type": file.content_type, "upsert": "true"},
             )
-            print(f"Profile upload result: {res_storage}")
+            logger.info(f"Profile upload result: {res_storage}")
         except Exception as storage_err:
-            print(f"Error subiendo foto al storage: {storage_err}")
+            logger.error(f"Error subiendo foto al storage: {storage_err}")
             raise storage_err
 
         # 3. Obtener URL pública
@@ -2961,7 +2967,7 @@ async def upload_foto(
         return {"message": "Foto actualizada", "foto_url": public_url}
 
     except Exception as e:
-        print(f"Error subiendo foto de perfil: {str(e)}")
+        logger.error(f"Error subiendo foto de perfil: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error subiendo foto: {str(e)}")
 
 
@@ -2979,29 +2985,29 @@ async def upload_oferta_foto(
         filename = f"{current_user.id}/{uuid4().hex}.{file_ext}"
 
         # Subir a Supabase Storage (bucket 'business-logos')
-        print(f"Uploading offer image. Bucket: business-logos, Path: {filename}")
+        logger.info(f"Uploading offer image. Bucket: business-logos, Path: {filename}")
         try:
             # Asegurarse de que el bucket existe antes de subir
             try:
                 supabase.storage.get_bucket("business-logos")
             except Exception:
-                print("Bucket 'business-logos' not found, attempting to create...")
+                logger.info("Bucket 'business-logos' not found, attempting to create...")
                 try:
                     supabase.storage.create_bucket(
                         "business-logos", options={"public": True}
                     )
-                    print("Bucket 'business-logos' created successfully.")
+                    logger.info("Bucket 'business-logos' created successfully.")
                 except Exception as create_err:
-                    print(f"Critical error: Could not create bucket: {create_err}")
+                    logger.error(f"Critical error: Could not create bucket: {create_err}")
 
             res_storage = supabase.storage.from_("business-logos").upload(
                 path=filename,
                 file=file_content,
                 file_options={"content-type": file.content_type, "upsert": "true"},
             )
-            print(f"Offer image upload result: {res_storage}")
+            logger.info(f"Offer image upload result: {res_storage}")
         except Exception as storage_err:
-            print(
+            logger.info(
                 f"Error en Storage (asegurese que el bucket 'business-logos' sea publico): {storage_err}"
             )
             raise storage_err
@@ -3013,7 +3019,7 @@ async def upload_oferta_foto(
         return {"message": "Imagen de oferta subida", "imagen_url": public_url}
 
     except Exception as e:
-        print(f"Error en endpoint /api/ofertas/foto: {str(e)}")
+        logger.error(f"Error en endpoint /api/ofertas/foto: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Error subiendo imagen de oferta: {str(e)}"
         )
@@ -3506,9 +3512,7 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
         logger.warning(
             f"Intento de acceso no autorizado al webhook desde IP {request.client.host if request.client else 'unknown'}"
         )
-        print(
-            f"Webhook mismatch. Recibido secret: {secret_header}, Recibido token: {token}"
-        )
+        logger.warning("[WEBHOOK EVENTOS] Acceso denegado: secret/token inválido.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Webhook secret mismatch o token no válido",
@@ -3885,7 +3889,7 @@ def enviar_notificacion_push_inapp(
                 else True
             )
         except Exception as e:
-            print(f"Error obteniendo preferencia de sonido: {e}")
+            logger.error(f"Error obteniendo preferencia de sonido: {e}")
             sound_enabled = True  # Default a True si hay error
 
         # 3. Obtener Token(s) FCM asociados al usuario para envíos Push
@@ -3942,14 +3946,14 @@ def enviar_notificacion_push_inapp(
                 )
                 messaging.send_each_for_multicast(push_message)
             except ValueError:
-                print(
+                logger.info(
                     "Firebase no inicializado. Se guardó In-App pero no se envió Push."
                 )
             except Exception as e:
-                print(f"Error al enviar Push a fcm: {e}")
+                logger.error(f"Error al enviar Push a fcm: {e}")
 
     except Exception as e:
-        print(f"Error general en enviar_notificacion_push_inapp: {e}")
+        logger.error(f"Error general en enviar_notificacion_push_inapp: {e}")
 
 
 @app.post("/api/notificaciones/test")
@@ -3984,7 +3988,7 @@ def notificar_admins_nuevo_registro(nombre: str, tipo_usuario: str):
                 link_url="/admin",
             )
     except Exception as e:
-        print(f"Error notificando admins: {e}")
+        logger.error(f"Error notificando admins: {e}")
 
 
 def enviar_whatsapp(telefono: str, mensaje: str):
@@ -3998,7 +4002,7 @@ def enviar_whatsapp(telefono: str, mensaje: str):
         apikey = os.getenv("EVOLUTION_API_TOKEN")
 
         if not all([url_base, instance, apikey]):
-            print(
+            logger.info(
                 "Configuración de WhatsApp incompleta. Verifique EVOLUTION_API_URL, INSTANCE_NAME y EVOLUTION_API_TOKEN."
             )
             return
@@ -4007,7 +4011,6 @@ def enviar_whatsapp(telefono: str, mensaje: str):
         if url_base and not url_base.startswith(("http://", "https://")):
             url_base = f"https://{url_base}"
 
-        from urllib.parse import quote
 
         url = f"{url_base}/message/sendText/{quote(instance)}"
         headers = {"Content-Type": "application/json", "apikey": apikey}
@@ -4034,10 +4037,10 @@ def enviar_whatsapp(telefono: str, mensaje: str):
 
         response = requests.post(url, json=payload, headers=headers)
         if response.status_code not in [200, 201]:
-            print(f"Error Evolution API: {response.status_code} - {response.text}")
+            logger.error(f"Error Evolution API: {response.status_code} - {response.text}")
 
     except Exception as e:
-        print(f"Error crítico enviando WhatsApp: {str(e)}")
+        logger.error(f"Error crítico enviando WhatsApp: {str(e)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -4189,7 +4192,16 @@ def detectar_mora(
     """
     Motor de detección de mora.
     Ejecución automática compatible con Cron o manual por Admin.
+    Requiere: token de admin válido O header X-API-Secret con el API_SECRET_TOKEN.
     """
+    # Seguridad: requiere admin autenticado O API secret token válido
+    api_token = request.headers.get("X-API-Secret")
+    if not admin_user and api_token != os.getenv("API_SECRET_TOKEN"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Acceso no autorizado. Se requiere autenticación de admin o API secret válido."
+        )
+
     hoy = datetime.now()
 
     # Si NO es admin, validar que sea después del día 10 (regla automática)
@@ -4203,76 +4215,94 @@ def detectar_mora(
         fecha_venci = f"{anio_actual}-{mes_actual:02d}-10"
 
         # Obtenemos todos los miembros (Socios y Comercios) aprobados y restringidos
-        # También incluimos ADMIN para pruebas si se busca a "Vic Tor"
         query = (
             supabase.table("profiles")
             .select("id, nombre_apellido, telefono, rol")
             .in_("estado", ["APROBADO", "RESTRINGIDO"])
         )
 
-        # Filtro especial para pruebas solicitado por el usuario
-        if admin_user:
-            # Si es ejecución manual por admin, permitimos ver a todos para el filtro de nombre
-            pass
-        else:
-            # Si es automático, solo roles específicos
+        if not admin_user:
             query = query.in_("rol", ["SOCIO", "COMERCIO"])
 
-        socios_res = query.ilike("nombre_apellido", "%Vic Tor%").execute()
+        socios_res = query.execute()
         socios = socios_res.data
 
-        detectados = 0
-        for socio in socios:
-            # Verificar si existe pago PAGADO o PENDIENTE_VALIDACION para este mes
-            pago_check = (
-                supabase.table("pagos_cuotas")
-                .select("id")
-                .eq("socio_id", socio["id"])
-                .eq("fecha_vencimiento", fecha_venci)
-                .in_("estado_pago", ["PAGADO", "PENDIENTE_VALIDACION"])
-                .execute()
-            )
+        # Definir rango del mes para la consulta de pagos (Ajuste 1)
+        fecha_inicio_mes = f"{anio_actual}-{mes_actual:02d}-01"
+        next_month = mes_actual + 1 if mes_actual < 12 else 1
+        next_year = anio_actual if mes_actual < 12 else anio_actual + 1
+        fecha_fin_mes = f"{next_year}-{next_month:02d}-01"
 
-            if not pago_check.data:
-                # Marcar como moroso (RESTRINGIDO)
-                supabase.table("profiles").update(
-                    {
-                        "estado": "RESTRINGIDO",
-                        "motivo": f"Mora automática cuota {mes_actual}/{anio_actual}",
-                    }
-                ).eq("id", socio["id"]).execute()
+        # 1. Traer TODOS los pagos del mes en una sola query optimizada
+        pagos_res = (
+            supabase.table("pagos_cuotas")
+            .select("socio_id")
+            .gte("fecha_vencimiento", fecha_inicio_mes)
+            .lt("fecha_vencimiento", fecha_fin_mes)
+            .in_("estado_pago", ["PAGADO", "PENDIENTE_VALIDACION"])
+            .execute()
+        )
 
-                # Crear deuda en pagos_cuotas si no existe
-                supabase.table("pagos_cuotas").upsert(
-                    {
-                        "socio_id": socio["id"],
-                        "monto": 5000,  # Monto base ejemplo, debería venir de una config
-                        "fecha_vencimiento": fecha_venci,
-                        "estado_pago": "PENDIENTE",
-                    },
-                    on_conflict="socio_id,fecha_vencimiento",
-                ).execute()
+        # 2. Usar un Set en memoria (O(1) lookup) para socios al día
+        socios_al_dia = {pago["socio_id"] for pago in pagos_res.data}
 
-                # Log Actividad
-                supabase.table("activity_log").insert(
-                    {
-                        "socio_id": socio["id"],
-                        "tipo_evento": "MORA_DETECTADA",
-                        "descripcion": f"Detección automática de mora para cuota {mes_actual}/{anio_actual}",
-                        "usuario_id": None,  # Sistema
-                    }
-                ).execute()
+        # 3. Filtrar morosos
+        morosos = [socio for socio in socios if socio["id"] not in socios_al_dia]
+        detectados = len(morosos)
 
-                # Notificación WhatsApp de Mora
+        if detectados > 0:
+            # 4. Operaciones BULK divididas en chunks
+            chunk_size = 100
+            for i in range(0, detectados, chunk_size):
+                chunk = morosos[i : i + chunk_size]
+                chunk_ids = [m["id"] for m in chunk]
+
+                try:
+                    # A. Marcar como RESTRINGIDO en bloque
+                    supabase.table("profiles").update(
+                        {
+                            "estado": "RESTRINGIDO",
+                            "motivo": f"Mora automática cuota {mes_actual}/{anio_actual}",
+                        }
+                    ).in_("id", chunk_ids).execute()
+
+                    # B. Upsert Deudas (Bulk). UNIQUE(socio_id, fecha_vencimiento) confirmado en DB (Ajuste 2)
+                    deudas_bulk = [
+                        {
+                            "socio_id": m["id"],
+                            "monto": 5000,
+                            "fecha_vencimiento": fecha_venci,
+                            "estado_pago": "PENDIENTE",
+                        } for m in chunk
+                    ]
+                    supabase.table("pagos_cuotas").upsert(
+                        deudas_bulk, on_conflict="socio_id,fecha_vencimiento"
+                    ).execute()
+
+                    # C. Insertar Activity Logs en bloque
+                    logs_bulk = [
+                        {
+                            "socio_id": m["id"],
+                            "tipo_evento": "MORA_DETECTADA",
+                            "descripcion": f"Detección automática de mora para cuota {mes_actual}/{anio_actual}",
+                            "usuario_id": None,
+                        } for m in chunk
+                    ]
+                    supabase.table("activity_log").insert(logs_bulk).execute()
+                except Exception as e:
+                    # Ajuste 3: Try/Catch por chunk para trazabilidad
+                    logger.error(f"[DETECTAR MORA] Error procesando chunk de morosos (índices {i} a {i+chunk_size}): {str(e)}")
+                    continue
+
+            # 5. Notificaciones WhatsApp (síncrono por regla)
+            for socio in morosos:
                 if socio.get("telefono"):
                     mensaje_wa = (
                         f"Hola {socio['nombre_apellido']}! 👋\n"
                         f"Detectamos un atraso en el pago de tu cuota de la Sociedad Rural ({mes_actual}/{anio_actual}).\n\n"
                         "¿Deseás regularizar tu situación? Respondé *SÍ*, *ACEPTO* o *PAGAR* para enviarte el detalle de tu deuda y el link de pago."
                     )
-                    # Usamos delay para no saturar la API si son muchos
                     enviar_whatsapp(socio["telefono"], mensaje_wa)
-                    detectados += 1
 
         return {
             "message": f"Proceso completado. Socios detectados en mora: {detectados}"
@@ -4342,7 +4372,7 @@ def exportar_socios_excel(admin_user=Depends(get_current_admin)):
         import pandas as pd
 
         # Consultar socios y comercios (que actúan como socios en el sistema)
-        print("[REPORTS] Solicitando perfiles para rol: SOCIO, COMERCIO, ADMIN")
+        logger.info("[REPORTS] Solicitando perfiles para rol: SOCIO, COMERCIO, ADMIN")
         res = (
             supabase.table("profiles")
             .select(
@@ -4352,7 +4382,7 @@ def exportar_socios_excel(admin_user=Depends(get_current_admin)):
             .execute()
         )
 
-        print(f"[REPORTS] Datos encontrados: {len(res.data) if res.data else 0}")
+        logger.info(f"[REPORTS] Datos encontrados: {len(res.data) if res.data else 0}")
 
         if not res.data:
             return JSONResponse(
@@ -4399,7 +4429,7 @@ def exportar_socios_excel(admin_user=Depends(get_current_admin)):
             },
         )
     except Exception as e:
-        print(f"Error en reporte excel: {e}")
+        logger.error(f"Error en reporte excel: {e}")
         raise HTTPException(status_code=500, detail="Error al generar el reporte Excel")
 
 
@@ -4542,7 +4572,7 @@ def exportar_contabilidad_csv(admin_user=Depends(get_current_admin)):
             },
         )
     except Exception as e:
-        print(f"Error en reporte contabilidad: {e}")
+        logger.error(f"Error en reporte contabilidad: {e}")
         raise HTTPException(
             status_code=500, detail="Error al generar el reporte de contabilidad"
         )
@@ -4571,7 +4601,7 @@ def exportar_socios_pdf(admin_user=Depends(get_current_admin)):
             .in_("rol", ["SOCIO", "COMERCIO", "ADMIN"])
             .execute()
         )
-        print(f"[REPORTS-PDF] Datos encontrados: {len(res.data) if res.data else 0}")
+        logger.info(f"[REPORTS-PDF] Datos encontrados: {len(res.data) if res.data else 0}")
         data = res.data
 
         buffer = io.BytesIO()
@@ -4661,7 +4691,7 @@ def exportar_socios_pdf(admin_user=Depends(get_current_admin)):
             headers={"Content-Disposition": "attachment; filename=reporte_socios.pdf"},
         )
     except Exception as e:
-        print(f"Error en reporte PDF: {e}")
+        logger.error(f"Error en reporte PDF: {e}")
         raise HTTPException(status_code=500, detail="Error al generar reporte PDF")
 
 
@@ -4691,12 +4721,10 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         env_secret = os.getenv("WEBHOOK_SECRET_TOKEN")
 
         # Log inicial para debug
-        logger.info(f"[WEBHOOK] Recibida petición. Header secret: {secret_header}")
+        logger.info("[WEBHOOK] Recibida petición WhatsApp.")
 
         if env_secret and secret_header != env_secret:
-            logger.warning(
-                f"[WEBHOOK] Aviso: Webhook secret mismatch. Esperado: {env_secret}, Recibido: {secret_header}."
-            )
+            logger.warning("[WEBHOOK] Webhook secret mismatch. Acceso denegado.")
             return {"status": "unauthorized", "detail": "Secret mismatch"}
 
         data = await request.json()
@@ -4730,7 +4758,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             msg_text = msg_obj["extendedTextMessage"].get("text", "")
 
         msg_text_upper = msg_text.strip().upper()
-        print(f"[WEBHOOK] De: {numero_sender} | Msg: {msg_text_upper}")
+        logger.info(f"[WEBHOOK] De: {numero_sender} | Msg: {msg_text_upper}")
 
         # Palabras clave que activan el bot (petición de estado)
         keywords_estado = [
@@ -4759,14 +4787,14 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
         match_estado = any(kw in msg_text_upper for kw in keywords_estado)
         match_afirmacion = any(kw in msg_text_upper for kw in keywords_afirmacion)
 
-        print(
+        logger.info(
             f"[WEBHOOK] Match Estado: {match_estado} | Match Afirmación: {match_afirmacion}"
         )
 
         if match_estado or match_afirmacion:
             # Identificar al socio por los últimos 10 dígitos (formato Argentina)
             diez_digitos = "".join(filter(str.isdigit, numero_sender))[-10:]
-            print(f"[WEBHOOK] Buscando socio con últimos 10 dígitos: {diez_digitos}")
+            logger.info(f"[WEBHOOK] Buscando socio con últimos 10 dígitos: {diez_digitos}")
 
             res_user = (
                 supabase.table("profiles")
@@ -4776,11 +4804,11 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             )
 
             if not res_user.data:
-                print(f"[WEBHOOK] Socio no encontrado para el número: {diez_digitos}")
+                logger.info(f"[WEBHOOK] Socio no encontrado para el número: {diez_digitos}")
                 return {"status": "user-not-found"}
 
             socio = res_user.data[0]
-            print(
+            logger.info(
                 f"[WEBHOOK] Socio encontrado: {socio['nombre_apellido']} (ID: {socio['id']})"
             )
 
@@ -4795,12 +4823,12 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
             )
 
             if not res_pagos.data:
-                print(f"[WEBHOOK] El socio {socio['nombre_apellido']} no tiene deudas.")
+                logger.info(f"[WEBHOOK] El socio {socio['nombre_apellido']} no tiene deudas.")
                 msg_ok = f"¡Hola {socio['nombre_apellido']}! 👋 No registramos cuotas pendientes a tu nombre. Tu cuenta está al día. ¡Muchas gracias!"
                 background_tasks.add_task(enviar_whatsapp, numero_sender, msg_ok)
             else:
                 total = sum(float(p["monto"]) for p in res_pagos.data)
-                print(
+                logger.info(
                     f"[WEBHOOK] Deuda total calculada para {socio['nombre_apellido']}: ${total}"
                 )
                 detalle = ""
@@ -4822,8 +4850,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 
         return {"status": "success"}
     except Exception as e:
-        print(f"Error procesando Webhook WhatsApp: {str(e)}")
-        import traceback
+        logger.error(f"Error procesando Webhook WhatsApp: {str(e)}")
 
         traceback.print_exc()
         return {"status": "error"}
@@ -5032,8 +5059,7 @@ def validar_pago(
 
         return {"status": "success", "pdf_url": pdf_url}
     except Exception as e:
-        print(f"Error validar: {e}")
-        import traceback
+        logger.error(f"Error validar: {e}")
 
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
