@@ -457,6 +457,7 @@ class WebhookEventoPayload(BaseModel):
     caption: Optional[str] = ""          # Algunos posts pueden no tener texto
     media_url: Optional[str] = None      # Reels/carruseles pueden no retornar URL directa
     timestamp: Optional[str] = None
+    permalink: Optional[str] = None
 
 
 class UpdateSupportNoteRequest(BaseModel):
@@ -3293,8 +3294,8 @@ def get_combined_eventos(
     eventos importados de redes sociales (aprobados).
     """
     try:
-        # 1. Obtener eventos institucionales
-        query1 = supabase.table("eventos").select("*")
+        # 1. Obtener eventos institucionales (solo publicados)
+        query1 = supabase.table("eventos").select("*").eq("estado", "publicado")
         if municipio_id:
             query1 = query1.eq("municipio_id", municipio_id)
         elif municipio:
@@ -3333,7 +3334,11 @@ def get_combined_eventos(
                     "hora": ev["hora_evento"],
                     "tipo": "Social",  # Etiqueta para distinguir origen
                     "imagen_url": ev.get("imagen_url"),
-                    "link_instagram": ev.get("metadata", {}).get("permalink", "https://www.instagram.com/sociedadruralnc?igsh=MTMwcWNzbHh6aHdyMg%3D%3D"),
+                    "link_instagram": ev.get("link_instagram") or ev.get("metadata", {}).get("permalink", "https://www.instagram.com/sociedadruralnc?igsh=MTMwcWNzbHh6aHdyMg%3D%3D"),
+                    "link_facebook": ev.get("link_facebook"),
+                    "link_whatsapp": ev.get("link_whatsapp"),
+                    "slug": ev.get("slug"),
+                    "estado": "publicado",
                 }
             )
 
@@ -3347,6 +3352,54 @@ def get_combined_eventos(
         raise HTTPException(
             status_code=500, detail=f"Error al obtener eventos: {str(e)}"
         )
+
+
+@app.get("/api/eventos/{slug}")
+def get_evento_by_slug(slug: str):
+    """
+    Obtiene un evento específico por su slug (sea institucional o de redes sociales).
+    """
+    try:
+        # Primero buscar en eventos institucionales
+        res_inst = supabase.table("eventos").select("*").eq("slug", slug).execute()
+        if res_inst.data:
+            evento = res_inst.data[0]
+            # Si es borrador, ocultarlo en endpoints publicos
+            if evento.get("estado") != "publicado":
+                raise HTTPException(status_code=404, detail="Evento no disponible")
+            return {"evento": evento}
+            
+        # Si no está, buscar en eventos sociales
+        res_soc = supabase.table("eventos_sociales").select("*").eq("slug", slug).execute()
+        if res_soc.data:
+            ev = res_soc.data[0]
+            if ev.get("status") != "aprobado":
+                raise HTTPException(status_code=404, detail="Evento no disponible")
+            # Normalizar
+            evento_normalizado = {
+                "id": ev["id"],
+                "titulo": ev["titulo"],
+                "descripcion": ev.get("descripcion_limpia", ""),
+                "lugar": ev.get("lugar", "A definir"),
+                "fecha": ev["fecha_evento"],
+                "hora": ev["hora_evento"],
+                "tipo": "Social",
+                "imagen_url": ev.get("imagen_url"),
+                "link_instagram": ev.get("link_instagram") or ev.get("metadata", {}).get("permalink"),
+                "link_facebook": ev.get("link_facebook"),
+                "link_whatsapp": ev.get("link_whatsapp"),
+                "slug": ev.get("slug"),
+                "estado": "publicado"
+            }
+            return {"evento": evento_normalizado}
+            
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+        
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logger.error(f"Error obteniendo evento por slug: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
 @app.post("/api/admin/eventos", status_code=201)
@@ -3538,8 +3591,11 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
                 "original_caption": payload.caption,
                 "original_media_url": payload.media_url,
                 "timestamp": payload.timestamp,
+                "permalink": payload.permalink,
             },
             "status": "aprobado",  # Eventos de Make.com se publican automáticamente
+            "slug": f"{slugify(datos_procesados['titulo'])}-{uuid4().hex[:6]}",
+            "link_instagram": payload.permalink,
         }
 
         # 5. Persistencia (Upsert por external_id)

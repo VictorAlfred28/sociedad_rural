@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import BottomNav from '../components/BottomNav';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Evento } from '../components/admin/GestionEventos';
 import { useAuth } from '../context/AuthContext';
 import paisaje from '../assets/paisaje.png';
 
 export default function Eventos() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,8 +168,12 @@ export default function Eventos() {
                 <div 
                   key={ev.id} 
                   onClick={() => {
-                    const link = ev.link_instagram || ev.link_facebook || ev.link_externo;
-                    if (link) window.open(link, '_blank');
+                    if (ev.slug) {
+                      navigate(`/eventos/${ev.slug}`);
+                    } else {
+                      const link = ev.link_instagram || ev.link_facebook || ev.link_externo;
+                      if (link) window.open(link, '_blank');
+                    }
                   }}
                   className="group relative flex flex-col overflow-hidden rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm border border-[#e5dfce] dark:border-stone-700/50 hover:shadow-md cursor-pointer active:scale-[0.98] transition-all"
                 >

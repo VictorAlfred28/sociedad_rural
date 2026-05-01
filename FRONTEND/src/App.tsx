@@ -13,6 +13,7 @@ const HomeSocio = React.lazy(() => import('./pages/HomeSocio'));
 const CarnetDigital = React.lazy(() => import('./pages/CarnetDigital'));
 const Cuotas = React.lazy(() => import('./pages/Cuotas'));
 const Eventos = React.lazy(() => import('./pages/Eventos'));
+const EventoDetail = React.lazy(() => import('./pages/EventoDetail'));
 const Promociones = React.lazy(() => import('./pages/Promociones'));
 const Perfil = React.lazy(() => import('./pages/Perfil'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
@@ -103,6 +104,7 @@ export default function App() {
           <Route path="/carnet" element={<ProtectedRoute><CarnetDigital /></ProtectedRoute>} />
           <Route path="/cuotas" element={<ProtectedRoute><Cuotas /></ProtectedRoute>} />
           <Route path="/eventos" element={<ProtectedRoute><Eventos /></ProtectedRoute>} />
+          <Route path="/eventos/:slug" element={<ProtectedRoute><EventoDetail /></ProtectedRoute>} />
           <Route path="/promociones" element={<ProtectedRoute><Promociones /></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
           <Route path="/preferencias" element={<ProtectedRoute><Preferencias /></ProtectedRoute>} />
