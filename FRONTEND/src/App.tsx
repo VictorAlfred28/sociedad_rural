@@ -16,6 +16,7 @@ const Eventos = React.lazy(() => import('./pages/Eventos'));
 const EventoDetail = React.lazy(() => import('./pages/EventoDetail'));
 const Promociones = React.lazy(() => import('./pages/Promociones'));
 const Perfil = React.lazy(() => import('./pages/Perfil'));
+const Buscador = React.lazy(() => import('./pages/Buscador'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const NuevoComercio = React.lazy(() => import('./pages/NuevoComercio'));
 const CambioPassword = React.lazy(() => import('./pages/CambioPassword'));
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="/eventos/:slug" element={<ProtectedRoute><EventoDetail /></ProtectedRoute>} />
           <Route path="/promociones" element={<ProtectedRoute><Promociones /></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
+          <Route path="/buscar" element={<ProtectedRoute><Buscador /></ProtectedRoute>} />
           <Route path="/preferencias" element={<ProtectedRoute><Preferencias /></ProtectedRoute>} />
           <Route path="/cambio-password" element={<ProtectedRoute skipPasswordCheck={true}><CambioPassword /></ProtectedRoute>} />
           <Route path="/mi-negocio" element={<ProtectedRoute><MiNegocio /></ProtectedRoute>} />

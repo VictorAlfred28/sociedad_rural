@@ -152,6 +152,7 @@ export default function BottomNav({ scrollContainerRef }: BottomNavProps) {
   const tabs = [
     { to: '/home',   label: 'INICIO',  icon: 'home'   },
     centerTab,
+    { to: '/buscar', label: 'BUSCAR',  icon: 'search' },
     { to: '/perfil', label: 'PERFIL',  icon: 'person' },
   ];
 
