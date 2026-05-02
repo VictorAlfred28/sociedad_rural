@@ -85,103 +85,25 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, options=opt
 # Evita crear un nuevo client en cada request de login (memory leak)
 supabase_anon: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY, options=opts)
 
-# ─── SCHEDULER AUTOMÁTICO DE MORA ──────────────────────────────────────────
+# ─── SCHEDULER AUTOMÁTICO DE MORA (DESACTIVADO EN FAVOR DE ENDPOINTS) ───
 import logging
 
 logger = logging.getLogger(__name__)
 
-
-def tarea_automatica_mora():
-    """
-    Se ejecuta automáticamente el día 11 de cada mes a las 8:00 AM (hora Argentina).
-    Detecta socios sin pago del mes y les envía WhatsApp de aviso.
-    """
-    hoy = datetime.now()
-    mes_actual = hoy.month
-    anio_actual = hoy.year
-    fecha_venci = f"{anio_actual}-{mes_actual:02d}-10"
-    logger.info(
-        f"[SCHEDULER] Ejecutando detección automática de mora para {mes_actual}/{anio_actual}"
-    )
-
-    try:
-        socios_res = (
-            supabase.table("profiles")
-            .select("id, nombre_apellido, telefono")
-            .in_("rol", ["SOCIO", "COMERCIO"])
-            .in_("estado", ["APROBADO", "RESTRINGIDO"])
-            .execute()
-        )
-        socios = socios_res.data or []
-        detectados = 0
-
-        # O(1) Performance Optimization: Fetch all payments for this month once
-        todos_pagos_res = (
-            supabase.table("pagos_cuotas")
-            .select("socio_id")
-            .eq("fecha_vencimiento", fecha_venci)
-            .in_("estado_pago", ["PAGADO", "PENDIENTE_VALIDACION"])
-            .execute()
-        )
-        pagos_al_dia = {p["socio_id"] for p in (todos_pagos_res.data or [])}
-
-        for socio in socios:
-            if socio["id"] not in pagos_al_dia:
-                # Marcar como RESTRINGIDO
-                supabase.table("profiles").update(
-                    {
-                        "estado": "RESTRINGIDO",
-                        "motivo": f"Mora automática cuota {mes_actual}/{anio_actual}",
-                    }
-                ).eq("id", socio["id"]).execute()
-
-                # Registrar deuda
-                supabase.table("pagos_cuotas").upsert(
-                    {
-                        "socio_id": socio["id"],
-                        "monto": 5000,
-                        "fecha_vencimiento": fecha_venci,
-                        "estado_pago": "PENDIENTE",
-                    },
-                    on_conflict="socio_id,fecha_vencimiento",
-                ).execute()
-
-                # Log
-                supabase.table("activity_log").insert(
-                    {
-                        "socio_id": socio["id"],
-                        "tipo_evento": "MORA_DETECTADA",
-                        "descripcion": f"Detección automática de mora para cuota {mes_actual}/{anio_actual}",
-                        "usuario_id": None,
-                    }
-                ).execute()
-
-                # WhatsApp
-                if socio.get("telefono"):
-                    mensaje_wa = (
-                        f"Hola {socio['nombre_apellido']}! 👋\n"
-                        f"Detectamos un atraso en el pago de tu cuota de la Sociedad Rural ({mes_actual}/{anio_actual}).\n\n"
-                        "¿Deseás regularizar tu situación? Respondé *SÍ*, *ACEPTO* o *PAGAR* para enviarte el detalle de tu deuda y el link de pago."
-                    )
-                    enviar_whatsapp(socio["telefono"], mensaje_wa)
-                    detectados += 1
-
-        logger.info(f"[SCHEDULER] Mora detectada: {detectados} socios notificados.")
-    except Exception as e:
-        logger.error(f"[SCHEDULER] Error en tarea automática de mora: {str(e)}")
-
+# La antigua tarea_automatica_mora ha sido reemplazada por /api/v1/cron/notificar-mora
+# y /api/v1/cron/verificar-bloqueos para ser llamadas vía cron externo (ej. Make.com).
 
 # Zona horaria Argentina
 TZ_ARGENTINA = pytz.timezone("America/Argentina/Buenos_Aires")
 
 scheduler = BackgroundScheduler(timezone=TZ_ARGENTINA)
-scheduler.add_job(
-    tarea_automatica_mora,
-    trigger=CronTrigger(day=11, hour=8, minute=0, timezone=TZ_ARGENTINA),
-    id="mora_mensual",
-    name="Detección automática de mora - día 11 a las 8:00 AM",
-    replace_existing=True,
-)
+# scheduler.add_job(
+#     tarea_automatica_mora,
+#     trigger=CronTrigger(day=11, hour=8, minute=0, timezone=TZ_ARGENTINA),
+#     id="mora_mensual",
+#     name="Detección automática de mora - día 11 a las 8:00 AM",
+#     replace_existing=True,
+# )
 
 app = FastAPI(title="Sociedad Rural Norte de Corrientes API")
 app.state.limiter = limiter
@@ -5637,7 +5559,159 @@ def calcular_cuota_dinamica(current_user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ─────────────────────────────────────────────────────────────────────────────
+# MÓDULO CRON: CONTROL DE MORA Y WHATSAPP AUTOMÁTICO
+# ─────────────────────────────────────────────────────────────────────────────
 
+def business_days_between(start_date, end_date) -> int:
+    """Calcula días hábiles entre dos fechas (excluye sábados y domingos)."""
+    if start_date > end_date:
+        return 0
+    days = (end_date - start_date).days
+    business_days = 0
+    for i in range(days + 1):
+        day = start_date + timedelta(days=i)
+        if day.weekday() < 5:  # 0=Lunes, 4=Viernes
+            business_days += 1
+    return max(0, business_days - 1)
+
+
+@app.get("/api/v1/cron/verificar-bloqueos")
+def cron_verificar_bloqueos():
+    """
+    Se ejecuta diario. Verifica vencimientos y bloquea ('SUSPENDIDO') 
+    si pasaron 10 días hábiles de mora.
+    """
+    try:
+        hoy = datetime.now(TZ_ARGENTINA).date()
+        
+        # Consultamos cuotas en mora (PENDIENTE o VENCIDO)
+        cuotas_res = supabase.table("pagos_cuotas").select("id, socio_id, fecha_vencimiento, estado_pago").in_("estado_pago", ["PENDIENTE", "VENCIDO"]).execute()
+        cuotas = cuotas_res.data or []
+        
+        marcados = 0
+        bloqueos = 0
+        
+        for cuota in cuotas:
+            v_str = cuota.get("fecha_vencimiento")
+            if not v_str:
+                continue
+                
+            try:
+                vencimiento = datetime.strptime(v_str, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+                
+            estado_actual = cuota.get("estado_pago", "").upper()
+            
+            # 1. Marcar como vencido si ya pasó la fecha de vencimiento
+            if hoy > vencimiento and estado_actual != "VENCIDO":
+                supabase.table("pagos_cuotas").update({"estado_pago": "VENCIDO"}).eq("id", cuota["id"]).execute()
+                estado_actual = "VENCIDO"
+                marcados += 1
+                
+            # 2. Control de Bloqueo Automático (10 días hábiles)
+            if estado_actual == "VENCIDO":
+                dias_habiles = business_days_between(vencimiento, hoy)
+                if dias_habiles >= 10:
+                    socio_id = cuota["socio_id"]
+                    
+                    perfil_res = supabase.table("profiles").select("estado").eq("id", socio_id).execute()
+                    if perfil_res.data:
+                        perfil = perfil_res.data[0]
+                        # Si no está suspendido ya, lo suspendemos
+                        if perfil.get("estado") != "SUSPENDIDO":
+                            supabase.table("profiles").update({
+                                "estado": "SUSPENDIDO",
+                                "motivo": f"Suspendido por mora de {dias_habiles} días hábiles (cuota {v_str})"
+                            }).eq("id", socio_id).execute()
+                            
+                            # Loguear en auditoría
+                            supabase.table("auditoria_logs_2026").insert({
+                                "usuario_id": socio_id,
+                                "email_usuario": "sistema_cron",
+                                "rol_usuario": "SYSTEM",
+                                "accion": "bloqueo_por_mora",
+                                "tabla_afectada": "profiles",
+                                "registro_id": str(socio_id),
+                                "datos_anteriores": {"estado": perfil.get("estado")},
+                                "datos_nuevos": {"estado": "SUSPENDIDO", "motivo": f"Mora >= 10 días hábiles"}
+                            }).execute()
+                            
+                            bloqueos += 1
+                            
+        return {"status": "success", "cuotas_vencidas_marcadas": marcados, "socios_suspendidos": bloqueos}
+    except Exception as e:
+        logger.error(f"[CRON] Error verificar_bloqueos: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/cron/notificar-mora")
+def cron_notificar_mora():
+    """
+    Se ejecuta el día 11 de cada mes.
+    Notifica vía WhatsApp a los que tienen cuota vencida.
+    Previene duplicados en el mismo mes usando la tabla 'notificaciones'.
+    """
+    try:
+        hoy = datetime.now(TZ_ARGENTINA).date()
+        mes_actual_str = f"{hoy.year}-{hoy.month:02d}"
+        
+        cuotas_res = supabase.table("pagos_cuotas").select("id, socio_id, fecha_vencimiento").eq("estado_pago", "VENCIDO").execute()
+        cuotas = cuotas_res.data or []
+        
+        enviados = 0
+        errores = 0
+        
+        for cuota in cuotas:
+            socio_id = cuota["socio_id"]
+            cuota_id = cuota["id"]
+            
+            # Verificación Anti-Duplicados: ¿Ya notificamos este mes por esta mora?
+            notif_res = supabase.table("notificaciones").select("id").eq("usuario_id", socio_id).eq("tipo", "whatsapp_mora").like("metadata->>mes", mes_actual_str).execute()
+            if notif_res.data and len(notif_res.data) > 0:
+                continue  # Ya fue notificado
+                
+            perfil_res = supabase.table("profiles").select("nombre_apellido, telefono, estado").eq("id", socio_id).execute()
+            if not perfil_res.data:
+                continue
+                
+            perfil = perfil_res.data[0]
+            telefono = perfil.get("telefono")
+            
+            if not telefono:
+                continue
+                
+            # Extraer primer nombre
+            nombre_completo = perfil.get("nombre_apellido", "Socio")
+            nombre_corto = nombre_completo.split()[0] if nombre_completo else "Socio"
+            
+            mensaje = f"Hola {nombre_corto}, tu cuota se encuentra vencida desde el día 10. Regularizá tu pago para evitar la suspensión de tu carnet y beneficios."
+            
+            try:
+                # Usa Evolution API internamente de forma síncrona
+                enviar_whatsapp(telefono, mensaje)
+                
+                # Registrar el log de la notificación para evitar doble envío futuro
+                supabase.table("notificaciones").insert({
+                    "usuario_id": socio_id,
+                    "tipo": "whatsapp_mora",
+                    "mensaje": mensaje,
+                    "estado_envio": "enviado",
+                    "titulo": "Notificación Mora WhatsApp",
+                    "metadata": {"cuota_id": cuota_id, "mes": mes_actual_str, "telefono": telefono}
+                }).execute()
+                
+                enviados += 1
+            except Exception as w_err:
+                logger.error(f"[CRON] Error WhatsApp a {telefono}: {str(w_err)}")
+                errores += 1
+                
+        return {"status": "success", "whatsapp_enviados": enviados, "errores": errores}
+    except Exception as e:
+        logger.error(f"[CRON] Error notificar_mora: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import uvicorn
