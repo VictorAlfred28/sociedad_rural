@@ -17,11 +17,58 @@ export const CapacitorUI = () => {
     useEffect(() => {
         if (!Capacitor.isNativePlatform()) return;
 
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+        /**
+         * Envía el token FCM al backend.
+         * Si no hay sesión activa, lo guarda en localStorage como "pendiente"
+         * para enviarlo al navegar post-login (ver efecto de retry abajo).
+         */
+        const sendTokenToBackend = async (tokenValue: string): Promise<boolean> => {
+            const authToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+            if (!authToken) {
+                localStorage.setItem('fcm_token_pending', tokenValue);
+                console.warn('[Push] Sin sesión activa — token FCM guardado como pendiente.');
+                return false;
+            }
+
+            // Deduplicación local: si ya enviamos este token exacto, no re-enviamos
+            const lastSent = localStorage.getItem('fcm_token_sent');
+            if (lastSent === tokenValue) {
+                console.log('[Push] Token sin cambios — ya registrado en backend.');
+                return true;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/api/push-tokens`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: JSON.stringify({ token: tokenValue, plataforma: 'android' }),
+                });
+
+                if (res.ok) {
+                    localStorage.setItem('fcm_token_sent', tokenValue);
+                    localStorage.removeItem('fcm_token_pending');
+                    console.log('[Push] ✅ Token FCM registrado en backend.');
+                    return true;
+                } else {
+                    const body = await res.text();
+                    console.error(`[Push] ❌ Backend rechazó token. Status: ${res.status} — ${body}`);
+                    return false;
+                }
+            } catch (e) {
+                console.error('[Push] ❌ Error de red al registrar token:', e);
+                return false;
+            }
+        };
+
         const setupPushNotifications = async () => {
             try {
-                // Verificar permisos antes de registrar
                 let permResult = await PushNotifications.checkPermissions();
-                
+
                 if (permResult.receive === 'prompt') {
                     permResult = await PushNotifications.requestPermissions();
                 }
@@ -31,31 +78,18 @@ export const CapacitorUI = () => {
                     return;
                 }
 
-                // Registrar solo si hay permisos — aislado en su propio try/catch
-                // para que un fallo de FCM/google-services.json no crashee la app
+                // Aislado: si falla register (ej. falta google-services.json) no crashea la app
                 try {
                     await PushNotifications.register();
                 } catch (regError) {
-                    console.warn('[Push] PushNotifications.register() falló (¿falta google-services.json?):', regError);
-                    return; // Seguimos sin push, la app continúa normalmente
+                    console.warn('[Push] PushNotifications.register() falló:', regError);
+                    return;
                 }
 
+                // Token nuevo o refresh de FCM
                 PushNotifications.addListener('registration', async (token) => {
-                    console.log('[Push] FCM Token:', token.value);
-                    try {
-                        const authToken = localStorage.getItem('token') || sessionStorage.getItem('token');
-                        if (!authToken) return;
-                        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/push/register-token`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${authToken}`,
-                            },
-                            body: JSON.stringify({ token: token.value, plataforma: 'android' }),
-                        });
-                    } catch (e) {
-                        console.error('[Push] Error al registrar token:', e);
-                    }
+                    console.log('[Push] FCM Token obtenido:', token.value);
+                    await sendTokenToBackend(token.value);
                 });
 
                 PushNotifications.addListener('registrationError', (err) => {
@@ -76,7 +110,7 @@ export const CapacitorUI = () => {
                     }
                 });
             } catch (e) {
-                console.error('[Push] Error crítico en setup push notifications — la app continúa sin push:', e);
+                console.error('[Push] Error crítico en setup — la app continúa sin push:', e);
             }
         };
 
@@ -86,6 +120,46 @@ export const CapacitorUI = () => {
             PushNotifications.removeAllListeners();
         };
     }, [navigate]);
+
+    // --- Retry: enviar token pendiente cuando hay sesión activa ---
+    // Se dispara en cada cambio de ruta (cubre el caso post-login navigation)
+    useEffect(() => {
+        if (!Capacitor.isNativePlatform()) return;
+
+        const pendingToken = localStorage.getItem('fcm_token_pending');
+        if (!pendingToken) return;
+
+        const authToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+        if (!authToken) return;
+
+        // Si ya fue enviado exitosamente, limpiar el pendiente
+        const alreadySent = localStorage.getItem('fcm_token_sent');
+        if (alreadySent === pendingToken) {
+            localStorage.removeItem('fcm_token_pending');
+            return;
+        }
+
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+        fetch(`${API_URL}/api/push-tokens`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ token: pendingToken, plataforma: 'android' }),
+        })
+            .then(async (res) => {
+                if (res.ok) {
+                    localStorage.setItem('fcm_token_sent', pendingToken);
+                    localStorage.removeItem('fcm_token_pending');
+                    console.log('[Push] ✅ Token pendiente enviado post-login.');
+                } else {
+                    console.warn('[Push] Token pendiente rechazado. Se reintentará en la próxima navegación.');
+                }
+            })
+            .catch((e) => console.error('[Push] Error enviando token pendiente:', e));
+    }, [location.pathname]);
 
     // --- Capacitor UI Setup (StatusBar, SplashScreen, Back Button, Network) ---
     useEffect(() => {

@@ -122,6 +122,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem('token');
         localStorage.removeItem('socio');
         localStorage.removeItem('refresh_token');
+        // Limpiar caché de token FCM para que el próximo login lo re-registre
+        localStorage.removeItem('fcm_token_sent');
+        localStorage.removeItem('fcm_token_pending');
     };
 
     useEffect(() => {

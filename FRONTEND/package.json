@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "sociedad-rural-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -38,7 +38,6 @@
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.13.1",
-    "vite": "^6.2.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

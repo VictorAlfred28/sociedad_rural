@@ -2450,8 +2450,7 @@ def reset_user_password(
             request=request,
         )
         return {
-            "message": "Contraseña restablecida correctamente",
-            "temporary_password": new_password,
+            "message": "Contraseña restablecida correctamente. El usuario debe cambiarla en su próximo acceso.",
         }
     except Exception as e:
 
@@ -2825,9 +2824,8 @@ def get_ofertas_publicas(municipio: Optional[str] = None):
         return {"ofertas": result}
 
     except Exception as e:
-        logger.error(f"[/api/ofertas/publicas] Error: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error al obtener ofertas: {str(e)}")
+        logger.exception(f"[/api/ofertas/publicas] Error inesperado:")
+        raise HTTPException(status_code=500, detail="Error al obtener ofertas.")
 @app.put("/api/perfil")
 def update_profile(
     req: UpdateProfileRequest,
@@ -3095,7 +3093,7 @@ def eliminar_dependiente(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-from fastapi import UploadFile, File
+# UploadFile y File ya importados al inicio del archivo
 
 
 @app.post("/api/perfil/foto")
@@ -3322,9 +3320,8 @@ def get_support_notifications(admin_user=Depends(get_current_admin)):
         return {"notificaciones": notificaciones}
 
     except Exception as e:
-        logger.error(f"[/api/admin/notificaciones-soporte] Error: {type(e).__name__}: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"[/api/admin/notificaciones-soporte] Error inesperado:")
+        raise HTTPException(status_code=500, detail="Error al obtener notificaciones de soporte.")
 
 
 
@@ -3799,9 +3796,9 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
     secret_token = os.getenv("WEBHOOK_SECRET_TOKEN")
 
     authorized = False
-    if secret_header and secret_header == webhook_secret:
+    if secret_header and secrets.compare_digest(secret_header, webhook_secret):
         authorized = True
-    elif token and secret_token and token == secret_token:
+    elif token and secret_token and secrets.compare_digest(token, secret_token):
         authorized = True
 
     if not authorized:
@@ -4099,43 +4096,8 @@ def delete_evento_social(
 
 
 # ── ENDPOINTS DE NOTIFICACIONES Y FCM ───────────────────────────────────────
-
-
-class PushTokenRequest(BaseModel):
-    token: str
-    plataforma: str = "web"
-
-
-@app.post("/api/push-tokens")
-def register_push_token(req: PushTokenRequest, current_user=Depends(get_current_user)):
-    """Registra o actualiza el token FCM del usuario conectado"""
-    try:
-        # Upsert token (usualmente un usuario tiene un token por dispositivo,
-        # simplificamos guardando el último o actualizando si ya existe).
-        # Verificamos si el token existe
-        existente = (
-            supabase.table("push_tokens").select("id").eq("token", req.token).execute()
-        )
-        if existente.data:
-            supabase.table("push_tokens").update(
-                {"usuario_id": current_user.id, "plataforma": req.plataforma}
-            ).eq("token", req.token).execute()
-        else:
-            supabase.table("push_tokens").insert(
-                {
-                    "usuario_id": current_user.id,
-                    "token": req.token,
-                    "plataforma": req.plataforma,
-                }
-            ).execute()
-
-        return {"message": "Token registrado exitosamente"}
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=500, detail=f"Error al registrar token: {str(e)}"
-        )
+# NOTA: El registro completo de push tokens (con deduplicación, reasignación y
+# límite de dispositivos) está implementado al final del archivo en /api/push-tokens.
 
 
 @app.get("/api/notificaciones")
@@ -5080,7 +5042,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 
         if env_secret and secret_header != env_secret:
             logger.warning("[WEBHOOK] Webhook secret mismatch. Acceso denegado.")
-            return {"status": "unauthorized", "detail": "Secret mismatch"}
+            raise HTTPException(status_code=401, detail="Webhook secret inválido")
 
         data = await request.json()
         event = data.get("event")
@@ -5205,9 +5167,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
 
         return {"status": "success"}
     except Exception as e:
-        logger.error(f"Error procesando Webhook WhatsApp: {str(e)}")
-
-        traceback.print_exc()
+        logger.exception("[WEBHOOK WA] Error procesando webhook WhatsApp:")
         return {"status": "error"}
 
 
@@ -5414,21 +5374,20 @@ def validar_pago(
 
         return {"status": "success", "pdf_url": pdf_url}
     except Exception as e:
-        logger.error(f"Error validar: {e}")
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("[/api/admin/pagos/aprobar] Error al validar pago:")
+        raise HTTPException(status_code=500, detail="Error al procesar el pago.")
 
 
 @app.post("/api/admin/pagos/rechazar")
 def rechazar_pago(req: PagoActionRequest, current_admin=Depends(get_current_admin)):
     pago_id = req.pago_id
-    req.motivo
+    motivo = req.motivo or "Sin motivo especificado"
     try:
-        supabase.table("pagos_cuotas").update({"estado_pago": "RECHAZADO"}).eq(
-            "id", pago_id
-        ).execute()
-        return {"status": "success"}
+        supabase.table("pagos_cuotas").update({
+            "estado_pago": "RECHAZADO",
+            "motivo_rechazo": motivo,
+        }).eq("id", pago_id).execute()
+        return {"status": "success", "motivo": motivo}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -5608,7 +5567,7 @@ def cron_verificar_bloqueos():
                             }).eq("id", socio_id).execute()
                             
                             # Loguear en auditoría
-                            supabase.table("auditoria_logs_2026").insert({
+                            supabase.table("auditoria_logs").insert({
                                 "usuario_id": socio_id,
                                 "email_usuario": "sistema_cron",
                                 "rol_usuario": "SYSTEM",
@@ -5616,7 +5575,7 @@ def cron_verificar_bloqueos():
                                 "tabla_afectada": "profiles",
                                 "registro_id": str(socio_id),
                                 "datos_anteriores": {"estado": perfil.get("estado")},
-                                "datos_nuevos": {"estado": "SUSPENDIDO", "motivo": f"Mora >= 10 días hábiles"}
+                                "datos_nuevos": {"estado": "SUSPENDIDO", "motivo": "Mora >= 10 días hábiles"}
                             }).execute()
                             
                             bloqueos += 1
@@ -5692,6 +5651,181 @@ def cron_notificar_mora():
     except Exception as e:
         logger.error(f"[CRON] Error notificar_mora: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ── PUSH TOKENS: Registro de tokens FCM (Android / Web) ──────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PushTokenRequest(BaseModel):
+    token: str
+    plataforma: Optional[str] = "android"  # 'android' | 'web' | 'ios'
+
+
+def _get_user_from_bearer(authorization: Optional[str]) -> Optional[str]:
+    """
+    Extrae y valida el JWT Bearer, retorna el user_id (sub) si es válido.
+    Usa el cliente service_role de Supabase para verificar sin depender del anon key.
+    Retorna None si el token es inválido o expirado.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    jwt_token = authorization.split(" ", 1)[1].strip()
+    try:
+        user_resp = supabase.auth.get_user(jwt_token)
+        if user_resp and user_resp.user:
+            return str(user_resp.user.id)
+    except Exception as e:
+        logger.warning(f"[PUSH_TOKEN] JWT inválido o expirado: {e}")
+    return None
+
+
+def _register_push_token(user_id: str, token_value: str, plataforma: str) -> dict:
+    """
+    Lógica de negocio para registrar/actualizar un token FCM.
+    - Upsert por token (conflict en columna token): evita duplicados absolutos.
+    - Si el token ya existe para otro user, lo reasigna (device cambió de cuenta).
+    - Limita a 5 dispositivos por usuario (elimina el más antiguo si supera).
+    """
+    plataforma = (plataforma or "android").lower()
+    if plataforma not in ("android", "web", "ios"):
+        plataforma = "android"
+
+    # 1. ¿Ya existe este token exacto en la DB?
+    existing = (
+        supabase.table("push_tokens")
+        .select("id, usuario_id, plataforma")
+        .eq("token", token_value)
+        .execute()
+    )
+
+    if existing.data:
+        row = existing.data[0]
+        # Si ya pertenece al mismo usuario → nada que hacer
+        if str(row["usuario_id"]) == user_id:
+            logger.info(f"[PUSH_TOKEN] Token ya registrado para user {user_id} — sin cambios.")
+            return {"status": "already_registered", "token_id": row["id"]}
+        # Token de otro usuario → actualizamos owner (device re-login)
+        supabase.table("push_tokens").update(
+            {"usuario_id": user_id, "plataforma": plataforma, "created_at": datetime.utcnow().isoformat()}
+        ).eq("id", row["id"]).execute()
+        logger.info(f"[PUSH_TOKEN] Token reasignado de {row['usuario_id']} → {user_id}.")
+        return {"status": "reassigned", "token_id": row["id"]}
+
+    # 2. Token nuevo: insertar
+    insert_res = (
+        supabase.table("push_tokens")
+        .insert({"usuario_id": user_id, "token": token_value, "plataforma": plataforma})
+        .execute()
+    )
+    new_id = insert_res.data[0]["id"] if insert_res.data else None
+    logger.info(f"[PUSH_TOKEN] ✅ Token registrado para user {user_id} ({plataforma}).")
+
+    # 3. Cap de dispositivos: máx 5 por usuario (FIFO — elimina el más antiguo)
+    all_tokens = (
+        supabase.table("push_tokens")
+        .select("id, created_at")
+        .eq("usuario_id", user_id)
+        .order("created_at", desc=False)
+        .execute()
+    )
+    if all_tokens.data and len(all_tokens.data) > 5:
+        oldest_ids = [r["id"] for r in all_tokens.data[: len(all_tokens.data) - 5]]
+        supabase.table("push_tokens").delete().in_("id", oldest_ids).execute()
+        logger.info(f"[PUSH_TOKEN] Rotación: {len(oldest_ids)} token(s) antiguo(s) eliminado(s) para user {user_id}.")
+
+    return {"status": "registered", "token_id": new_id}
+
+
+@app.post("/api/push-tokens", status_code=200)
+@limiter.limit("30/minute")
+def register_push_token(
+    payload: PushTokenRequest,
+    request: Request,
+):
+    """
+    Registra un token FCM. Requiere JWT válido en Authorization header.
+    Llamado desde el frontend (web y Android vía Capacitor).
+    """
+    authorization = request.headers.get("Authorization")
+    user_id = _get_user_from_bearer(authorization)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de sesión inválido o ausente.",
+        )
+
+    if not payload.token or len(payload.token) < 20:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Token FCM inválido.",
+        )
+
+    try:
+        result = _register_push_token(user_id, payload.token, payload.plataforma or "android")
+        return {"ok": True, **result}
+    except Exception as e:
+        logger.error(f"[PUSH_TOKEN] Error inesperado: {e}")
+        raise HTTPException(status_code=500, detail="Error al registrar token push.")
+
+
+@app.post("/api/push/register-token", status_code=200)
+@limiter.limit("30/minute")
+def register_push_token_alias(
+    payload: PushTokenRequest,
+    request: Request,
+):
+    """
+    Alias de /api/push-tokens para compatibilidad con CapacitorUI.tsx.
+    Misma lógica — delega internamente.
+    """
+    authorization = request.headers.get("Authorization")
+    user_id = _get_user_from_bearer(authorization)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de sesión inválido o ausente.",
+        )
+
+    if not payload.token or len(payload.token) < 20:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Token FCM inválido.",
+        )
+
+    try:
+        result = _register_push_token(user_id, payload.token, payload.plataforma or "android")
+        return {"ok": True, **result}
+    except Exception as e:
+        logger.error(f"[PUSH_TOKEN] Error inesperado (alias): {e}")
+        raise HTTPException(status_code=500, detail="Error al registrar token push.")
+
+
+@app.delete("/api/push-tokens", status_code=200)
+@limiter.limit("10/minute")
+def unregister_push_token(
+    payload: PushTokenRequest,
+    request: Request,
+):
+    """
+    Elimina un token FCM (logout / desactivar notificaciones).
+    Requiere JWT válido.
+    """
+    authorization = request.headers.get("Authorization")
+    user_id = _get_user_from_bearer(authorization)
+
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autorizado.")
+
+    try:
+        supabase.table("push_tokens").delete().eq("token", payload.token).eq("usuario_id", user_id).execute()
+        logger.info(f"[PUSH_TOKEN] Token eliminado para user {user_id}.")
+        return {"ok": True, "status": "deleted"}
+    except Exception as e:
+        logger.error(f"[PUSH_TOKEN] Error al eliminar token: {e}")
+        raise HTTPException(status_code=500, detail="Error al eliminar token push.")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 
