@@ -460,7 +460,8 @@ class EventUpdate(BaseModel):
 class WebhookEventoPayload(BaseModel):
     post_id: str
     caption: Optional[str] = ""          # Algunos posts pueden no tener texto
-    media_url: Optional[str] = None      # Reels/carruseles pueden no retornar URL directa
+    media_url: Optional[str] = None      # Validado en el endpoint
+    media_type: Optional[str] = "IMAGE"  # Fallback a IMAGE
     timestamp: Optional[str] = None
     permalink: Optional[str] = None
     # FASE 2: Campos para diferenciación de fuente (backward compatible)
@@ -3875,11 +3876,21 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
     Endpoint para recibir publicaciones de Make.com (Instagram/Facebook).
     Procesa el texto, guarda la imagen en Storage y persiste en la tabla eventos_sociales.
     """
+    logger.info(f"==> Iniciando IMPORTAR EVENTO [post_id: {payload.post_id}]")
+    
+    # Validación Input Estricta (Fase 4)
+    if not payload.media_url or str(payload.media_url).strip() == "":
+        logger.error(f"Falta media_url en post_id {payload.post_id}")
+        # Retornar 400 Bad Request si no hay imagen (OBLIGATORIO)
+        raise HTTPException(
+            status_code=400,
+            detail="El campo media_url es obligatorio"
+        )
+
     # 1. Validar Token de seguridad o Webhook Secret
     token = request.headers.get("X-Webhook-Token")
     secret_header = request.headers.get("x-webhook-secret")
 
-    # Prioridad al secreto definido en el SPEC para Make.com
     webhook_secret = os.getenv("WEBHOOK_SECRET", "make_webhook_secret_2026")
     secret_token = os.getenv("WEBHOOK_SECRET_TOKEN")
 
@@ -3890,22 +3901,18 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
         authorized = True
 
     if not authorized:
-        logger.warning(
-            f"Intento de acceso no autorizado al webhook desde IP {request.client.host if request.client else 'unknown'}"
-        )
-        logger.warning("[WEBHOOK EVENTOS] Acceso denegado: secret/token inválido.")
+        logger.warning(f"[WEBHOOK EVENTOS] Acceso denegado: secret/token inválido.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Webhook secret mismatch o token no válido",
         )
 
     try:
-        # FASE 2: Determinar fuente (backward compatible: sin fuente → sociedad_rural)
+        # FASE 2: Determinar fuente
         fuente = payload.fuente or "sociedad_rural"
         municipio_id_validado = None
         nombre_municipio = None
 
-        # FASE 2: Validar municipio_id si viene en el payload
         if payload.municipio_id:
             mun_res = (
                 supabase.table("municipios")
@@ -3923,19 +3930,17 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
             nombre_municipio = mun_res.data[0]["nombre"]
 
         # 2. Procesar Texto con Regex
+        logger.info(f"Procesando texto para post_id {payload.post_id}")
         datos_procesados = procesar_texto_evento(payload.caption)
 
-        # FASE 2: Título enriquecido para municipios sin caption
         titulo = datos_procesados["titulo"]
         if fuente == "municipio" and not (payload.caption and payload.caption.strip()) and nombre_municipio:
             titulo = f"Novedad de {nombre_municipio}"
 
-        # FASE 2: Determinar status según fuente
-        # sociedad_rural → aprobado automáticamente (backward compatible)
-        # municipio → borrador (requiere moderación admin)
         status_evento = "aprobado" if fuente == "sociedad_rural" else "borrador"
 
-        # 3. Procesar Imagen (Descargar y subir a Supabase Storage)
+        # 3. Procesar Imagen
+        logger.info(f"Procesando imagen para post_id {payload.post_id}")
         url_final_imagen = procesar_imagen_evento(payload.media_url, payload.post_id)
 
         # 4. Preparar datos para inserción/actualización
@@ -3950,6 +3955,7 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
             "metadata": {
                 "original_caption": payload.caption,
                 "original_media_url": payload.media_url,
+                "media_type": payload.media_type,
                 "timestamp": payload.timestamp,
                 "permalink": payload.permalink,
             },
@@ -3959,12 +3965,11 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
             "link_instagram": payload.permalink,
         }
 
-        # FASE 2: Incluir municipio_id si fue validado
         if municipio_id_validado:
             remate_data["municipio_id"] = municipio_id_validado
 
-        # 5. Persistencia (Upsert por external_id)
-        # La tabla debe tener external_id como UNIQUE
+        # 5. Persistencia
+        logger.info(f"Guardando en BD post_id {payload.post_id}")
         res = (
             supabase.table("eventos_sociales")
             .upsert(remate_data, on_conflict="external_id")
@@ -3973,9 +3978,8 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
 
         if res.data:
             evento_id = res.data[0].get("id")
-            logger.info(f"Evento importado exitosamente: {payload.post_id} [fuente={fuente}, status={status_evento}]")
+            logger.info(f"✅ Evento importado exitosamente: {payload.post_id} [id={evento_id}]")
 
-            # FASE 2: Notificar admins cuando llega evento de municipio (requiere moderación)
             if fuente == "municipio" and nombre_municipio:
                 try:
                     admins_res = (
@@ -3988,31 +3992,31 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
                         enviar_notificacion_push_inapp(
                             usuario_id=admin["id"],
                             titulo="📍 Nuevo Evento de Municipio",
-                            mensaje=f"Publicación de {nombre_municipio} pendiente de moderación: {titulo}",
+                            mensaje=f"Publicación de {nombre_municipio} pendiente de moderación",
                             link_url="/admin",
                         )
                 except Exception as notif_err:
-                    logger.error(f"[WEBHOOK] Error notificando admins sobre evento de municipio: {notif_err}")
+                    logger.error(f"Error notificando admins: {notif_err}")
 
             return {
-                "status": "success",
-                "message": "Evento procesado correctamente",
+                "success": True,
+                "message": "Evento importado correctamente",
                 "id": evento_id,
                 "external_id": payload.post_id,
-                "fuente": fuente,
                 "status_evento": status_evento,
             }
 
-        return {"status": "success", "external_id": payload.post_id}
+        return {"success": True, "message": "Actualizado sin cambios", "external_id": payload.post_id}
 
     except Exception as e:
-        logger.error(
-            f"Error crítico procesando evento webhook {payload.post_id}: {str(e)}"
-        )
-        # No queremos dar demasiados detalles del error interno al webhook remoto
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno procesando el remate",
+        logger.error(f"ERROR IMPORTAR EVENTO [post_id: {payload.post_id}]: {str(e)}")
+        # Capturamos el error para Make y devolvemos 500 con el detalle para debug
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Error interno",
+                "detail": str(e)
+            }
         )
 
 
