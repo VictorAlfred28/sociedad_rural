@@ -69,20 +69,38 @@ export default function NotificationBell() {
         }
     }, [user, token]);
 
-    // Listener Foreground FCM (Firebase) con reproducción de sonido
+    // Listener Foreground FCM (Firebase) - escucha continua con cleanup
     useEffect(() => {
-        onMessageListener()
-            .then(async (payload: any) => {
-                // Cuando llega algo mientras la app está abierta, recargamos notificaciones
-                loadNotifications();
-                
-                // Reproducir sonido si el usuario lo tiene habilitado
-                if (user?.sonido_notificaciones_habilitado ?? true) {
-                    await playNotificationSound(true, 'notification');
-                }
-            })
-            .catch((err) => console.log('failed: ', err));
+        const unsubscribe = onMessageListener(async (payload: any) => {
+            // Cuando llega algo mientras la app está abierta, recargamos notificaciones
+            loadNotifications();
+
+            // Reproducir sonido si el usuario lo tiene habilitado
+            if (user?.sonido_notificaciones_habilitado ?? true) {
+                await playNotificationSound(true, 'notification');
+            }
+        });
+
+        // Cleanup: desregistrar listener al desmontar componente
+        return () => {
+            if (typeof unsubscribe === 'function') unsubscribe();
+        };
     }, [user?.sonido_notificaciones_habilitado]);
+
+    // Listener: Deep Link desde click en notificación del OS (Service Worker)
+    useEffect(() => {
+        const handleSWMessage = (event: MessageEvent) => {
+            if (event.data?.type === 'NOTIFICATION_CLICK') {
+                const link = event.data.link;
+                if (link && link !== '/') {
+                    window.location.href = link;
+                }
+                loadNotifications(); // Refrescar badge al volver
+            }
+        };
+        navigator.serviceWorker?.addEventListener('message', handleSWMessage);
+        return () => navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
+    }, []);
 
     // Marcar como leídas al abrir
     const toggleDropdown = async () => {

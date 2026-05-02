@@ -43,22 +43,22 @@ export const requestForToken = async () => {
     }
 };
 
-export const onMessageListener = () =>
-    new Promise((resolve) => {
-        if (!messaging) return;
-        onMessage(messaging, async (payload) => {
-            console.log("Notificación recibida en foreground: ", payload);
-            
-            // Extraer si el sonido está habilitado del payload
-            const soundEnabled = payload.data?.['sound_enabled'] !== 'false';
-            
-            // Reproducir sonido si está habilitado
-            if (soundEnabled) {
-                await playNotificationSound(true, 'notification');
-            }
-            
-            resolve(payload);
-        });
+// onMessageListener: Escucha continua en foreground (retorna unsubscribe)
+export const onMessageListener = (callback: (payload: any) => void) => {
+    if (!messaging) return () => {};
+    return onMessage(messaging, async (payload) => {
+        console.log("Notificación recibida en foreground: ", payload);
+
+        // Extraer si el sonido está habilitado del payload
+        const soundEnabled = payload.data?.['sound_enabled'] !== 'false';
+
+        // Reproducir sonido si está habilitado
+        if (soundEnabled) {
+            await playNotificationSound(true, 'notification');
+        }
+
+        callback(payload);
     });
+};
 
 export { messaging };
