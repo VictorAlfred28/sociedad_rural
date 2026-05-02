@@ -20,18 +20,33 @@ const getAudioElement = (): HTMLAudioElement => {
 };
 
 /**
- * Reproduce un sonido de notificación
+ * Reproduce un sonido de notificación.
+ * REGLA: solo se llama en FOREGROUND (app abierta).
+ * Background y notificaciones del OS gestionan el sonido automáticamente.
+ *
  * @param soundEnabled - Si el usuario tiene habilitado el sonido
- * @param soundType - Tipo de sonido ('notification', 'message', etc.)
+ * @param soundType    - Tipo de sonido (reservado para uso futuro)
  * @returns true si se reprodujo, false si no
  */
 export const playNotificationSound = async (
     soundEnabled: boolean = true,
     soundType: string = 'notification'
 ): Promise<boolean> => {
-    // No reproducir si está deshabilitado
+    // Nunca reproducir si está deshabilitado
     if (!soundEnabled) {
         console.log('[Sound] Sonido deshabilitado por usuario');
+        return false;
+    }
+
+    // Nunca reproducir en Service Worker (background)
+    if (typeof window === 'undefined') {
+        console.log('[Sound] Contexto SW — sonido gestionado por OS');
+        return false;
+    }
+
+    // En plataforma nativa (Capacitor), el canal Android/iOS gestiona el sonido
+    if (Capacitor.isNativePlatform()) {
+        console.log('[Sound] Plataforma nativa — sonido gestionado por canal FCM');
         return false;
     }
 
@@ -41,71 +56,33 @@ export const playNotificationSound = async (
         console.log('[Sound] Evitando reproducción duplicada');
         return false;
     }
-
     lastPlayTime = now;
 
-    try {
-        // En plataforma nativa (Capacitor/Móvil)
-        if (Capacitor.isNativePlatform()) {
-            return await playMobileSound(soundType);
-        }
-
-        // En web, usar HTMLAudioElement
-        return await playWebSound();
-    } catch (error) {
-        console.error('[Sound] Error reproduciendo sonido:', error);
-        return false;
-    }
+    return await playWebSound();
 };
 
 /**
- * Reproduce sonido en web (navegador)
+ * Reproduce sonido en web (navegador, FOREGROUND únicamente)
  */
 const playWebSound = async (): Promise<boolean> => {
     try {
         const audio = getAudioElement();
-        
-        // Reiniciar desde el inicio cada vez
         audio.currentTime = 0;
-        
-        // Intentar reproducir (algunos navegadores requieren interacción previa)
-        const playPromise = audio.play();
 
+        const playPromise = audio.play();
         if (playPromise !== undefined) {
             await playPromise;
-            console.log('[Sound] Sonido reproducido en web');
+            console.log('[Sound] ✅ Sonido reproducido en foreground');
             return true;
         }
-
         return false;
     } catch (error) {
-        // Error común: NotAllowedError (falta interacción del usuario)
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
-            console.warn('[Sound] Navegador requiere interacción previa del usuario para reproducir sonido');
+            // Chrome bloquea autoplay hasta que el usuario interactúa con la página
+            console.warn('[Sound] ⚠️ Bloqueado por política de autoplay del navegador (requiere interacción previa del usuario)');
         } else {
             console.error('[Sound] Error reproduciendo sonido web:', error);
         }
-        return false;
-    }
-};
-
-/**
- * Reproduce sonido en móvil (Capacitor Android/iOS)
- * Delega al sistema nativo de notificaciones
- */
-const playMobileSound = async (soundType: string): Promise<boolean> => {
-    try {
-        // En Android/iOS, el sonido se maneja a través del payload de Firebase
-        // Esta función es un placeholder para lógica adicional si es necesaria
-        console.log(`[Sound] Sonido de tipo '${soundType}' en móvil (manejado por Firebase)`);
-        
-        // Opcional: si quieres reproducir sonido adicional en app abierta en móvil:
-        // const soundFile = `Assets/sounds/${soundType}.mp3`;
-        // await SoundService.play(soundFile);
-        
-        return true;
-    } catch (error) {
-        console.error('[Sound] Error en sonido móvil:', error);
         return false;
     }
 };
