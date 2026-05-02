@@ -3962,7 +3962,6 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
             "status": status_evento,
             "fuente": fuente,
             "slug": f"{slugify(titulo)}-{uuid4().hex[:6]}",
-            "link_instagram": payload.permalink,
         }
 
         if municipio_id_validado:
