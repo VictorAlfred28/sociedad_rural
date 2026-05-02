@@ -612,22 +612,15 @@ def register(
     socio: RegisterRequest, request: Request, background_tasks: BackgroundTasks
 ):
     try:
-        # 3.A: Validar Rol
-        rol_asignado = socio.rol.upper() if socio.rol else "SOCIO"
+        rol_asignado = (socio.rol or "SOCIO").upper()
+  
+        if rol_asignado not in ("SOCIO", "COMERCIO"):
+            rol_asignado = "SOCIO"
 
-        # FUNCIONALIDAD DESACTIVADA TEMPORALMENTE: CAMARA
-        if rol_asignado == "CAMARA" and not ENABLE_CAMARAS:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="El registro de Cámaras de Comercio se encuentra deshabilitado temporalmente.",
-            )
-
-        if rol_asignado not in ["SOCIO", "COMERCIO", "CAMARA"]:
-            rol_asignado = "SOCIO"  # Fallback de seguridad
-
-        # 3.B: Crear usuario en Supabase Auth con la contraseña elegida por el usuario
+        # 3.B: Crear usuario en Supabase Auth
         user_password = socio.password if socio.password else "socio1234"
-        default_passwords_list = ["comercio1234", "socio1234", "socio123", "camara1234"]
+        default_passwords_list = ["comercio1234", "socio1234", "socio123"]
+
         user_password_was_set = (
             socio.password is not None
             and len(socio.password) >= 8
@@ -640,32 +633,42 @@ def register(
 
         user_id = auth_response.user.id
 
+        # ── Subida constancia estudiante ─────────────────────────────
         constancia_url = None
         if socio.isStudent and socio.studentCertificate:
             try:
                 import base64
+
                 bucket_name = "constancias-estudiantes"
                 try:
                     supabase.storage.create_bucket(bucket_name, public=True)
                 except Exception:
                     pass
-                
+
                 header, encoded = socio.studentCertificate.split(",", 1)
                 file_bytes = base64.b64decode(encoded)
+
                 ext = "pdf" if "pdf" in header.lower() else "png"
                 filename = f"{user_id}_constancia_{uuid4().hex[:6]}.{ext}"
-                content_type = "application/pdf" if ext == "pdf" else "image/png"
-                
+
+                content_type = (
+                    "application/pdf" if ext == "pdf" else "image/png"
+                )
+
                 supabase.storage.from_(bucket_name).upload(
                     file=file_bytes,
                     path=filename,
                     file_options={"content-type": content_type},
                 )
-                constancia_url = supabase.storage.from_(bucket_name).get_public_url(filename)
+
+                constancia_url = (
+                    supabase.storage.from_(bucket_name).get_public_url(filename)
+                )
+
             except Exception as e:
                 logger.error(f"Error uploading student certificate: {e}")
 
-        # 3.C: Insertar en la tabla public.profiles (El DNI debe ser UNIQUE segun esquema)
+        # 3.C: Insertar en profiles
         profile_data = {
             "id": user_id,
             "nombre_apellido": socio.nombre_apellido,
@@ -683,17 +686,17 @@ def register(
             "password_changed": user_password_was_set,
             "es_estudiante": socio.isStudent,
             "constancia_estudiante_url": constancia_url,
-            # Email verification
             "email_verificado": False,
             "email_verificacion_token": secrets.token_urlsafe(32),
-            "email_verificacion_expira": (datetime.now() + timedelta(hours=48)).isoformat(),
+            "email_verificacion_expira": (
+                datetime.now() + timedelta(hours=48)
+            ).isoformat(),
         }
 
-        # Inserción en tabla profiles - con rollback al auth si falla
+        # ── Insert + rollback ───────────────────────────────────────
         try:
             supabase.table("profiles").insert(profile_data).execute()
 
-            # 3.D: Si es COMERCIO, insertar en la tabla comercios
             if rol_asignado == "COMERCIO":
                 commerce_data = {
                     "id": user_id,
@@ -701,39 +704,19 @@ def register(
                     "cuit": socio.dni_cuit,
                     "rubro": socio.rubro,
                     "direccion": socio.direccion,
-                    "barrio": socio.barrio,  # Barrio/localidad (nuevo)
+                    "barrio": socio.barrio,
                 }
+
                 supabase.table("comercios").insert(commerce_data).execute()
 
-            # 3.E: Si es CAMARA, insertar en la tabla camaras
-            elif rol_asignado == "CAMARA":
-                # Al llegar desde el front como 'CAMARA', esperamos que use los campos correspondientes
-                # Mapeamos los campos del RegisterRequest para la Cámara
-                # Como el request actualmente define: nombre_apellido, dni_cuit, municipio, email, telefono
-                camara_data = {
-                    "id": user_id,
-                    "denominacion": socio.nombre_apellido,  # El form del frente envía denominación aquí
-                    "cuit": socio.dni_cuit,
-                    "municipio": socio.municipio or "",
-                    "provincia": socio.direccion
-                    or "",  # Usamos direccion para la provincia (según el mapping esperado o adaptamos)
-                    "responsable_nombre": socio.rubro
-                    or "",  # Usamos rubro para el responsable (según como lo manda el front, revisaremos Registro.tsx)
-                    "email": socio.email,
-                    "telefono": socio.telefono,
-                }
-                supabase.table("camaras").insert(camara_data).execute()
-
         except Exception as profile_err:
-            # Rollback: eliminar usuario de Auth para que pueda reintentar el registro
             try:
                 supabase.auth.admin.delete_user(user_id)
             except Exception as e:
-                logger.error(f"Error: {e}")
-                pass
+                logger.error(f"Rollback error: {e}")
             raise profile_err
 
-        # Auditoría
+        # ── Auditoría ───────────────────────────────────────────────
         background_tasks.add_task(
             registrar_auditoria,
             usuario_id=user_id,
@@ -748,14 +731,14 @@ def register(
             request=request,
         )
 
-        # Notificar a los administradores
+        # ── Notificación admin ──────────────────────────────────────
         background_tasks.add_task(
             notificar_admins_nuevo_registro,
             nombre=socio.nombre_apellido,
             tipo_usuario=rol_asignado,
         )
 
-        # Enviar email de verificación (best-effort, no bloquea el registro)
+        # ── Email verificación ──────────────────────────────────────
         background_tasks.add_task(
             _enviar_email_verificacion_bg,
             email=socio.email,
@@ -770,27 +753,26 @@ def register(
 
     except Exception as e:
         err_msg = str(e).lower()
-        # Identificamos el tipo de error (usualmente de Supabase Auth o restricciones Unique)
+
         if (
             "user already registered" in err_msg
             or ("already exists" in err_msg and "email" in err_msg)
         ):
-            friendly_detail = (
-                "El correo electrónico indicado ya se encuentra registrado."
-            )
+            friendly_detail = "El correo electrónico ya está registrado."
+
         elif "duplicate key value" in err_msg and "dni" in err_msg:
-            friendly_detail = "El DNI/CUIT ingresado ya se encuentra registrado en el sistema. Por favor verificá tus datos o iniciá sesión."
+            friendly_detail = "El DNI/CUIT ya está registrado."
+
         elif "duplicate key value" in err_msg:
-            friendly_detail = (
-                "Algunos de los datos brindados ya se encuentran registrados."
-            )
+            friendly_detail = "Datos duplicados en el sistema."
+
         else:
-            friendly_detail = "Error al procesar el registro: Verifique sus datos y vuelva a intentar."
+            friendly_detail = "Error al procesar el registro."
 
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=friendly_detail
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=friendly_detail,
         )
-
 
 # 3.1 ENDPOINT REGISTER COMERCIO (Dedicado)
 @app.post("/api/register/comercio", status_code=status.HTTP_201_CREATED)
