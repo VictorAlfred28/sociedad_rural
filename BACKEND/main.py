@@ -380,15 +380,14 @@ class EventUpdate(BaseModel):
 
 
 class WebhookEventoPayload(BaseModel):
-    post_id: str
-    caption: Optional[str] = ""          # Algunos posts pueden no tener texto
-    media_url: Optional[str] = None      # Validado en el endpoint
-    media_type: Optional[str] = "IMAGE"  # Fallback a IMAGE
-    timestamp: Optional[str] = None
-    permalink: Optional[str] = None
-    # FASE 2: Campos para diferenciación de fuente (backward compatible)
-    fuente: Optional[str] = "sociedad_rural"  # 'sociedad_rural' | 'municipio'
-    municipio_id: Optional[str] = None        # UUID del municipio origen (si aplica)
+    external_id: str
+    titulo: str
+    fecha: str
+    hora: str
+    lugar: str
+    municipio: Optional[str] = None
+    imagen_url: str
+
 
 
 class UpdateSupportNoteRequest(BaseModel):
@@ -514,95 +513,27 @@ def _html_aprobacion(nombre: str, login_url: str) -> str:
     """
 
 # ── UTILIDADES PARA EL WEBHOOK DE EVENTOS SOCIALES ───────────────────────────
-def procesar_texto_evento(caption: str) -> dict:
-    caption = caption or ""  # Guard: evitar None de posts sin texto
-    # 1. Extraer Lugar
-    lugar_match = re.search(r"(?i)Lugar:\s*(.*)", caption)
-    lugar = lugar_match.group(1).strip() if lugar_match else "A definir"
-
-    # 1b. Extraer Municipio
-    municipio_match = re.search(r"(?i)Municipio:\s*(.*)", caption)
-    municipio_extraido = municipio_match.group(1).strip() if municipio_match else None
-
-    # Concatenar municipio al lugar si existe
-    if municipio_extraido and municipio_extraido.lower() not in lugar.lower():
-        lugar = f"{municipio_extraido} - {lugar}"
-
-    # 2. Extraer Fecha
-    fecha_match = re.search(r"(\d{2}/\d{2}/\d{2,4})", caption)
-    fecha = fecha_match.group(1) if fecha_match else None
-    if fecha:
-        # Convertir DD/MM/YYYY a YYYY-MM-DD para postgres (si es YY asume 2000+)
-        try:
-            if len(fecha.strip()) == 8:  # DD/MM/YY
-                d = datetime.strptime(fecha, "%d/%m/%y")
-            else:
-                d = datetime.strptime(fecha, "%d/%m/%Y")
-            fecha = d.strftime("%Y-%m-%d")
-        except ValueError:
-            pass  # Si falla el parseo se guarda como string y que falle postgres o dejarlo
-
-    # 3. Extraer Hora
-    hora_match = re.search(r"(\d{2}:\d{2})", caption)
-    hora = hora_match.group(1) if hora_match else None
-    if hora:
-        try:
-            hora = datetime.strptime(hora, "%H:%M").time().strftime("%H:%M:%S")
-        except ValueError:
-            pass
-
-    # 4. Limpieza (Eliminar hashtags y líneas de etiquetas técnicas como "Lugar: ...")
-    clean_text = re.sub(r"#\w+", "", caption)  # Elimina hashtags
-    clean_text = re.sub(r"(?i)Lugar:\s*.*", "", clean_text)  # Elimina linea Lugar
-    clean_text = re.sub(
-        r"(?i)Municipio:\s*.*", "", clean_text
-    )  # Elimina linea Municipio
-    clean_text = re.sub(r"(\d{2}/\d{2}/\d{2,4})", "", clean_text)  # Elimina fechas
-    clean_text = re.sub(r"(\d{2}:\d{2})", "", clean_text)  # Elimina horas
-    clean_text = re.sub(r"\n\s*\n", "\n", clean_text).strip()  # Limpiar lineas vacias
-
-    # Asumimos que la primera linea que queda es el título si existe
-    lineas = clean_text.split("\n")
-    titulo = lineas[0].strip() if lineas and lineas[0].strip() else "Evento Municipal"
-
-    return {
-        "lugar": lugar,
-        "fecha_evento": fecha,
-        "hora_evento": hora,
-        "descripcion_limpia": clean_text,
-        "titulo": titulo,
-    }
-
-
 def procesar_imagen_evento(media_url: str, post_id: str) -> Optional[str]:
-    try:
-        if not media_url:
-            return None
+    if not media_url:
+        raise ValueError("media_url no puede ser nulo")
 
-        r = requests.get(media_url, stream=True, timeout=10)
-        r.raise_for_status()
+    r = requests.get(media_url, stream=True, timeout=10)
+    r.raise_for_status()
 
-        # Guardar en memoria y subir a supabase storage
-        file_bytes = r.content
-        filename = f"{post_id}_{uuid4().hex[:8]}.jpg"  # Asumimos jpg de IG
+    # Guardar en memoria y subir a supabase storage
+    file_bytes = r.content
+    filename = f"{post_id}_{uuid4().hex[:8]}.jpg"  # Asumimos jpg de IG
 
-        # Subir al bucket 'imagenes-eventos'.
-        # Asegurarse que el bucket existe y es público en Supabase.
-        supabase.storage.from_("imagenes-eventos").upload(
-            file=file_bytes, path=filename, file_options={"content-type": "image/jpeg"}
-        )
+    # Subir al bucket 'imagenes-eventos'.
+    supabase.storage.from_("imagenes-eventos").upload(
+        file=file_bytes, path=filename, file_options={"content-type": "image/jpeg"}
+    )
 
-        # Obtener URL publica
-        url_publica = supabase.storage.from_("imagenes-eventos").get_public_url(
-            filename
-        )
-        return url_publica
-    except Exception as e:
-        logger.error(
-            f"Error procesando imagen del evento para post {post_id}: {str(e)}"
-        )
-        # Si falla la imagen, no fallamos todo el proceso, retornamos la URL original temporal o None
-        return media_url
+    # Obtener URL publica
+    url_publica = supabase.storage.from_("imagenes-eventos").get_public_url(
+        filename
+    )
+    return url_publica
 
 
 # 3. ENDPOINT REGISTER (Integrado con Supabase Auth y Public Profiles)
@@ -3772,26 +3703,33 @@ def update_evento(
 
 
 @app.post("/api/v1/importar-evento")
-async def importar_evento(payload: WebhookEventoPayload, request: Request):
+async def importar_evento(payload: WebhookEventoPayload, request: Request, background_tasks: BackgroundTasks):
     """
-    Endpoint para recibir publicaciones de Make.com (Instagram/Facebook).
-    Procesa el texto, guarda la imagen en Storage y persiste en la tabla eventos_sociales.
+    Endpoint para recibir publicaciones de Make.com (Instagram/Facebook) estructuradas.
     """
-    logger.info(f"==> Iniciando IMPORTAR EVENTO [post_id: {payload.post_id}]")
+    import json
+    logger.info(f"==> Iniciando IMPORTAR EVENTO [external_id: {payload.external_id}]")
     
-    # Validación Input Estricta (Fase 4)
-    if not payload.media_url or str(payload.media_url).strip() == "":
-        logger.error(f"Falta media_url en post_id {payload.post_id}")
-        # Retornar 400 Bad Request si no hay imagen (OBLIGATORIO)
-        raise HTTPException(
-            status_code=400,
-            detail="El campo media_url es obligatorio"
-        )
+    # Validaciones obligatorias
+    if not payload.external_id:
+        raise HTTPException(status_code=400, detail="external_id es obligatorio")
+    if not payload.titulo:
+        raise HTTPException(status_code=400, detail="titulo es obligatorio")
+
+    # Guardar LOG de recepción
+    try:
+        supabase.table("webhook_logs").insert({
+            "source": "instagram_make",
+            "external_id": payload.external_id,
+            "payload_json": payload.model_dump(),
+            "status": "pending",
+        }).execute()
+    except Exception as e:
+        logger.error(f"Error guardando webhook_log preliminar: {e}")
 
     # 1. Validar Token de seguridad o Webhook Secret
     token = request.headers.get("X-Webhook-Token")
     secret_header = request.headers.get("x-webhook-secret")
-
     webhook_secret = os.getenv("WEBHOOK_SECRET", "make_webhook_secret_2026")
     secret_token = os.getenv("WEBHOOK_SECRET_TOKEN")
 
@@ -3803,72 +3741,50 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
 
     if not authorized:
         logger.warning(f"[WEBHOOK EVENTOS] Acceso denegado: secret/token inválido.")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Webhook secret mismatch o token no válido",
-        )
+        # Actualizar LOG
+        supabase.table("webhook_logs").update({
+            "status": "error", "error_message": "Unauthorized"
+        }).eq("external_id", payload.external_id).execute()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
     try:
-        # FASE 2: Determinar fuente
-        fuente = payload.fuente or "sociedad_rural"
+        # FASE 2: Validar Municipio
         municipio_id_validado = None
-        nombre_municipio = None
-
-        if payload.municipio_id:
+        if payload.municipio:
             mun_res = (
                 supabase.table("municipios")
-                .select("id, nombre")
-                .eq("id", payload.municipio_id)
+                .select("id")
+                .ilike("nombre", payload.municipio)
                 .eq("activo", True)
+                .limit(1)
                 .execute()
             )
-            if not mun_res.data:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"El municipio_id '{payload.municipio_id}' no existe o no está activo.",
-                )
-            municipio_id_validado = mun_res.data[0]["id"]
-            nombre_municipio = mun_res.data[0]["nombre"]
+            if mun_res.data:
+                municipio_id_validado = mun_res.data[0]["id"]
 
-        # 2. Procesar Texto con Regex
-        logger.info(f"Procesando texto para post_id {payload.post_id}")
-        datos_procesados = procesar_texto_evento(payload.caption)
+        # 3. Procesar Imagen de forma estricta
+        logger.info(f"Procesando imagen para external_id {payload.external_id}")
+        url_final_imagen = procesar_imagen_evento(payload.imagen_url, payload.external_id)
 
-        titulo = datos_procesados["titulo"]
-        if fuente == "municipio" and not (payload.caption and payload.caption.strip()) and nombre_municipio:
-            titulo = f"Novedad de {nombre_municipio}"
-
-        status_evento = "aprobado" if fuente == "sociedad_rural" else "borrador"
-
-        # 3. Procesar Imagen
-        logger.info(f"Procesando imagen para post_id {payload.post_id}")
-        url_final_imagen = procesar_imagen_evento(payload.media_url, payload.post_id)
-
-        # 4. Preparar datos para inserción/actualización
+        # 4. Preparar datos
         remate_data = {
-            "external_id": payload.post_id,
-            "titulo": titulo,
-            "descripcion_limpia": datos_procesados["descripcion_limpia"],
-            "lugar": datos_procesados["lugar"],
-            "fecha_evento": datos_procesados["fecha_evento"],
-            "hora_evento": datos_procesados["hora_evento"],
+            "external_id": payload.external_id,
+            "titulo": payload.titulo,
+            "descripcion_limpia": payload.titulo, # Usamos el titulo como descripción
+            "lugar": payload.lugar,
+            "fecha_evento": payload.fecha,
+            "hora_evento": payload.hora,
             "imagen_url": url_final_imagen,
-            "metadata": {
-                "original_caption": payload.caption,
-                "original_media_url": payload.media_url,
-                "media_type": payload.media_type,
-                "timestamp": payload.timestamp,
-                "permalink": payload.permalink,
-            },
-            "status": status_evento,
-            "fuente": fuente
+            "metadata": payload.model_dump(),
+            "status": "aprobado",
+            "fuente": "sociedad_rural"
         }
 
         if municipio_id_validado:
             remate_data["municipio_id"] = municipio_id_validado
 
         # 5. Persistencia
-        logger.info(f"Guardando en BD post_id {payload.post_id}")
+        logger.info(f"Guardando en BD external_id {payload.external_id}")
         res = (
             supabase.table("eventos_sociales")
             .upsert(remate_data, on_conflict="external_id")
@@ -3877,46 +3793,53 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request):
 
         if res.data:
             evento_id = res.data[0].get("id")
-            logger.info(f"✅ Evento importado exitosamente: {payload.post_id} [id={evento_id}]")
+            
+            logger.info(json.dumps({
+                "event": "importar_evento_success",
+                "external_id": payload.external_id,
+                "evento_id": evento_id
+            }))
 
-            if fuente == "municipio" and nombre_municipio:
-                try:
-                    admins_res = (
-                        supabase.table("profiles")
-                        .select("id")
-                        .eq("rol", "ADMIN")
-                        .execute()
-                    )
-                    for admin in (admins_res.data or []):
-                        enviar_notificacion_push_inapp(
-                            usuario_id=admin["id"],
-                            titulo="📍 Nuevo Evento de Municipio",
-                            mensaje=f"Publicación de {nombre_municipio} pendiente de moderación",
-                            link_url="/admin",
-                        )
-                except Exception as notif_err:
-                    logger.error(f"Error notificando admins: {notif_err}")
+            # Actualizar LOG a success
+            supabase.table("webhook_logs").update({
+                "status": "success", "error_message": None
+            }).eq("external_id", payload.external_id).execute()
+
+            # DISPARAR PUSH AUTOMÁTICA
+            # Obtenemos todos los usuarios activos
+            users_res = supabase.table("profiles").select("id").execute()
+            for u in (users_res.data or []):
+                background_tasks.add_task(
+                    enviar_notificacion_push_inapp,
+                    usuario_id=u["id"],
+                    titulo="Nuevo evento disponible",
+                    mensaje=payload.titulo,
+                    link_url=f"/agenda",
+                    evento_id=evento_id
+                )
 
             return {
                 "success": True,
                 "message": "Evento importado correctamente",
                 "id": evento_id,
-                "external_id": payload.post_id,
-                "status_evento": status_evento,
+                "external_id": payload.external_id,
             }
 
-        return {"success": True, "message": "Actualizado sin cambios", "external_id": payload.post_id}
+        return {"success": True, "message": "Actualizado sin cambios", "external_id": payload.external_id}
 
     except Exception as e:
-        logger.error(f"ERROR IMPORTAR EVENTO [post_id: {payload.post_id}]: {str(e)}")
-        # Capturamos el error para Make y devolvemos 500 con el detalle para debug
-        return JSONResponse(
-            status_code=500,
-            content={
-                "error": "Error interno",
-                "detail": str(e)
-            }
-        )
+        logger.error(json.dumps({
+            "event": "importar_evento_error",
+            "external_id": payload.external_id,
+            "error": str(e)
+        }))
+        # Actualizar LOG a error
+        supabase.table("webhook_logs").update({
+            "status": "error", "error_message": str(e)
+        }).eq("external_id", payload.external_id).execute()
+        
+        # Devolver 500 para Make retry
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── ENDPOINTS GESTIÓN DE EVENTOS DE REDES SOCIALES (ADMIN) ───────────────────
@@ -4170,27 +4093,29 @@ def update_sound_preference(
 
 
 def enviar_notificacion_push_inapp(
-    usuario_id: str, titulo: str, mensaje: str, link_url: Optional[str] = None
+    usuario_id: str, titulo: str, mensaje: str, link_url: Optional[str] = None, evento_id: Optional[str] = None
 ):
     """
     Función utilitaria (interna) para enviar una notificación In-App y Push (vía FCM) a un usuario.
-    Incluye soporte para sonido de notificación basado en preferencias del usuario.
-    Debe ser llamada de manera asíncrona o bloqueante según sea necesario.
+    Incluye soporte para sonido y limpieza de tokens de Firebase inválidos.
     """
+    import json
     try:
         # 1. Guardar Notificación In-App en Base de Datos
-        supabase.table("notificaciones").insert(
-            {
-                "usuario_id": usuario_id,
-                "titulo": titulo,
-                "mensaje": mensaje,
-                "link_url": link_url,
-                "leido": False,
-                "fecha": datetime.now(
-                    pytz.timezone("America/Argentina/Buenos_Aires")
-                ).isoformat(),
-            }
-        ).execute()
+        notif_data = {
+            "usuario_id": usuario_id,
+            "titulo": titulo,
+            "mensaje": mensaje,
+            "link_url": link_url,
+            "leido": False,
+            "fecha": datetime.now(
+                pytz.timezone("America/Argentina/Buenos_Aires")
+            ).isoformat(),
+        }
+        if evento_id:
+            notif_data["evento_id"] = evento_id
+
+        supabase.table("notificaciones").insert(notif_data).execute()
 
         # 2. Obtener preferencia de sonido del usuario
         try:
@@ -4224,17 +4149,21 @@ def enviar_notificacion_push_inapp(
                 # Utilizamos firebase_admin si está instanciado
                 firebase_admin.get_app()
 
+                data_payload = {
+                    "link_url": link_url or "/",
+                    "sound_enabled": "true" if sound_enabled else "false",
+                    "sound_file": "notification.mp3",  # Nombre del archivo de sonido
+                }
+                if evento_id:
+                    data_payload["evento_id"] = str(evento_id)
+
                 # Construir payload con soporte de sonido
                 push_message = messaging.MulticastMessage(
                     notification=messaging.Notification(
                         title=titulo,
                         body=mensaje,
                     ),
-                    data={
-                        "link_url": link_url or "/",
-                        "sound_enabled": "true" if sound_enabled else "false",
-                        "sound_file": "notification.mp3",  # Nombre del archivo de sonido
-                    },
+                    data=data_payload,
                     # Para Android: configurar sonido en el payload
                     android=messaging.AndroidConfig(
                         priority="high",
@@ -4260,17 +4189,52 @@ def enviar_notificacion_push_inapp(
                             else None
                         )
                     ),
+                    tokens=push_tokens
                 )
-                messaging.send_each_for_multicast(push_message)
+                response = messaging.send_each_for_multicast(push_message)
+                
+                # Validar tokens rechazados para limpieza
+                tokens_invalidos = []
+                for idx, res in enumerate(response.responses):
+                    if not res.success:
+                        error_code = getattr(res.exception, "code", None)
+                        if error_code in [
+                            "registration-token-not-registered",
+                            "invalid-argument",
+                            "invalid-registration-token"
+                        ]:
+                            tokens_invalidos.append(push_tokens[idx])
+                
+                if tokens_invalidos:
+                    # Limpiar tokens muertos en DB
+                    supabase.table("push_tokens").delete().in_("token", tokens_invalidos).execute()
+                    
+                logger.info(json.dumps({
+                    "event": "push_notification_sent",
+                    "usuario_id": usuario_id,
+                    "enviados": response.success_count,
+                    "fallidos": response.failure_count,
+                    "tokens_limpiados": len(tokens_invalidos)
+                }))
+
             except ValueError:
-                logger.info(
-                    "Firebase no inicializado. Se guardó In-App pero no se envió Push."
-                )
+                logger.info(json.dumps({
+                    "event": "push_skipped_firebase_not_init",
+                    "usuario_id": usuario_id
+                }))
             except Exception as e:
-                logger.error(f"Error al enviar Push a fcm: {e}")
+                logger.error(json.dumps({
+                    "event": "push_notification_error",
+                    "usuario_id": usuario_id,
+                    "error": str(e)
+                }))
 
     except Exception as e:
-        logger.error(f"Error general en enviar_notificacion_push_inapp: {e}")
+        logger.error(json.dumps({
+            "event": "enviar_notificacion_general_error",
+            "usuario_id": usuario_id,
+            "error": str(e)
+        }))
 
 
 @app.post("/api/notificaciones/test")
@@ -5684,11 +5648,20 @@ def _register_push_token(user_id: str, token_value: str, plataforma: str) -> dic
     Lógica de negocio para registrar/actualizar un token FCM.
     - Upsert por token (conflict en columna token): evita duplicados absolutos.
     - Si el token ya existe para otro user, lo reasigna (device cambió de cuenta).
-    - Limita a 5 dispositivos por usuario (elimina el más antiguo si supera).
+    - Actualiza created_at (last_used) para mantenerlo vivo.
+    - Limpieza automática de tokens viejos (> 30 días).
+    - Limita a 5 dispositivos por usuario.
     """
     plataforma = (plataforma or "android").lower()
     if plataforma not in ("android", "web", "ios"):
         plataforma = "android"
+
+    # 0. Limpieza automática global (tokens inactivos por > 30 días)
+    try:
+        thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        supabase.table("push_tokens").delete().lt("created_at", thirty_days_ago).execute()
+    except Exception as e:
+        logger.error(f"Error en limpieza automática de tokens: {e}")
 
     # 1. ¿Ya existe este token exacto en la DB?
     existing = (
@@ -5700,16 +5673,17 @@ def _register_push_token(user_id: str, token_value: str, plataforma: str) -> dic
 
     if existing.data:
         row = existing.data[0]
-        # Si ya pertenece al mismo usuario → nada que hacer
-        if str(row["usuario_id"]) == user_id:
-            logger.info(f"[PUSH_TOKEN] Token ya registrado para user {user_id} — sin cambios.")
-            return {"status": "already_registered", "token_id": row["id"]}
-        # Token de otro usuario → actualizamos owner (device re-login)
+        # Actualizamos siempre el created_at para renovar su validez (last_used)
         supabase.table("push_tokens").update(
             {"usuario_id": user_id, "plataforma": plataforma, "created_at": datetime.utcnow().isoformat()}
         ).eq("id", row["id"]).execute()
-        logger.info(f"[PUSH_TOKEN] Token reasignado de {row['usuario_id']} → {user_id}.")
-        return {"status": "reassigned", "token_id": row["id"]}
+        
+        if str(row["usuario_id"]) == user_id:
+            logger.info(f"[PUSH_TOKEN] Token renovado para user {user_id}.")
+            return {"status": "already_registered", "token_id": row["id"]}
+        else:
+            logger.info(f"[PUSH_TOKEN] Token reasignado de {row['usuario_id']} → {user_id}.")
+            return {"status": "reassigned", "token_id": row["id"]}
 
     # 2. Token nuevo: insertar
     insert_res = (

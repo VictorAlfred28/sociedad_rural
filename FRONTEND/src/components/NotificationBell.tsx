@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Transition } from '@headlessui/react';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../context/AuthContext';
 import { requestForToken, onMessageListener } from '../firebase';
 import { playNotificationSound } from '../utils/soundNotification';
@@ -41,6 +43,13 @@ export default function NotificationBell() {
     // Solicitar permiso Push y mandar Token a backend
     const setupPushNotifications = async () => {
         if (!token) return;
+        
+        // Bloqueo crítico: Evitar que Firebase Web pise la lógica nativa
+        if (Capacitor.isNativePlatform()) {
+            console.log("Entorno Nativo detectado: Delegando push a CapacitorUI");
+            return;
+        }
+
         try {
             const fcmToken = await requestForToken();
             if (fcmToken) {
@@ -107,18 +116,22 @@ export default function NotificationBell() {
         const newState = !isOpen;
         setIsOpen(newState);
         if (newState && unreadCount > 0) {
+            const previousCount = unreadCount;
             setUnreadCount(0); // optimista
             try {
-                await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/notificaciones/marcar-leidas`, {
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/notificaciones/marcar-leidas`, {
                     method: 'PUT',
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
                 });
+                if (!res.ok) throw new Error("Error al marcar como leídas en el backend");
                 // Marcar visualmente locales como leídas
                 setNotifications(prev => prev.map(n => ({ ...n, leido: true })));
             } catch (err) {
-                console.error(err);
+                console.error("Fallo al marcar leídas, restaurando estado", err);
+                setUnreadCount(previousCount);
+                loadNotifications(); // refetch para asegurar consistencia
             }
         }
     };
