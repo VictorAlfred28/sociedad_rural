@@ -100,6 +100,24 @@ export default function Eventos() {
     setFetchTrigger(t => t + 1);
   };
 
+  // Scroll restoration
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem('eventos_scroll_pos', window.scrollY.toString());
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Restore on mount if we have items
+    if (eventos.length > 0) {
+      const pos = sessionStorage.getItem('eventos_scroll_pos');
+      if (pos) {
+        window.scrollTo(0, parseInt(pos, 10));
+      }
+    }
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [eventos.length]);
+
   const now = new Date();
 
   const displayedEvents = eventos.filter(ev => {
@@ -236,14 +254,14 @@ export default function Eventos() {
                       No hay {tab === 'upcoming' ? 'próximos' : 'eventos pasados'} para {filtroMunicipio}
                     </p>
                     <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed">
-                      Podés explorar otros municipios o ver todos los eventos
+                      Podés explorar otras localidades o ver todos los eventos
                     </p>
                     <button
                       onClick={handleClearFilter}
                       className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-50 dark:hover:bg-emerald-900/20 active:scale-95 transition-all"
                     >
                       <span className="material-symbols-outlined text-[14px]">public</span>
-                      Ver todos los municipios
+                      Ver todas las localidades
                     </button>
                   </>
                 ) : (
@@ -263,7 +281,7 @@ export default function Eventos() {
                     {tab === 'upcoming' && (
                       <p className="mt-4 text-xs text-stone-400 dark:text-stone-500 leading-relaxed">
                         {municipiosList.length > 0
-                          ? 'Próximamente se sumarán eventos locales de cada municipio'
+                          ? 'Próximamente se sumarán eventos locales de cada localidad'
                           : 'Próximamente se incorporarán nuevas localidades y eventos'}
                       </p>
                     )}

@@ -38,7 +38,7 @@ const TYPE_CFG = {
   evento:      { label: 'Eventos',       icon: 'event',         cls: 'text-emerald-600',   bg: 'bg-emerald-50' },
   comercio:    { label: 'Comercios',     icon: 'storefront',    cls: 'text-amber-600',     bg: 'bg-amber-50' },
   profesional: { label: 'Profesionales', icon: 'person_pin',    cls: 'text-blue-600',      bg: 'bg-blue-50' },
-  municipio:   { label: 'Municipios',    icon: 'location_city', cls: 'text-purple-600',    bg: 'bg-purple-50' },
+  municipio:   { label: 'Localidades',   icon: 'location_city', cls: 'text-purple-600',    bg: 'bg-purple-50' },
   producto:    { label: 'Productos',     icon: 'category',      cls: 'text-rose-600',      bg: 'bg-rose-50' },
 } as const;
 
@@ -260,7 +260,7 @@ export default function Buscador() {
             
             {municipios.length > 0 && (
               <div>
-                <p className="text-xs font-black uppercase tracking-widest text-stone-400 px-1 mb-3">Explorar Municipios</p>
+                <p className="text-xs font-black uppercase tracking-widest text-stone-400 px-1 mb-3">Explorar Localidades</p>
                 <div className="relative px-1">
                   <select
                     onChange={(e) => {
