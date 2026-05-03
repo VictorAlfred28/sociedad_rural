@@ -24,13 +24,22 @@ export default function Eventos() {
   const [municipiosList, setMunicipiosList] = useState<{id: string, nombre: string}[]>([]);
   const [fetchTrigger, setFetchTrigger] = useState(0);
   const autoRetried = useRef(false);
+  const isNavigatingBackRef = useRef(false);
+  const firstLoadRef = useRef(true);
+  const navigatingRef = useRef(false);
 
   const isNative = Capacitor.isNativePlatform();
 
+  const initializedRef = useRef(false);
+
   useEffect(() => {
+    if (initializedRef.current) return;
+
     if (user?.municipio && !localStorage.getItem(STORAGE_KEY)) {
       setFiltroMunicipioSynced(user.municipio);
     }
+
+    initializedRef.current = true;
   }, [user]);
 
   useEffect(() => {
@@ -58,6 +67,19 @@ export default function Eventos() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
+  // Detect back navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      isNavigatingBackRef.current = true;
+      setTimeout(() => {
+        isNavigatingBackRef.current = false;
+      }, 300);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     const fetchEventos = async () => {
@@ -90,7 +112,16 @@ export default function Eventos() {
         setLoading(false);
       }
     };
-    fetchEventos();
+
+    if (firstLoadRef.current) {
+      firstLoadRef.current = false;
+      fetchEventos();
+      return;
+    }
+
+    if (!isNavigatingBackRef.current) {
+      fetchEventos();
+    }
   }, [filtroMunicipio, fetchTrigger]);
 
   const handleRetry = () => {
@@ -107,8 +138,7 @@ export default function Eventos() {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     
-    // Restore on mount if we have items
-    if (eventos.length > 0) {
+    if (isNavigatingBackRef.current && eventos.length > 0) {
       const pos = sessionStorage.getItem('eventos_scroll_pos');
       if (pos) {
         window.scrollTo(0, parseInt(pos, 10));
@@ -305,12 +335,19 @@ export default function Eventos() {
                 <div 
                   key={ev.id} 
                   onClick={() => {
+                    if (navigatingRef.current) return;
+                    navigatingRef.current = true;
+
                     if (ev.slug) {
                       navigate(`/eventos/${ev.slug}`);
                     } else {
                       const link = ev.link_instagram || ev.link_facebook || ev.link_externo;
                       if (link) window.open(link, '_blank');
                     }
+
+                    setTimeout(() => {
+                      navigatingRef.current = false;
+                    }, 500);
                   }}
                   className="group relative flex flex-col overflow-hidden rounded-[2rem] bg-[#f4eedd] dark:bg-stone-800 shadow-sm border border-[#e5dfce] dark:border-stone-700/50 hover:shadow-md cursor-pointer active:scale-[0.98] transition-all"
                 >

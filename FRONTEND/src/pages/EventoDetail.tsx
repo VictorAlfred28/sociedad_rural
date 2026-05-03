@@ -102,11 +102,7 @@ export default function EventoDetail() {
     const isCarousel = evento.metadata?.media_type === 'CAROUSEL_ALBUM' && evento.metadata?.children?.data?.length > 0;
 
     const handleBack = () => {
-        if (window.history.length > 2) {
-            navigate(-1);
-        } else {
-            navigate('/eventos', { replace: true });
-        }
+        navigate('/eventos', { replace: true });
     };
 
     return (
