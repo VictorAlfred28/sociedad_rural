@@ -3522,6 +3522,10 @@ def create_evento(
         # Generar slug
         evento_data["slug"] = f"{slugify(evento.titulo)}-{uuid4().hex[:6]}"
         evento_data["fuente"] = "admin"
+        # external_id requerido NOT NULL — generar automático para eventos manuales
+        evento_data["external_id"] = f"manual_{uuid4()}"
+        # tipo_origen para métricas y filtrado futuro
+        evento_data["tipo_origen"] = "manual"
 
         res = supabase.table("eventos_sociales").insert(evento_data).execute()
 
