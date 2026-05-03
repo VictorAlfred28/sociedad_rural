@@ -29,6 +29,7 @@ export default function EventoDetail() {
     const [evento, setEvento] = useState<EventoDetailData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [currentSlide, setCurrentSlide] = useState(0);
 
     useEffect(() => {
         const fetchEvento = async () => {
@@ -99,7 +100,6 @@ export default function EventoDetail() {
     // Manejo de Carousel y Video para Instagram
     const isVideo = evento.metadata?.media_type === 'VIDEO';
     const isCarousel = evento.metadata?.media_type === 'CAROUSEL_ALBUM' && evento.metadata?.children?.data?.length > 0;
-    const [currentSlide, setCurrentSlide] = useState(0);
 
     return (
         <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 md:max-w-3xl md:border-x md:border-stone-200 dark:md:border-stone-800 mx-auto shadow-2xl overflow-x-hidden">
