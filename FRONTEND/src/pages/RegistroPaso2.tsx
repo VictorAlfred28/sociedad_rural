@@ -182,9 +182,11 @@ export default function RegistroPaso2() {
             {userRole === 'SOCIO' ? 'person' : 'storefront'}
           </span>
           <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{paso1Data.nombre_apellido}</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              {paso1Data.nombre_apellido || paso1Data.nombre_comercio}
+            </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {userRole === 'SOCIO' ? 'DNI' : 'CUIT'}: {paso1Data.dni_cuit} · {paso1Data.email}
+              {userRole === 'SOCIO' ? 'DNI' : 'CUIT'}: {paso1Data.dni_cuit || paso1Data.cuit} · {paso1Data.email}
             </p>
             {userRole === 'COMERCIO' && paso1Data.rubro && (
               <p className="text-xs text-primary font-medium capitalize mt-0.5">
