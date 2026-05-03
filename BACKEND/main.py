@@ -785,6 +785,7 @@ def register_comercio(
         }
 
     except Exception as e:
+        logger.error(f"Error in register_comercio: {str(e)}", exc_info=True)
         err_msg = str(e).lower()
         if (
             "user already registered" in err_msg
