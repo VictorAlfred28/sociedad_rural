@@ -3216,10 +3216,11 @@ def get_support_notifications(admin_user=Depends(get_current_admin)):
     try:
         # 1. Query principal sin join (siempre funciona, independiente de FK config en PostgREST)
         res = (
-            supabase.table("notificaciones_admin")
+            supabase.table("notificaciones")
             .select("*")
+            .eq("tipo", "admin")
             .eq("estado", "PENDIENTE")
-            .order("created_at", desc=True)
+            .order("fecha", desc=True)
             .execute()
         )
         notificaciones = res.data or []
@@ -3251,8 +3252,11 @@ def get_support_notifications(admin_user=Depends(get_current_admin)):
         return {"notificaciones": notificaciones}
 
     except Exception as e:
-        logger.exception(f"[/api/admin/notificaciones-soporte] Error inesperado:")
-        raise HTTPException(status_code=500, detail="Error al obtener notificaciones de soporte.")
+        logger.error({
+            "event": "admin_notifications_error",
+            "error": str(e)
+        })
+        return {"notificaciones": []}
 
 
 
@@ -3260,7 +3264,7 @@ def get_support_notifications(admin_user=Depends(get_current_admin)):
 def resolve_support_notification(notif_id: str, admin_user=Depends(get_current_admin)):
     """Marca una notificación de soporte como resuelta"""
     try:
-        supabase.table("notificaciones_admin").update(
+        supabase.table("notificaciones").update(
             {"estado": "RESUELTO", "resolved_at": datetime.now().isoformat()}
         ).eq("id", notif_id).execute()
         return {"message": "Solicitud marcada como resuelta"}
@@ -3286,7 +3290,7 @@ def admin_reset_password(
     try:
         # 1. Obtener la notificación
         notif_res = (
-            supabase.table("notificaciones_admin")
+            supabase.table("notificaciones")
             .select("*")
             .eq("id", notif_id)
             .execute()
@@ -3321,7 +3325,7 @@ def admin_reset_password(
             )
 
         # 3. Resolver notificación
-        supabase.table("notificaciones_admin").update(
+        supabase.table("notificaciones").update(
             {"estado": "RESUELTO", "resolved_at": datetime.now().isoformat()}
         ).eq("id", notif_id).execute()
 
@@ -3366,7 +3370,7 @@ def update_support_note(
     try:
         # Recuperar metadata actual
         notif_res = (
-            supabase.table("notificaciones_admin")
+            supabase.table("notificaciones")
             .select("metadata")
             .eq("id", notif_id)
             .execute()
@@ -3377,7 +3381,7 @@ def update_support_note(
         metadata = notif_res.data[0].get("metadata") or {}
         metadata["nota"] = req.nota
 
-        supabase.table("notificaciones_admin").update({"metadata": metadata}).eq(
+        supabase.table("notificaciones").update({"metadata": metadata}).eq(
             "id", notif_id
         ).execute()
         return {"message": "Nota actualizada correctamente"}
@@ -3745,8 +3749,13 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request, backg
             }).eq("external_id", payload.external_id).execute()
 
             # DISPARAR PUSH AUTOMÁTICA
-            # Obtenemos todos los usuarios activos
-            users_res = supabase.table("profiles").select("id").execute()
+            # Solo usuarios aprobados — evita spam a cuentas pendientes/inactivas
+            users_res = supabase.table("profiles").select("id").eq("estado", "APROBADO").execute()
+            logger.info({
+                "event": "push_dispatch_filtered",
+                "total_users": len(users_res.data or []),
+                "filter": "estado=APROBADO"
+            })
             for u in (users_res.data or []):
                 background_tasks.add_task(
                     enviar_notificacion_push_inapp,
@@ -4032,7 +4041,7 @@ def update_sound_preference(
 
 
 def enviar_notificacion_push_inapp(
-    usuario_id: str, titulo: str, mensaje: str, link_url: Optional[str] = None, evento_id: Optional[str] = None
+    usuario_id: str, titulo: str, mensaje: str, link_url: Optional[str] = None, evento_id: Optional[str] = None, tipo: Optional[str] = None
 ):
     """
     Función utilitaria (interna) para enviar una notificación In-App y Push (vía FCM) a un usuario.
@@ -4051,8 +4060,28 @@ def enviar_notificacion_push_inapp(
                 pytz.timezone("America/Argentina/Buenos_Aires")
             ).isoformat(),
         }
+        if tipo:
+            notif_data["tipo"] = tipo
         if evento_id:
             notif_data["evento_id"] = evento_id
+
+        # Guard de idempotencia: no duplicar notificaciones del mismo evento por usuario
+        if evento_id:
+            exists = (
+                supabase.table("notificaciones")
+                .select("id")
+                .eq("usuario_id", usuario_id)
+                .eq("evento_id", evento_id)
+                .limit(1)
+                .execute()
+            )
+            if exists.data:
+                logger.info({
+                    "event": "push_inapp_skipped_duplicate",
+                    "usuario_id": usuario_id,
+                    "evento_id": evento_id
+                })
+                return
 
         supabase.table("notificaciones").insert(notif_data).execute()
 
@@ -4148,13 +4177,13 @@ def enviar_notificacion_push_inapp(
                     # Limpiar tokens muertos en DB
                     supabase.table("push_tokens").delete().in_("token", tokens_invalidos).execute()
                     
-                logger.info(json.dumps({
+                logger.info({
                     "event": "push_notification_sent",
-                    "usuario_id": usuario_id,
-                    "enviados": response.success_count,
-                    "fallidos": response.failure_count,
-                    "tokens_limpiados": len(tokens_invalidos)
-                }))
+                    "success": response.success_count,
+                    "failure": response.failure_count,
+                    "tokens_limpiados": len(tokens_invalidos),
+                    "usuario_id": usuario_id
+                })
 
             except ValueError:
                 logger.info(json.dumps({
@@ -4174,6 +4203,82 @@ def enviar_notificacion_push_inapp(
             "usuario_id": usuario_id,
             "error": str(e)
         }))
+
+
+def enviar_push_segmentado(
+    titulo: str,
+    mensaje: str,
+    link_url: Optional[str] = None,
+    municipio: Optional[str] = None,
+    tipo_socio: Optional[str] = None,
+) -> dict:
+    """
+    Envía notificaciones push segmentadas por municipio y/o tipo_socio.
+    Filtra siempre por estado=APROBADO. Sin filtros = todos los aprobados.
+    Reutiliza enviar_notificacion_push_inapp por usuario.
+    NO reemplaza el flujo existente — es una función adicional.
+    """
+    try:
+        query = supabase.table("profiles").select("id").eq("estado", "APROBADO")
+        if municipio:
+            query = query.eq("municipio", municipio)
+        if tipo_socio:
+            query = query.eq("tipo_socio", tipo_socio)
+
+        users_res = query.execute()
+        usuarios = users_res.data or []
+
+        logger.info({
+            "event": "push_segmentado_dispatch",
+            "total_users": len(usuarios),
+            "filtros": {"municipio": municipio, "tipo_socio": tipo_socio}
+        })
+
+        for u in usuarios:
+            enviar_notificacion_push_inapp(
+                usuario_id=u["id"],
+                titulo=titulo,
+                mensaje=mensaje,
+                link_url=link_url or "/",
+            )
+
+        return {"ok": True, "total_enviados": len(usuarios)}
+    except Exception as e:
+        logger.error({
+            "event": "push_segmentado_error",
+            "error": str(e)
+        })
+        return {"ok": False, "error": str(e)}
+
+
+class PushSegmentadoRequest(BaseModel):
+    titulo: str
+    mensaje: str
+    link_url: Optional[str] = None
+    municipio: Optional[str] = None
+    tipo_socio: Optional[str] = None
+
+
+@app.post("/api/admin/push-segmentado", status_code=200)
+def admin_push_segmentado(
+    req: PushSegmentadoRequest,
+    admin_user=Depends(get_current_admin),
+):
+    """
+    Envía un push segmentado desde el panel admin.
+    Filtros opcionales: municipio, tipo_socio.
+    Sin filtros: todos los socios APROBADOS.
+    """
+    result = enviar_push_segmentado(
+        titulo=req.titulo,
+        mensaje=req.mensaje,
+        link_url=req.link_url,
+        municipio=req.municipio,
+        tipo_socio=req.tipo_socio,
+    )
+    if not result["ok"]:
+        raise HTTPException(status_code=500, detail=result.get("error", "Error desconocido"))
+    return result
 
 
 @app.post("/api/notificaciones/test")
@@ -4200,12 +4305,13 @@ def notificar_admins_nuevo_registro(nombre: str, tipo_usuario: str):
         mensaje = f"Se ha registrado un nuevo {tipo_usuario.lower()}: {nombre}. Requiere revisión para aprobación."
 
         for admin in admins.data:
-            # Usar background task o directo? Como ya estamos en background en register, lo hacemos directo o por hilos
+            # tipo="admin" necesario para que el endpoint /api/admin/notificaciones-soporte las filtre correctamente
             enviar_notificacion_push_inapp(
                 usuario_id=admin["id"],
                 titulo=titulo,
                 mensaje=mensaje,
                 link_url="/admin",
+                tipo="admin",
             )
     except Exception as e:
         logger.error(f"Error notificando admins: {e}")
@@ -5600,38 +5706,32 @@ def _register_push_token(user_id: str, token_value: str, plataforma: str) -> dic
         thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
         supabase.table("push_tokens").delete().lt("created_at", thirty_days_ago).execute()
     except Exception as e:
-        logger.error(f"Error en limpieza automática de tokens: {e}")
+        logger.error({
+            "event": "push_token_cleanup_error",
+            "error": str(e)
+        })
 
-    # 1. ¿Ya existe este token exacto en la DB?
-    existing = (
+    # 1 y 2. UPSERT por token para evitar duplicaciones
+    upsert_res = (
         supabase.table("push_tokens")
-        .select("id, usuario_id, plataforma")
-        .eq("token", token_value)
+        .upsert(
+            {
+                "usuario_id": user_id,
+                "token": token_value,
+                "plataforma": plataforma,
+                "created_at": datetime.utcnow().isoformat()
+            },
+            on_conflict="token"
+        )
         .execute()
     )
+    new_id = upsert_res.data[0]["id"] if upsert_res.data else None
 
-    if existing.data:
-        row = existing.data[0]
-        # Actualizamos siempre el created_at para renovar su validez (last_used)
-        supabase.table("push_tokens").update(
-            {"usuario_id": user_id, "plataforma": plataforma, "created_at": datetime.utcnow().isoformat()}
-        ).eq("id", row["id"]).execute()
-        
-        if str(row["usuario_id"]) == user_id:
-            logger.info(f"[PUSH_TOKEN] Token renovado para user {user_id}.")
-            return {"status": "already_registered", "token_id": row["id"]}
-        else:
-            logger.info(f"[PUSH_TOKEN] Token reasignado de {row['usuario_id']} → {user_id}.")
-            return {"status": "reassigned", "token_id": row["id"]}
-
-    # 2. Token nuevo: insertar
-    insert_res = (
-        supabase.table("push_tokens")
-        .insert({"usuario_id": user_id, "token": token_value, "plataforma": plataforma})
-        .execute()
-    )
-    new_id = insert_res.data[0]["id"] if insert_res.data else None
-    logger.info(f"[PUSH_TOKEN] ✅ Token registrado para user {user_id} ({plataforma}).")
+    logger.info({
+        "event": "push_token_upsert",
+        "user_id": user_id,
+        "status": "ok"
+    })
 
     # 3. Cap de dispositivos: máx 5 por usuario (FIFO — elimina el más antiguo)
     all_tokens = (
@@ -5644,7 +5744,11 @@ def _register_push_token(user_id: str, token_value: str, plataforma: str) -> dic
     if all_tokens.data and len(all_tokens.data) > 5:
         oldest_ids = [r["id"] for r in all_tokens.data[: len(all_tokens.data) - 5]]
         supabase.table("push_tokens").delete().in_("id", oldest_ids).execute()
-        logger.info(f"[PUSH_TOKEN] Rotación: {len(oldest_ids)} token(s) antiguo(s) eliminado(s) para user {user_id}.")
+        logger.info({
+            "event": "push_token_rotation",
+            "user_id": user_id,
+            "deleted_count": len(oldest_ids)
+        })
 
     return {"status": "registered", "token_id": new_id}
 
