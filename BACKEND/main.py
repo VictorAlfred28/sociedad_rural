@@ -5460,7 +5460,7 @@ def calcular_cuota_dinamica_internal(user_id: str):
 
     # Traer valores base
     cuotas_res = supabase.table("configuracion_cuotas").select("*").execute()
-    cuotas_map = {c["rol"]: c["monto"] for c in cuotas_res.data}
+    cuotas_map = {str(c["rol"]).upper(): float(c["monto"]) for c in cuotas_res.data}
     
     # Priority logic
     if membership_type == "FAMILIAR":
@@ -5473,7 +5473,7 @@ def calcular_cuota_dinamica_internal(user_id: str):
         rol_efectivo = "ESTUDIANTE"
         tipo_plan = "Estudiante"
     else:
-        rol_efectivo = profile.get("rol", "SOCIO")
+        rol_efectivo = str(profile.get("rol", "SOCIO")).upper()
         tipo_plan = "Individual"
         
     monto_base = cuotas_map.get(rol_efectivo, 0)
@@ -5488,6 +5488,18 @@ def calcular_cuota_dinamica_internal(user_id: str):
             monto_base = 5000
         elif rol_efectivo == "SOCIO":
             monto_base = 10000
+            
+    # Estado de cuota
+    estado_cuota = "Al Día"
+    try:
+        pagos_res = supabase.table("pagos_cuotas").select("estado_pago").eq("socio_id", user_id).in_("estado_pago", ["PENDIENTE", "VENCIDO"]).execute()
+        if pagos_res.data:
+            if any(p["estado_pago"] == "VENCIDO" for p in pagos_res.data):
+                estado_cuota = "Deuda Pendiente"
+            else:
+                estado_cuota = "Pago Pendiente"
+    except Exception:
+        pass
     
     monto_total = monto_base
     monto_base_usado = monto_base
@@ -5496,6 +5508,7 @@ def calcular_cuota_dinamica_internal(user_id: str):
         "monto": monto_total,
         "monto_total": monto_total, # For backward compatibility
         "tipo": rol_efectivo,
+        "estado_cuota": estado_cuota,
         "detalle": {
             "base": monto_base_usado,
             "familiares": familiares_count,

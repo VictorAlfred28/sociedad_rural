@@ -172,7 +172,7 @@ export default function Cuotas() {
         <div className="flex w-10"></div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 space-y-6">
+      <main className="flex-1 pb-24 px-4 pt-6 space-y-6">
         {/* Resumen del Estado */}
         <section className="relative overflow-hidden rounded-[2rem] bg-[#245b31] p-6 shadow-lg border border-[#1a4425]">
           <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none translate-x-1/4 -translate-y-1/4">
@@ -182,7 +182,7 @@ export default function Cuotas() {
             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 mb-1">Estado General</p>
             <div className="flex items-center gap-3">
               <h2 className="text-3xl font-black font-display italic tracking-tighter">
-                {user?.estado === 'RESTRINGIDO' ? 'Deuda Pendiente' : 'Al Día'}
+                {calculoCuota?.estado_cuota || (user?.estado === 'RESTRINGIDO' ? 'Deuda Pendiente' : 'Al Día')}
               </h2>
               {user?.estado === 'RESTRINGIDO' && (
                 <div className="size-3 rounded-full bg-red-400 animate-pulse shadow-[0_0_10px_rgba(248,113,113,0.5)]"></div>
