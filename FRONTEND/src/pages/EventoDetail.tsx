@@ -101,6 +101,14 @@ export default function EventoDetail() {
     const isVideo = evento.metadata?.media_type === 'VIDEO';
     const isCarousel = evento.metadata?.media_type === 'CAROUSEL_ALBUM' && evento.metadata?.children?.data?.length > 0;
 
+    const handleBack = () => {
+        if (window.history.length > 2) {
+            navigate(-1);
+        } else {
+            navigate('/eventos', { replace: true });
+        }
+    };
+
     return (
         <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 md:max-w-3xl md:border-x md:border-stone-200 dark:md:border-stone-800 mx-auto shadow-2xl overflow-x-hidden">
             {/* Fondo sutil */}
@@ -117,7 +125,7 @@ export default function EventoDetail() {
             {/* Header Flotante Transparente */}
             <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-gradient-to-b from-black/60 to-transparent">
                 <button 
-                    onClick={() => navigate(-1)} 
+                    onClick={handleBack} 
                     className="flex size-10 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/40 transition-colors"
                 >
                     <span className="material-symbols-outlined">arrow_back</span>
