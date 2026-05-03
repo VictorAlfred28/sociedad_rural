@@ -93,10 +93,10 @@ export default function RegistroPaso2() {
     if (userRole === 'COMERCIO') {
       fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/register/comercio`;
       bodyData = {
-        nombre_comercio: paso1Data.nombre_apellido,
-        cuit: paso1Data.dni_cuit,
+        nombre_comercio: paso1Data.nombre_comercio,
+        cuit: paso1Data.cuit,
         email: paso1Data.email,
-        telefono: paso1Data.telefono || '',
+        telefono: paso1Data.telefono,
         rubro: paso1Data.rubro,
         direccion: paso1Data.direccion,
         municipio: paso1Data.municipio,
