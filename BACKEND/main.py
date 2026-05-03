@@ -3431,8 +3431,7 @@ def get_combined_eventos(
     fecha_desde: Optional[str] = None,
 ):
     """
-    Consulta la lista de eventos combinando eventos institucionales y
-    eventos importados de redes sociales (aprobados).
+    Consulta la lista de eventos desde la tabla unificada eventos_sociales.
     """
     try:
         resolved_municipio_id = municipio_id
@@ -3442,72 +3441,36 @@ def get_combined_eventos(
             if mun_res.data:
                 resolved_municipio_id = mun_res.data[0]["id"]
 
-        # 1. Obtener eventos institucionales (solo publicados)
-        query1 = supabase.table("eventos").select("*").eq("estado", "publicado")
+        query = supabase.table("eventos_sociales").select("*").eq("estado", "publicado")
+        
         if resolved_municipio_id:
-            query1 = query1.eq("municipio_id", resolved_municipio_id)
+            query = query.eq("municipio_id", resolved_municipio_id)
         elif municipio:
-            # Fallback a texto solo si no se encontró en la tabla municipios
-            query1 = query1.ilike("lugar", f"%{municipio}%")
+            query = query.ilike("lugar", f"%{municipio}%")
+            
         if tipo:
-            query1 = query1.ilike("tipo", f"%{tipo}%")
+            query = query.ilike("tipo", f"%{tipo}%")
+            
         if fecha_desde:
-            query1 = query1.gte("fecha", fecha_desde)
+            query = query.gte("fecha", fecha_desde)
 
-        res1 = query1.order("fecha", desc=False).execute()
-        eventos_inst = res1.data or []
+        res = query.order("fecha", desc=False).execute()
+        eventos = res.data or []
 
-        # 2. Obtener eventos de redes sociales (aprobados)
-        query2 = supabase.table("eventos_sociales").select("*").eq("status", "aprobado")
-        # FASE 2: Filtrar por municipio_id (UUID) cuando está disponible, fallback a texto
-        if resolved_municipio_id:
-            query2 = query2.eq("municipio_id", resolved_municipio_id)
-        elif municipio:
-            query2 = query2.ilike("lugar", f"%{municipio}%")
-        if tipo:
-            # Buscamos en el titulo para eventos sociales
-            query2 = query2.ilike("titulo", f"%{tipo}%")
-        if fecha_desde:
-            query2 = query2.gte("fecha_evento", fecha_desde)
-
-        res2 = query2.order("fecha_evento", desc=False).execute()
-        eventos_soc = res2.data or []
-
-        # 3. Normalizar eventos sociales al esquema que espera el frontend
-        social_normalized = []
-        for ev in eventos_soc:
-            # FASE 2: fallback IG depende de la fuente para no apuntar a cuenta incorrecta
+        # Normalizar fallback_ig
+        for ev in eventos:
             ev_fuente = ev.get("fuente", "sociedad_rural")
             fallback_ig = (
                 "https://www.instagram.com/sociedadruralnc?igsh=MTMwcWNzbHh6aHdyMg%3D%3D"
                 if ev_fuente == "sociedad_rural"
-                else None  # Municipios sin permalink no heredan la cuenta de SR
+                else None
             )
-            social_normalized.append(
-                {
-                    "id": ev["id"],
-                    "titulo": ev["titulo"],
-                    "descripcion": ev.get("descripcion_limpia", ""),
-                    "lugar": ev.get("lugar", "A definir"),
-                    "fecha": ev["fecha_evento"],
-                    "hora": ev["hora_evento"],
-                    "tipo": "Social",  # Etiqueta para distinguir origen
-                    "imagen_url": ev.get("imagen_url"),
-                    "link_instagram": ev.get("link_instagram") or ev.get("metadata", {}).get("permalink") or fallback_ig,
-                    "link_facebook": ev.get("link_facebook"),
-                    "link_whatsapp": ev.get("link_whatsapp"),
-                    "slug": ev.get("slug"),
-                    "estado": "publicado",
-                    "fuente": ev_fuente,
-                    "municipio_id": ev.get("municipio_id"),
-                }
-            )
+            if not ev.get("link_instagram") and ev.get("metadata"):
+                ev["link_instagram"] = ev["metadata"].get("permalink") or fallback_ig
+            elif not ev.get("link_instagram"):
+                ev["link_instagram"] = fallback_ig
 
-        # 4. Combinar y ordenar por fecha
-        combined = eventos_inst + social_normalized
-        combined.sort(key=lambda x: x.get("fecha") or "9999-12-31")
-
-        return {"eventos": combined}
+        return {"eventos": eventos}
     except Exception as e:
         logger.error(f"Error combinando eventos: {str(e)}")
         raise HTTPException(
@@ -3518,41 +3481,15 @@ def get_combined_eventos(
 @app.get("/api/eventos/{slug}")
 def get_evento_by_slug(slug: str):
     """
-    Obtiene un evento específico por su slug (sea institucional o de redes sociales).
+    Obtiene un evento específico por su slug desde la tabla unificada eventos_sociales.
     """
     try:
-        # Primero buscar en eventos institucionales
-        res_inst = supabase.table("eventos").select("*").eq("slug", slug).execute()
-        if res_inst.data:
-            evento = res_inst.data[0]
-            # Si es borrador, ocultarlo en endpoints publicos
+        res = supabase.table("eventos_sociales").select("*").eq("slug", slug).execute()
+        if res.data:
+            evento = res.data[0]
             if evento.get("estado") != "publicado":
                 raise HTTPException(status_code=404, detail="Evento no disponible")
             return {"evento": evento}
-            
-        # Si no está, buscar en eventos sociales
-        res_soc = supabase.table("eventos_sociales").select("*").eq("slug", slug).execute()
-        if res_soc.data:
-            ev = res_soc.data[0]
-            if ev.get("status") != "aprobado":
-                raise HTTPException(status_code=404, detail="Evento no disponible")
-            # Normalizar
-            evento_normalizado = {
-                "id": ev["id"],
-                "titulo": ev["titulo"],
-                "descripcion": ev.get("descripcion_limpia", ""),
-                "lugar": ev.get("lugar", "A definir"),
-                "fecha": ev["fecha_evento"],
-                "hora": ev["hora_evento"],
-                "tipo": "Social",
-                "imagen_url": ev.get("imagen_url"),
-                "link_instagram": ev.get("link_instagram") or ev.get("metadata", {}).get("permalink"),
-                "link_facebook": ev.get("link_facebook"),
-                "link_whatsapp": ev.get("link_whatsapp"),
-                "slug": ev.get("slug"),
-                "estado": "publicado"
-            }
-            return {"evento": evento_normalizado}
             
         raise HTTPException(status_code=404, detail="Evento no encontrado")
         
@@ -3570,7 +3507,7 @@ def create_evento(
     background_tasks: BackgroundTasks,
     admin_user=Depends(get_current_admin),
 ):
-    """Crea un nuevo evento desde el Panel Administrador"""
+    """Crea un nuevo evento desde el Panel Administrador en eventos_sociales"""
     try:
         evento_data = evento.dict(exclude_unset=True)
         # Sanitizar URLs
@@ -3580,8 +3517,9 @@ def create_evento(
         
         # Generar slug
         evento_data["slug"] = f"{slugify(evento.titulo)}-{uuid4().hex[:6]}"
+        evento_data["fuente"] = "admin"
 
-        res = supabase.table("eventos").insert(evento_data).execute()
+        res = supabase.table("eventos_sociales").insert(evento_data).execute()
 
         if res.data:
             evento_creado = res.data[0]
@@ -3591,7 +3529,7 @@ def create_evento(
                 email_usuario=admin_user.email,
                 rol_usuario="ADMIN",
                 accion="CREATE",
-                tabla="eventos",
+                tabla="eventos_sociales",
                 registro_id=evento_creado["id"],
                 datos_anteriores=None,
                 datos_nuevos=evento_data,
@@ -3617,13 +3555,13 @@ def delete_evento(
 ):
     """Elimina un evento desde el Panel Administrador"""
     try:
-        evento_ant = supabase.table("eventos").select("*").eq("id", evento_id).execute()
+        evento_ant = supabase.table("eventos_sociales").select("*").eq("id", evento_id).execute()
         datos_anteriores = evento_ant.data[0] if evento_ant.data else None
 
         if not datos_anteriores:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
 
-        supabase.table("eventos").delete().eq("id", evento_id).execute()
+        supabase.table("eventos_sociales").delete().eq("id", evento_id).execute()
 
         background_tasks.add_task(
             registrar_auditoria,
@@ -3631,7 +3569,7 @@ def delete_evento(
             email_usuario=admin_user.email,
             rol_usuario="ADMIN",
             accion="DELETE",
-            tabla="eventos",
+            tabla="eventos_sociales",
             registro_id=evento_id,
             datos_anteriores=datos_anteriores,
             datos_nuevos=None,
@@ -3670,14 +3608,14 @@ def update_evento(
         if "titulo" in update_data:
             update_data["slug"] = f"{slugify(update_data['titulo'])}-{uuid4().hex[:6]}"
 
-        evento_ant = supabase.table("eventos").select("*").eq("id", evento_id).execute()
+        evento_ant = supabase.table("eventos_sociales").select("*").eq("id", evento_id).execute()
         datos_anteriores = evento_ant.data[0] if evento_ant.data else None
 
         if not datos_anteriores:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
 
         res = (
-            supabase.table("eventos").update(update_data).eq("id", evento_id).execute()
+            supabase.table("eventos_sociales").update(update_data).eq("id", evento_id).execute()
         )
 
         background_tasks.add_task(
@@ -3686,7 +3624,7 @@ def update_evento(
             email_usuario=admin_user.email,
             rol_usuario="ADMIN",
             accion="UPDATE",
-            tabla="eventos",
+            tabla="eventos_sociales",
             registro_id=evento_id,
             datos_anteriores=datos_anteriores,
             datos_nuevos=update_data,
@@ -3770,14 +3708,15 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request, backg
         remate_data = {
             "external_id": payload.external_id,
             "titulo": payload.titulo,
-            "descripcion_limpia": payload.titulo, # Usamos el titulo como descripción
+            "descripcion": payload.titulo, 
             "lugar": payload.lugar,
-            "fecha_evento": payload.fecha,
-            "hora_evento": payload.hora,
+            "fecha": payload.fecha,
+            "hora": payload.hora,
             "imagen_url": url_final_imagen,
             "metadata": payload.model_dump(),
-            "status": "aprobado",
-            "fuente": "sociedad_rural"
+            "estado": "publicado",
+            "fuente": "sociedad_rural",
+            "slug": payload.external_id
         }
 
         if municipio_id_validado:
@@ -3867,7 +3806,7 @@ def get_all_social_eventos(
 
 
 class UpdateEventoSocialStatusRequest(BaseModel):
-    status: str  # "borrador" | "aprobado" | "rechazado"
+    status: str  # "borrador" | "publicado" | "cancelado"
 
 
 @app.put("/api/admin/eventos-sociales/{evento_id}/status")
@@ -3890,7 +3829,7 @@ def update_evento_social_status(
 
         res = (
             supabase.table("eventos_sociales")
-            .update({"status": req.status})
+            .update({"estado": req.status})
             .eq("id", evento_id)
             .execute()
         )
@@ -3919,10 +3858,10 @@ def update_evento_social_status(
 
 class EventoSocialUpdate(BaseModel):
     titulo: Optional[str] = None
-    descripcion_limpia: Optional[str] = None
+    descripcion: Optional[str] = None
     lugar: Optional[str] = None
-    fecha_evento: Optional[str] = None
-    hora_evento: Optional[str] = None
+    fecha: Optional[str] = None
+    hora: Optional[str] = None
     imagen_url: Optional[str] = None
 
 

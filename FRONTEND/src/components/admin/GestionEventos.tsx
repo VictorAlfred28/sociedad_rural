@@ -70,14 +70,13 @@ export default function GestionEventos() {
             if (!res.ok) throw new Error(data.detail || 'Error al obtener eventos');
 
             if (activeSubTab === 'inst') {
-                setEventos(data.eventos || []);
+                // Filtrar solo los creados por admin
+                setEventos(data.eventos.filter((ev: any) => ev.fuente === 'admin') || []);
             } else {
-                // Mapear para que use campos consistentes
-                const normalized = (data.eventos || []).map((ev: any) => ({
+                // Mapear para que use campos consistentes (ahora vienen directos de BD)
+                const normalized = (data.eventos || []).filter((ev: any) => ev.fuente !== 'admin').map((ev: any) => ({
                     ...ev,
-                    fecha: ev.fecha_evento,
-                    hora: ev.hora_evento,
-                    descripcion: ev.descripcion_limpia
+                    status: ev.estado === 'publicado' ? 'aprobado' : ev.estado === 'borrador' ? 'borrador' : 'rechazado'
                 }));
                 setSocialEventos(normalized);
             }
@@ -121,10 +120,10 @@ export default function GestionEventos() {
                     method = 'PUT';
                     payload = {
                         titulo: formData.titulo,
-                        descripcion_limpia: formData.descripcion,
+                        descripcion: formData.descripcion,
                         lugar: formData.lugar,
-                        fecha_evento: formData.fecha,
-                        hora_evento: formData.hora,
+                        fecha: formData.fecha,
+                        hora: formData.hora,
                         imagen_url: formData.imagen_url
                     };
                 } else {
@@ -167,7 +166,7 @@ export default function GestionEventos() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus === 'aprobado' ? 'publicado' : newStatus === 'borrador' ? 'borrador' : 'cancelado' })
             });
             if (!res.ok) {
                 const data = await res.json();
