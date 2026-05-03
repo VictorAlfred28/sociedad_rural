@@ -4,18 +4,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Evento } from '../components/admin/GestionEventos';
 import { useAuth } from '../context/AuthContext';
 import paisaje from '../assets/paisaje.png';
+import { Capacitor } from '@capacitor/core';
 
 const STORAGE_KEY = 'eventos_filtro_municipio';
+let cachedEventos: Evento[] | null = null;
+let cachedTab: 'upcoming' | 'past' = 'upcoming';
 
 export default function Eventos() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [eventos, setEventos] = useState<Evento[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [eventos, setEventos] = useState<Evento[]>(cachedEventos || []);
+  const [loading, setLoading] = useState(!cachedEventos);
   const [error, setError] = useState('');
-  const [isAutoRetrying, setIsAutoRetrying] = useState(false); // Mejora 2: feedback visual
-  const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
-  // Mejora 4: restaurar filtro desde localStorage
+  const [isAutoRetrying, setIsAutoRetrying] = useState(false);
+  const [tab, setTab] = useState<'upcoming' | 'past'>(cachedTab);
   const [filtroMunicipio, setFiltroMunicipio] = useState<string | null>(
     () => localStorage.getItem(STORAGE_KEY) || null
   );
@@ -23,8 +25,9 @@ export default function Eventos() {
   const [fetchTrigger, setFetchTrigger] = useState(0);
   const autoRetried = useRef(false);
 
+  const isNative = Capacitor.isNativePlatform();
+
   useEffect(() => {
-    // Solo aplicar el municipio del usuario si no hay filtro guardado previamente
     if (user?.municipio && !localStorage.getItem(STORAGE_KEY)) {
       setFiltroMunicipioSynced(user.municipio);
     }
@@ -43,14 +46,12 @@ export default function Eventos() {
     fetchMunicipios();
   }, []);
 
-  // Mejora 4: sincronizar filtro con localStorage al cambiar
   const setFiltroMunicipioSynced = (val: string | null) => {
     setFiltroMunicipio(val);
     if (val) localStorage.setItem(STORAGE_KEY, val);
     else localStorage.removeItem(STORAGE_KEY);
   };
 
-  // Mejora 1: scroll condicional — solo si el usuario está > 200px del top
   const handleClearFilter = () => {
     setFiltroMunicipioSynced(null);
     if (window.scrollY > 200) {
@@ -61,7 +62,7 @@ export default function Eventos() {
   useEffect(() => {
     const fetchEventos = async () => {
       try {
-        setLoading(true);
+        if (eventos.length === 0) setLoading(true);
         const url = filtroMunicipio
           ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/eventos?municipio=${encodeURIComponent(filtroMunicipio)}`
           : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/eventos`;
@@ -69,10 +70,10 @@ export default function Eventos() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Error al obtener eventos');
         setEventos(data.eventos || []);
+        cachedEventos = data.eventos || [];
         autoRetried.current = false;
         setIsAutoRetrying(false);
       } catch (err: any) {
-        // Mejora 2: reintento automático único con estado visual
         if (!autoRetried.current) {
           autoRetried.current = true;
           setIsAutoRetrying(true);
@@ -101,16 +102,14 @@ export default function Eventos() {
 
   const now = new Date();
 
-  // Null-safe: eventos_sociales pueden tener fecha/hora null
   const displayedEvents = eventos.filter(ev => {
     const fechaStr = (ev as any).fecha_evento || ev.fecha;
-    if (!fechaStr) return tab === 'upcoming'; // Sin fecha → siempre upcoming
+    if (!fechaStr) return tab === 'upcoming'; 
     const horaStr = ev.hora || '12:00:00';
     const dateObj = new Date(fechaStr + 'T' + horaStr);
     return tab === 'upcoming' ? dateObj >= now : dateObj < now;
   });
 
-  // Imágenes placeholder por tipo
   const getImage = (ev: Evento) => {
     if (ev.imagen_url) return ev.imagen_url;
     if (ev.tipo === 'Social') return 'https://images.unsplash.com/photo-1472653431158-6364773b2a56?q=80&w=800&auto=format&fit=crop';
@@ -119,7 +118,6 @@ export default function Eventos() {
     return 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?q=80&w=800&auto=format&fit=crop';
   };
 
-  // Color del badge de tipo
   const getBadgeClass = (tipo: string) => {
     if (tipo === 'Social') return 'bg-gradient-to-r from-purple-600 to-pink-600';
     if (tipo === 'Remate') return 'bg-amber-700';
@@ -127,7 +125,7 @@ export default function Eventos() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+    <div className={`relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 overflow-x-hidden ${isNative ? 'max-w-md mx-auto shadow-2xl' : 'w-full'}`}>
       {/* Fondo sutil */}
       <div
         className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
@@ -140,15 +138,12 @@ export default function Eventos() {
       ></div>
 
       <div className="relative z-10 flex-1 flex flex-col">
-        <header className="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-stone-900/80 backdrop-blur-md p-4 justify-between border-b border-stone-200/50 dark:border-stone-700/50">
+        <header className={`sticky top-0 z-50 flex items-center bg-white/80 dark:bg-stone-900/80 backdrop-blur-md justify-between border-b border-stone-200/50 dark:border-stone-700/50 ${isNative ? 'p-4' : 'px-8 py-4'}`}>
           <Link to="/home" className="text-stone-800 dark:text-stone-100 flex size-10 items-center justify-center rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
             <span className="material-symbols-outlined">arrow_back</span>
           </Link>
           <h1 className="text-stone-800 dark:text-stone-100 text-lg font-bold leading-tight tracking-tight flex-1 text-center font-display uppercase italic">Agenda Rural</h1>
           <div className="flex w-10 items-center justify-end">
-            <button className="flex size-10 items-center justify-center rounded-full hover:bg-stone-100 transition-colors">
-              <span className="material-symbols-outlined text-stone-800 dark:text-stone-100">search</span>
-            </button>
           </div>
         </header>
 
@@ -176,13 +171,13 @@ export default function Eventos() {
 
           <div className="flex h-11 items-center justify-center rounded-2xl bg-stone-200/50 dark:bg-stone-800/50 p-1 border border-stone-200/50">
             <button
-              onClick={() => setTab('upcoming')}
+              onClick={() => { setTab('upcoming'); cachedTab = 'upcoming'; }}
               className={`flex-1 flex items-center justify-center h-full rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'upcoming' ? 'bg-white dark:bg-stone-700 text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-stone-400'}`}
             >
               Próximos
             </button>
             <button
-              onClick={() => setTab('past')}
+              onClick={() => { setTab('past'); cachedTab = 'past'; }}
               className={`flex-1 flex items-center justify-center h-full rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'past' ? 'bg-white dark:bg-stone-700 text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-stone-400'}`}
             >
               Anteriores
@@ -227,7 +222,7 @@ export default function Eventos() {
             </div>
           ) : displayedEvents.length === 0 ? (
             /* CASOS 1, 2, 3 — Sin resultados (con o sin filtro) */
-            <div className="flex flex-col items-center justify-center py-20 gap-5">
+            <div className="flex flex-col items-center justify-center py-20 gap-5 col-span-full">
               <div className="size-16 rounded-2xl bg-stone-100 dark:bg-stone-800 border border-stone-200/50 dark:border-stone-700/50 flex items-center justify-center">
                 <span className="material-symbols-outlined text-3xl text-stone-300 dark:text-stone-600">
                   {tab === 'upcoming' ? 'event_upcoming' : 'event_busy'}
@@ -277,9 +272,10 @@ export default function Eventos() {
               </div>
             </div>
           ) : (
-            displayedEvents.map(ev => {
-              // Null-safe: soporte tanto para eventos (fecha) como eventos_sociales (fecha_evento)
-              const fechaStr = (ev as any).fecha_evento || ev.fecha || null;
+            <div className={isNative ? 'flex flex-col space-y-5' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 max-w-7xl mx-auto w-full'}>
+              {displayedEvents.map(ev => {
+                // Null-safe: soporte tanto para eventos (fecha) como eventos_sociales (fecha_evento)
+                const fechaStr = (ev as any).fecha_evento || ev.fecha || ((ev as any).metadata?.timestamp ? (ev as any).metadata.timestamp.split('T')[0] : null);
               const dateObj = fechaStr ? new Date(fechaStr + 'T12:00:00') : null;
               const month = dateObj ? dateObj.toLocaleDateString('es-AR', { month: 'short' }) : null;
               const day = dateObj ? dateObj.toLocaleDateString('es-AR', { day: '2-digit' }) : null;
@@ -423,7 +419,8 @@ export default function Eventos() {
                   </div>
                 </div>
               );
-            })
+            })}
+            </div>
           )}
         </main>
         <BottomNav />

@@ -8,8 +8,9 @@ interface EventoDetailData {
     titulo: string;
     descripcion: string;
     lugar: string;
-    fecha: string;
-    hora: string;
+    fecha?: string;
+    fecha_evento?: string;
+    hora?: string;
     tipo: string;
     imagen_url: string | null;
     link_instagram?: string;
@@ -17,6 +18,7 @@ interface EventoDetailData {
     link_whatsapp?: string;
     link_externo?: string;
     slug?: string;
+    metadata?: any;
 }
 
 export default function EventoDetail() {
@@ -89,12 +91,18 @@ export default function EventoDetail() {
         );
     }
 
-    const dateObj = evento.fecha ? new Date(evento.fecha + 'T' + (evento.hora || '12:00:00')) : null;
+    const fechaStr = evento.fecha_evento || evento.fecha || (evento.metadata?.timestamp ? evento.metadata.timestamp.split('T')[0] : null);
+    const dateObj = fechaStr ? new Date(fechaStr + 'T' + (evento.hora || '12:00:00')) : null;
     const esSocial = evento.tipo === 'Social';
     const lugarDisplay = evento.lugar && evento.lugar !== 'A definir' ? evento.lugar : null;
 
+    // Manejo de Carousel y Video para Instagram
+    const isVideo = evento.metadata?.media_type === 'VIDEO';
+    const isCarousel = evento.metadata?.media_type === 'CAROUSEL_ALBUM' && evento.metadata?.children?.data?.length > 0;
+    const [currentSlide, setCurrentSlide] = useState(0);
+
     return (
-        <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+        <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 md:max-w-3xl md:border-x md:border-stone-200 dark:md:border-stone-800 mx-auto shadow-2xl overflow-x-hidden">
             {/* Fondo sutil */}
             <div
                 className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
@@ -109,7 +117,7 @@ export default function EventoDetail() {
             {/* Header Flotante Transparente */}
             <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-gradient-to-b from-black/60 to-transparent">
                 <button 
-                    onClick={() => navigate('/eventos')} 
+                    onClick={() => navigate(-1)} 
                     className="flex size-10 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/40 transition-colors"
                 >
                     <span className="material-symbols-outlined">arrow_back</span>
@@ -120,24 +128,61 @@ export default function EventoDetail() {
             </header>
 
             <div className="relative z-10 flex-1 pb-24">
-                {/* Hero Image */}
-                <div className="relative w-full aspect-[4/3] bg-stone-900">
-                    <img 
-                        src={getImage(evento)} 
-                        alt={evento.titulo}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/40 to-transparent"></div>
+                {/* Hero Media */}
+                <div className="relative w-full md:aspect-[16/9] aspect-[4/3] bg-stone-900 flex items-center justify-center overflow-hidden">
+                    {isVideo ? (
+                        <video 
+                            src={evento.metadata?.original_media_url || evento.imagen_url || ''} 
+                            controls 
+                            playsInline
+                            className="w-full h-full object-contain bg-black"
+                            poster={evento.imagen_url || undefined}
+                        />
+                    ) : isCarousel ? (
+                        <div className="relative w-full h-full flex overflow-x-auto snap-x snap-mandatory hide-scrollbar" onScroll={(e) => {
+                            const scrollLeft = (e.target as HTMLElement).scrollLeft;
+                            const width = (e.target as HTMLElement).clientWidth;
+                            setCurrentSlide(Math.round(scrollLeft / width));
+                        }}>
+                            {evento.metadata.children.data.map((child: any, idx: number) => (
+                                <div key={child.id || idx} className="w-full h-full shrink-0 snap-center relative flex items-center justify-center bg-black">
+                                    {child.media_type === 'VIDEO' ? (
+                                        <video src={child.media_url} controls playsInline className="w-full h-full object-contain" />
+                                    ) : (
+                                        <img src={child.media_url} alt={`${evento.titulo} - ${idx}`} className="w-full h-full object-contain" />
+                                    )}
+                                </div>
+                            ))}
+                            {/* Indicadores de Carousel */}
+                            <div className="absolute bottom-10 left-0 right-0 flex justify-center gap-1.5 z-20">
+                                {evento.metadata.children.data.map((_: any, idx: number) => (
+                                    <div key={idx} className={`h-1.5 rounded-full transition-all ${currentSlide === idx ? 'w-4 bg-white' : 'w-1.5 bg-white/50'}`} />
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <img 
+                            src={getImage(evento)} 
+                            alt={evento.titulo}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                                e.currentTarget.src = 'https://images.unsplash.com/photo-1472653431158-6364773b2a56?q=80&w=800&auto=format&fit=crop';
+                                e.currentTarget.onerror = null;
+                            }}
+                            className="w-full h-full object-cover"
+                        />
+                    )}
                     
-                    <div className={`absolute bottom-6 left-6 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-lg flex items-center gap-1.5 ${getBadgeClass(evento.tipo)}`}>
+                    {!isVideo && !isCarousel && <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/40 to-transparent pointer-events-none"></div>}
+                    
+                    <div className={`absolute bottom-6 left-6 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-lg flex items-center gap-1.5 z-20 ${getBadgeClass(evento.tipo || 'Social')}`}>
                         {esSocial && <span style={{ fontSize: '12px' }}>📱</span>}
-                        {evento.tipo}
+                        {evento.tipo || 'Redes'}
                     </div>
                 </div>
 
                 {/* Contenido */}
-                <div className="relative -mt-6 bg-stone-50 dark:bg-stone-900 rounded-t-3xl px-6 py-8 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+                <div className="relative -mt-6 z-30 bg-stone-50 dark:bg-stone-900 rounded-t-3xl px-6 py-8 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
                     <h1 className="text-2xl font-bold leading-tight font-display italic text-stone-800 dark:text-stone-100 uppercase tracking-tighter mb-4">
                         {evento.titulo}
                     </h1>
