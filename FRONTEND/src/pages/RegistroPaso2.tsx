@@ -93,7 +93,15 @@ export default function RegistroPaso2() {
     if (userRole === 'COMERCIO') {
       fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/register/comercio`;
       bodyData = {
-        ...paso1Data
+        nombre_comercio: paso1Data.nombre_apellido,
+        cuit: paso1Data.dni_cuit,
+        email: paso1Data.email,
+        telefono: paso1Data.telefono || '',
+        rubro: paso1Data.rubro,
+        direccion: paso1Data.direccion,
+        municipio: paso1Data.municipio,
+        barrio: paso1Data.barrio,
+        password: paso1Data.password
       };
     }
 
@@ -106,7 +114,13 @@ export default function RegistroPaso2() {
 
       const data = await resp.json();
 
-      if (!resp.ok) throw new Error(data.detail || 'Error al completar el registro');
+      if (!resp.ok) {
+        console.log("BACKEND ERROR:", data);
+        const errorMsg = Array.isArray(data.detail) 
+            ? data.detail.map((e: any) => `${e.loc[e.loc.length - 1]}: ${e.msg}`).join(', ') 
+            : data.detail;
+        throw new Error(errorMsg || 'Error al completar el registro');
+      }
 
       // Limpiar cualquier sesión previa (ej: Admin registrando socio) para evitar confusión de roles
       logout();
