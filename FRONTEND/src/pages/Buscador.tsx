@@ -261,15 +261,24 @@ export default function Buscador() {
             {municipios.length > 0 && (
               <div>
                 <p className="text-xs font-black uppercase tracking-widest text-stone-400 px-1 mb-3">Explorar Municipios</p>
-                <div className="flex flex-wrap gap-2 px-1">
-                  {municipios.slice(0, 10).map(m => (
-                    <button key={m.id}
-                      onClick={() => navigate(`/eventos?municipio=${encodeURIComponent(m.nombre)}`)}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-[13px] text-stone-600 dark:text-stone-300 font-semibold transition-all active:scale-95 shadow-sm">
-                      <span className="material-symbols-outlined text-[14px] text-emerald-600 dark:text-emerald-400">location_on</span>
-                      {m.nombre}
-                    </button>
-                  ))}
+                <div className="relative px-1">
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        navigate(`/eventos?municipio=${encodeURIComponent(e.target.value)}`);
+                      }
+                    }}
+                    defaultValue=""
+                    className="w-full appearance-none bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-2xl px-4 py-3 text-[13px] text-stone-700 dark:text-stone-300 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-sm transition-all cursor-pointer"
+                  >
+                    <option value="" disabled>Seleccioná una localidad...</option>
+                    {municipios.map(m => (
+                      <option key={m.id} value={m.nombre}>{m.nombre}</option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-600 dark:text-emerald-400 text-[20px]">
+                    location_on
+                  </span>
                 </div>
               </div>
             )}
