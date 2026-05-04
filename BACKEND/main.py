@@ -5916,14 +5916,14 @@ def get_ofertas(request: Request):
         raise HTTPException(status_code=500, detail="Error al cargar las ofertas.")
 
 @app.post("/api/ofertas")
-def create_oferta(oferta: OfertaCreate, request: Request):
+def create_oferta(oferta: OfertaCreate, request: Request, background_tasks: BackgroundTasks):
     authorization = request.headers.get("Authorization")
     user_id = _get_user_from_bearer(authorization)
     if not user_id:
         raise HTTPException(status_code=401, detail="No autorizado.")
 
     # Verificar que el usuario sea un comercio
-    comercio_check = supabase.table("comercios").select("id").eq("id", user_id).execute()
+    comercio_check = supabase.table("comercios").select("id, nombre_fantasia").eq("id", user_id).execute()
     if not comercio_check.data:
         raise HTTPException(status_code=403, detail="Solo los comercios pueden crear ofertas.")
 
@@ -5941,6 +5941,18 @@ def create_oferta(oferta: OfertaCreate, request: Request):
             "activo": True
         }
         res = supabase.table("promociones").insert(data_insert).execute()
+        
+        # Enviar notificación push a todos los socios aprobados en segundo plano
+        nombre_comercio = comercio_check.data[0].get("nombre_fantasia", "Un comercio")
+        background_tasks.add_task(
+            enviar_push_segmentado,
+            titulo=f"¡Nueva oferta en {nombre_comercio}!",
+            mensaje=f"{oferta.titulo}",
+            link_url="/MiNegocio",
+            municipio=None,
+            tipo_socio=None
+        )
+        
         return res.data[0]
     except Exception as e:
         logger.error(f"[OFERTAS] Error al crear oferta: {e}")
