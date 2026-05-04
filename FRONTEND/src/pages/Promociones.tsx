@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import BottomNav from '../components/BottomNav';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import FeaturedCarousel from '../components/FeaturedCarousel';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
@@ -64,7 +64,7 @@ const RUBRO_LABELS: Record<string, string> = {
   alimentacion: 'Alimentación', construccion: 'Construcción',
   transporte: 'Transporte', socios_profesionales: 'Profesionales',
   vestimentas: 'Vestimentas e Indumentarias', gurises: 'Gurises',
-  comercio_general: 'Comercio Gral.', otro: 'Otro',
+  comercio_general: 'Comercio Gral.', combustible: 'Combustible', servicios: 'Servicios', otro: 'Otro',
 };
 const RUBRO_ICON: Record<string, string> = {
   agropecuario: 'agriculture', veterinaria: 'vaccines',
@@ -72,7 +72,7 @@ const RUBRO_ICON: Record<string, string> = {
   alimentacion: 'restaurant', construccion: 'construction',
   transporte: 'local_shipping', socios_profesionales: 'work',
   vestimentas: 'checkroom', gurises: 'child_care',
-  comercio_general: 'storefront', otro: 'category',
+  comercio_general: 'storefront', combustible: 'local_gas_station', servicios: 'handyman', otro: 'category',
 };
 const RUBRO_COLOR: Record<string, string> = {
   agropecuario: 'bg-lime-500', veterinaria: 'bg-cyan-500',
@@ -80,7 +80,7 @@ const RUBRO_COLOR: Record<string, string> = {
   alimentacion: 'bg-amber-500', construccion: 'bg-stone-500',
   transporte: 'bg-blue-500', socios_profesionales: 'bg-violet-500',
   vestimentas: 'bg-pink-500', gurises: 'bg-yellow-500',
-  comercio_general: 'bg-rose-500', otro: 'bg-slate-500',
+  comercio_general: 'bg-rose-500', combustible: 'bg-red-600', servicios: 'bg-cyan-600', otro: 'bg-slate-500',
 };
 
 const TIPO_CFG = {
@@ -101,13 +101,14 @@ const TIPO_CFG = {
   },
 };
 
-const RUBROS = ['todos', 'vestimentas', 'gurises', 'socios_profesionales', 'veterinaria', 'maquinaria_agricola', 'insumos_agricolas', 'alimentacion', 'construccion', 'transporte', 'agropecuario'];
+const RUBROS = ['todos', 'vestimentas', 'gurises', 'socios_profesionales', 'veterinaria', 'maquinaria_agricola', 'insumos_agricolas', 'alimentacion', 'construccion', 'transporte', 'agropecuario', 'combustible', 'servicios'];
 
 type Tab = 'ofertas' | 'comercios' | 'profesionales';
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 export default function Promociones() {
   const { user } = useAuth();
+  const location = useLocation();
   const [tab, setTab] = useState<Tab>('profesionales');
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [comercios, setComercios] = useState<Comercio[]>([]);
@@ -122,6 +123,15 @@ export default function Promociones() {
   const [showSearch, setShowSearch] = useState(false);
   const [showMunDropdown, setShowMunDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('tab')) setTab(params.get('tab') as Tab);
+    if (params.get('categoria')) setFiltroRubro(params.get('categoria')!);
+    if (params.get('ubicacion') || params.get('municipio')) {
+      setFiltroMunicipio(params.get('ubicacion') || params.get('municipio')!);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     const fetchAll = async () => {

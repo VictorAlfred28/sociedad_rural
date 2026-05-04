@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import BottomNav from '../components/BottomNav';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Evento } from '../components/admin/GestionEventos';
 import { useAuth } from '../context/AuthContext';
 import paisaje from '../assets/paisaje.png';
@@ -12,6 +12,7 @@ let cachedTab: 'upcoming' | 'past' = 'upcoming';
 
 export default function Eventos() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [eventos, setEventos] = useState<Evento[]>(cachedEventos || []);
   const [loading, setLoading] = useState(!cachedEventos);
@@ -21,6 +22,7 @@ export default function Eventos() {
   const [filtroMunicipio, setFiltroMunicipio] = useState<string | null>(
     () => localStorage.getItem(STORAGE_KEY) || null
   );
+  const [filtroMes, setFiltroMes] = useState<number | null>(null);
   const [municipiosList, setMunicipiosList] = useState<{ id: string, nombre: string }[]>([]);
   const [fetchTrigger, setFetchTrigger] = useState(0);
   const autoRetried = useRef(false);
@@ -40,6 +42,18 @@ export default function Eventos() {
 
     initializedRef.current = true;
   }, [user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('municipio') || params.get('ubicacion')) {
+      setFiltroMunicipioSynced(params.get('municipio') || params.get('ubicacion'));
+    }
+    if (params.get('mes')) {
+      setFiltroMes(parseInt(params.get('mes')!, 10));
+    } else {
+      setFiltroMes(null);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     const fetchMunicipios = async () => {
@@ -142,6 +156,11 @@ export default function Eventos() {
     if (!fechaStr) return tab === 'upcoming';
     const horaStr = ev.hora || '12:00:00';
     const dateObj = new Date(fechaStr + 'T' + horaStr);
+    
+    if (filtroMes !== null) {
+      if (dateObj.getMonth() + 1 !== filtroMes) return false;
+    }
+    
     return tab === 'upcoming' ? dateObj >= now : dateObj < now;
   });
 

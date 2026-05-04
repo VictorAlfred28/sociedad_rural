@@ -9,10 +9,12 @@ const HISTORY_KEY = 'lupita_history';
 interface Item {
   id: string;
   nombre: string;
-  tipo: 'evento' | 'comercio' | 'profesional' | 'municipio' | 'producto';
+  tipo: 'evento' | 'comercio' | 'profesional' | 'municipio' | 'producto' | 'Módulo' | 'Categoría';
   subtipo?: string;
   municipio?: string;
   slug?: string;
+  icon?: string;
+  route?: string;
 }
 
 function norm(s?: string) {
@@ -30,16 +32,97 @@ function getHist(): string[] {
 }
 
 function pushHist(q: string) {
-  const next = [q, ...getHist().filter(h => h !== q)].slice(0, 5);
+  if (!q.trim()) return;
+  const next = [q.trim(), ...getHist().filter(h => h !== q.trim())].slice(0, 5);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
 }
 
+const searchMap = [
+  {
+    keywords: ["cuota", "pago", "deuda", "aportes", "pagar", "saldo", "vencimiento"],
+    route: "/cuotas",
+    type: "Módulo" as const,
+    title: "Aportes / Cuotas",
+    icon: "account_balance_wallet"
+  },
+  {
+    keywords: ["beneficios", "descuentos", "promociones", "ofertas", "promo", "comercios", "adheridos", "locales"],
+    route: "/promociones?tab=ofertas",
+    type: "Módulo" as const,
+    title: "Beneficios del Socio",
+    icon: "sell"
+  },
+  {
+    keywords: ["combustible", "nafta", "estacion", "ypf", "shell", "gasoil", "servicio"],
+    route: "/promociones?tab=comercios&categoria=combustible",
+    type: "Categoría" as const,
+    title: "Combustibles",
+    icon: "local_gas_station"
+  },
+  {
+    keywords: ["ropa", "vestimenta", "indumentaria", "calzado", "accesorios", "zapatos"],
+    route: "/promociones?tab=comercios&categoria=vestimentas",
+    type: "Categoría" as const,
+    title: "Vestimentas e Indumentarias",
+    icon: "checkroom"
+  },
+  {
+    keywords: ["comida", "alimento", "restaurante", "supermercado", "kiosco", "gastronomia", "alimentacion", "alimentos", "comidas"],
+    route: "/promociones?tab=comercios&categoria=alimentacion",
+    type: "Categoría" as const,
+    title: "Alimentación",
+    icon: "restaurant"
+  },
+  {
+    keywords: ["servicios", "taller", "mecanico", "reparacion", "electricista", "plomero", "oficios"],
+    route: "/promociones?tab=comercios&categoria=servicios",
+    type: "Categoría" as const,
+    title: "Servicios Generales",
+    icon: "handyman"
+  },
+  {
+    keywords: ["eventos", "agenda", "actividades", "calendario", "rurales", "feria", "remate", "expo", "exposicion", "evento"],
+    route: "/eventos",
+    type: "Módulo" as const,
+    title: "Agenda Rural",
+    icon: "event"
+  },
+  {
+    keywords: ["pasaporte", "ñande", "carnet", "credencial", "qr", "credenciales"],
+    route: "/carnet",
+    type: "Módulo" as const,
+    title: "Ñande Pasaporte",
+    icon: "badge"
+  },
+  {
+    keywords: ["perfil", "usuario", "mis datos", "cuenta", "configuracion", "preferencias", "ajustes"],
+    route: "/perfil",
+    type: "Módulo" as const,
+    title: "Mi Perfil",
+    icon: "person"
+  },
+  {
+    keywords: ["negocio", "mi negocio", "admin", "administrar", "panel"],
+    route: "/mi-negocio",
+    type: "Módulo" as const,
+    title: "Mi Negocio",
+    icon: "storefront"
+  }
+];
+
+const MONTHS: Record<string, number> = {
+  "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
+  "julio": 7, "agosto": 8, "septiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12
+};
+
 const TYPE_CFG = {
-  evento:      { label: 'Eventos',       icon: 'event',         cls: 'text-emerald-600',   bg: 'bg-emerald-50' },
-  comercio:    { label: 'Comercios',     icon: 'storefront',    cls: 'text-amber-600',     bg: 'bg-amber-50' },
-  profesional: { label: 'Profesionales', icon: 'person_pin',    cls: 'text-blue-600',      bg: 'bg-blue-50' },
-  municipio:   { label: 'Localidades',   icon: 'location_city', cls: 'text-purple-600',    bg: 'bg-purple-50' },
-  producto:    { label: 'Productos',     icon: 'category',      cls: 'text-rose-600',      bg: 'bg-rose-50' },
+  evento:      { label: 'Evento',       icon: 'event',         cls: 'text-emerald-600',   bg: 'bg-emerald-50' },
+  comercio:    { label: 'Comercio',     icon: 'storefront',    cls: 'text-amber-600',     bg: 'bg-amber-50' },
+  profesional: { label: 'Profesional',  icon: 'person_pin',    cls: 'text-blue-600',      bg: 'bg-blue-50' },
+  municipio:   { label: 'Localidad',    icon: 'location_city', cls: 'text-purple-600',    bg: 'bg-purple-50' },
+  producto:    { label: 'Producto',     icon: 'category',      cls: 'text-rose-600',      bg: 'bg-rose-50' },
+  Módulo:      { label: 'Sección',      icon: 'widgets',       cls: 'text-stone-700',     bg: 'bg-stone-200' },
+  Categoría:   { label: 'Categoría',    icon: 'category',      cls: 'text-indigo-600',    bg: 'bg-indigo-50' },
 } as const;
 
 export default function Buscador() {
@@ -57,12 +140,12 @@ export default function Buscador() {
   const [loading,     setLoading]     = useState(false);
   const [loaded,      setLoaded]      = useState(false);
   
-  // Filtro activo
+  // Filtro activo opcional
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   /* debounce */
   useEffect(() => {
-    const t = setTimeout(() => setDbQuery(query.trim()), 350);
+    const t = setTimeout(() => setDbQuery(query.trim()), 200);
     return () => clearTimeout(t);
   }, [query]);
 
@@ -120,26 +203,87 @@ export default function Buscador() {
     fetchAll();
   }, [fetchAll]);
 
-  /* filter */
-  let results = dbQuery.length >= 2
-    ? allItems.filter(i =>
+  /* INTENT PARSER LOGIC */
+  const parseIntent = (q: string): Item[] => {
+    const words = norm(q).split(/\s+/);
+    let bestIntents: Item[] = [];
+    
+    for(const intent of searchMap) {
+      let score = 0;
+      for(const word of words) {
+        if(intent.keywords.some(k => norm(k).includes(word) || word.includes(norm(k)))) {
+          score++;
+        }
+      }
+      if(score > 0) {
+        let cloned = { id: `intent_${intent.title}`, nombre: intent.title, tipo: intent.type, icon: intent.icon, route: intent.route };
+        
+        // Dynamic modifiers for Eventos
+        if (cloned.route.startsWith('/eventos')) {
+          let modified = false;
+          // Month
+          for(const [m, val] of Object.entries(MONTHS)) {
+            if(words.some(w => w === m || w.startsWith(m.slice(0, 4)))) {
+              cloned.route += (cloned.route.includes('?') ? '&' : '?') + 'mes=' + val;
+              cloned.nombre += ' en ' + m.charAt(0).toUpperCase() + m.slice(1);
+              modified = true;
+              score += 2; // Extra score for exact modifier
+              break;
+            }
+          }
+          // Location
+          for(const mun of municipios) {
+            const n = norm(mun.nombre);
+            if(words.some(w => n === w || w.includes(n))) {
+               cloned.route += (cloned.route.includes('?') ? '&' : '?') + 'municipio=' + encodeURIComponent(mun.nombre);
+               cloned.nombre += ' (' + mun.nombre + ')';
+               modified = true;
+               score += 2;
+               break;
+            }
+          }
+        }
+        
+        // Only keep highest scoring intents or add to list with score
+        bestIntents.push({...cloned, _score: score} as Item & { _score: number });
+      }
+    }
+    
+    // Sort by score and take top 2
+    bestIntents.sort((a: any, b: any) => b._score - a._score);
+    return bestIntents.slice(0, 2);
+  };
+
+  /* SUGGESTIONS */
+  let suggestions: Item[] = [];
+  if (dbQuery.length >= 2) {
+      // 1. Intents
+      const intents = parseIntent(dbQuery);
+      suggestions.push(...intents);
+
+      // 2. DB Items
+      const dbRes = allItems.filter(i =>
         hit(i.nombre, dbQuery) ||
         hit(i.subtipo, dbQuery) ||
         hit(i.municipio, dbQuery) ||
         hit(i.tipo, dbQuery)
-      )
-    : [];
+      );
 
-  if (activeFilter && dbQuery.length >= 2) {
-      results = results.filter(i => i.tipo === activeFilter);
+      // Mix them
+      suggestions.push(...dbRes);
   }
 
+  if (activeFilter && dbQuery.length >= 2) {
+      suggestions = suggestions.filter(i => i.tipo === activeFilter);
+  }
+
+  // Grouper logic for UI display
   const grouped = {
-    evento:      results.filter(r => r.tipo === 'evento').slice(0, 5),
-    comercio:    results.filter(r => r.tipo === 'comercio').slice(0, 5),
-    profesional: results.filter(r => r.tipo === 'profesional').slice(0, 5),
-    municipio:   results.filter(r => r.tipo === 'municipio').slice(0, 5),
-    producto:    results.filter(r => r.tipo === 'producto').slice(0, 5),
+    intents:     suggestions.filter(r => r.tipo === 'Módulo' || r.tipo === 'Categoría').slice(0, 3),
+    evento:      suggestions.filter(r => r.tipo === 'evento').slice(0, 5),
+    comercio:    suggestions.filter(r => r.tipo === 'comercio').slice(0, 5),
+    profesional: suggestions.filter(r => r.tipo === 'profesional').slice(0, 5),
+    municipio:   suggestions.filter(r => r.tipo === 'municipio').slice(0, 5),
   };
   
   const total = Object.values(grouped).reduce((a, b) => a + b.length, 0);
@@ -149,14 +293,18 @@ export default function Buscador() {
     if (navigatingRef.current) return;
     navigatingRef.current = true;
 
-    pushHist(item.nombre);
+    pushHist(query);
     setHist(getHist());
-    if (item.tipo === 'evento')
-      item.slug ? navigate(`/eventos/${item.slug}`) : navigate('/eventos');
-    else if (item.tipo === 'municipio')
-      navigate(`/eventos?municipio=${encodeURIComponent(item.nombre)}`);
-    else
-      navigate('/promociones');
+    
+    if (item.route) {
+        navigate(item.route);
+    } else if (item.tipo === 'evento') {
+        item.slug ? navigate(`/eventos/${item.slug}`) : navigate('/eventos');
+    } else if (item.tipo === 'municipio') {
+        navigate(`/eventos?municipio=${encodeURIComponent(item.nombre)}`);
+    } else {
+        navigate('/promociones');
+    }
 
     setTimeout(() => navigatingRef.current = false, 400);
   };
@@ -167,9 +315,22 @@ export default function Buscador() {
     if (navigatingRef.current) return;
     navigatingRef.current = true;
 
-    pushHist(query.trim());
+    pushHist(query);
     setHist(getHist());
-    navigate(`/eventos?q=${encodeURIComponent(query.trim())}`);
+    
+    // Si hay sugerencias, tomamos la primera de la lista (el mejor intent o primer resultado)
+    if (suggestions.length > 0) {
+        const topItem = suggestions[0];
+        if (topItem.route) {
+            navigate(topItem.route);
+        } else if (topItem.tipo === 'evento') {
+            topItem.slug ? navigate(`/eventos/${topItem.slug}`) : navigate('/eventos');
+        } else {
+            navigate(`/eventos?q=${encodeURIComponent(query.trim())}`);
+        }
+    } else {
+        navigate(`/eventos?q=${encodeURIComponent(query.trim())}`);
+    }
 
     setTimeout(() => navigatingRef.current = false, 400);
   };
@@ -188,7 +349,7 @@ export default function Buscador() {
           Buscador
         </h1>
         
-        {/* Input */}
+        {/* Input con lupa dinámica */}
         <form onSubmit={submit}>
           <div className="flex items-center gap-2 px-4 py-3 bg-stone-100 dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
             <span className={`material-symbols-outlined text-[22px] text-stone-400 shrink-0 ${loading ? 'animate-spin' : ''}`}>
@@ -199,19 +360,25 @@ export default function Buscador() {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar eventos, comercios..."
-              className="flex-1 bg-transparent text-base text-stone-800 dark:text-stone-200 placeholder-stone-400 dark:placeholder-stone-500 outline-none min-w-0"
+              placeholder="¿Qué estás buscando? (Ej: Cuotas)"
+              className="flex-1 bg-transparent text-sm text-stone-800 dark:text-stone-200 placeholder-stone-400 dark:placeholder-stone-500 outline-none min-w-0 font-medium"
               autoFocus
             />
             {query && (
               <button
                 type="button"
                 onClick={clear}
-                className="shrink-0 size-7 rounded-full bg-stone-200 dark:bg-stone-700 flex items-center justify-center active:scale-90 transition-transform"
+                className="shrink-0 size-7 rounded-full bg-stone-200 dark:bg-stone-700 flex items-center justify-center active:scale-90 transition-transform mr-1"
               >
                 <span className="material-symbols-outlined text-[16px] text-stone-500 dark:text-stone-300">close</span>
               </button>
             )}
+            <button
+                type="submit"
+                className="shrink-0 size-8 rounded-full bg-emerald-600 flex items-center justify-center active:scale-90 transition-transform shadow-sm"
+            >
+                <span className="material-symbols-outlined text-[18px] text-white">search</span>
+            </button>
           </div>
         </form>
 
@@ -225,7 +392,7 @@ export default function Buscador() {
               Todos
             </button>
             {(Object.keys(TYPE_CFG) as (keyof typeof TYPE_CFG)[]).map(tipo => {
-              if (tipo === 'producto') return null; // opcional, si hay pocos
+              if (tipo === 'producto' || tipo === 'Módulo' || tipo === 'Categoría') return null; // No mostrar modulos en pastillas
               return (
                 <button
                   key={tipo}
@@ -297,7 +464,7 @@ export default function Buscador() {
             {!loaded && !loading && (
               <div className="flex flex-col items-center justify-center pt-10 opacity-50">
                 <span className="material-symbols-outlined text-4xl mb-2 text-stone-300">search</span>
-                <p className="text-sm text-stone-400 font-medium">Escribí para empezar a buscar</p>
+                <p className="text-sm text-stone-400 font-medium">Escribí para buscar lugares, beneficios...</p>
               </div>
             )}
           </motion.div>
@@ -310,7 +477,7 @@ export default function Buscador() {
             </div>
             <p className="text-lg font-black text-stone-800 dark:text-stone-200 mb-1">Sin resultados</p>
             <p className="text-sm text-stone-500 dark:text-stone-400 text-center mb-6">
-              No encontramos nada para "{dbQuery}". Intentá con otras palabras.
+              No encontramos nada para "{dbQuery}". Intentá con otras palabras como "combustible" o "eventos".
             </p>
             <button onClick={clear} className="px-6 py-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold active:scale-95 transition-transform">
               Limpiar búsqueda
@@ -320,50 +487,53 @@ export default function Buscador() {
 
         {showResults && (
           <div className="space-y-5">
-            {(Object.keys(grouped) as (keyof typeof grouped)[]).map(tipo => {
-              const items = grouped[tipo];
+            {(Object.keys(grouped) as (keyof typeof grouped)[]).map(keyGroup => {
+              const items = grouped[keyGroup];
               if (!items.length) return null;
-              if (activeFilter && activeFilter !== tipo) return null;
+              if (activeFilter && activeFilter !== keyGroup && keyGroup !== 'intents') return null; // intents shows always if matched
               
-              const cfg = TYPE_CFG[tipo];
+              const titleGroup = keyGroup === 'intents' ? 'Sugerencias' : TYPE_CFG[keyGroup as keyof typeof TYPE_CFG]?.label + 's';
               
               return (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={tipo}>
-                  <p className={`text-xs font-black uppercase tracking-widest mb-2 px-1 ${cfg.cls}`}>
-                    {cfg.label}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={keyGroup}>
+                  <p className={`text-xs font-black uppercase tracking-widest mb-2 px-1 ${keyGroup === 'intents' ? 'text-stone-500' : TYPE_CFG[keyGroup as keyof typeof TYPE_CFG]?.cls}`}>
+                    {titleGroup}
                   </p>
                   <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 overflow-hidden shadow-sm">
-                    {items.map((item, i) => (
-                      <div key={item.id}>
-                        <button onClick={() => select(item)}
-                          className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-stone-50 dark:hover:bg-stone-800 active:bg-stone-100 dark:active:bg-stone-800 transition-colors text-left">
-                          <div className={`size-10 rounded-full flex items-center justify-center shrink-0 ${cfg.bg}`}>
-                            <span className={`material-symbols-outlined text-[20px] ${cfg.cls}`}>
-                              {cfg.icon}
+                    {items.map((item, i) => {
+                      const cfg = TYPE_CFG[item.tipo];
+                      return (
+                        <div key={item.id}>
+                          <button onClick={() => select(item)}
+                            className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-stone-50 dark:hover:bg-stone-800 active:bg-stone-100 dark:active:bg-stone-800 transition-colors text-left">
+                            <div className={`size-10 rounded-full flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                              <span className={`material-symbols-outlined text-[20px] ${cfg.cls}`}>
+                                {item.icon || cfg.icon}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[15px] font-bold text-stone-800 dark:text-stone-100 truncate">{item.nombre}</p>
+                              <p className="text-[12px] font-medium text-stone-400 dark:text-stone-500 truncate mt-0.5">
+                                {cfg.label}{item.subtipo ? ` • ${item.subtipo}` : ''}{item.municipio ? ` • ${item.municipio}` : ''}
+                              </p>
+                            </div>
+                            <span className="material-symbols-outlined text-[18px] text-stone-300 dark:text-stone-600 shrink-0">
+                              {item.route ? 'arrow_forward' : 'chevron_right'}
                             </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[15px] font-bold text-stone-800 dark:text-stone-100 truncate">{item.nombre}</p>
-                            <p className="text-[12px] font-medium text-stone-400 dark:text-stone-500 truncate mt-0.5">
-                              {item.subtipo}{item.municipio ? ` • ${item.municipio}` : ''}
-                            </p>
-                          </div>
-                          <span className="material-symbols-outlined text-[18px] text-stone-300 dark:text-stone-600 shrink-0">
-                            chevron_right
-                          </span>
-                        </button>
-                        {i < items.length - 1 && <div className="h-[1px] bg-stone-50 dark:bg-stone-800 mx-4" />}
-                      </div>
-                    ))}
+                          </button>
+                          {i < items.length - 1 && <div className="h-[1px] bg-stone-50 dark:bg-stone-800 mx-4" />}
+                        </div>
+                      )
+                    })}
                   </div>
                 </motion.div>
               );
             })}
             
-            {!activeFilter && (
+            {!activeFilter && grouped.evento.length === 0 && grouped.comercio.length === 0 && grouped.profesional.length === 0 && (
               <button onClick={() => submit()}
                 className="w-full py-4 mt-2 rounded-xl border-2 border-dashed border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 font-bold text-sm hover:border-emerald-300 hover:text-emerald-600 transition-colors">
-                Ver todos los resultados
+                Buscar "{query}" en todos lados
               </button>
             )}
           </div>
