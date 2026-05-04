@@ -25,7 +25,7 @@ export default function EventoDetail() {
     const { slug } = useParams();
     const navigate = useNavigate();
     const { token } = useAuth();
-    
+
     const [evento, setEvento] = useState<EventoDetailData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -35,8 +35,18 @@ export default function EventoDetail() {
 
     const handleBack = () => {
         if (navigatingRef.current) return;
+
         navigatingRef.current = true;
-        navigate('/eventos', { replace: true });
+
+        // 🔥 CLAVE: avisamos a la pantalla anterior que venimos de detalle
+        sessionStorage.setItem('coming_from_detail', 'true');
+
+        if (window.history.state && window.history.state.idx > 0) {
+            navigate(-1); // vuelve correctamente a donde vino
+        } else {
+            navigate('/eventos', { replace: true }); // fallback seguro
+        }
+
         setTimeout(() => {
             navigatingRef.current = false;
         }, 400);
@@ -127,8 +137,8 @@ export default function EventoDetail() {
 
             {/* Header Flotante Transparente */}
             <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-gradient-to-b from-black/60 to-transparent">
-                <button 
-                    onClick={handleBack} 
+                <button
+                    onClick={handleBack}
                     className="flex size-10 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/40 transition-colors"
                 >
                     <span className="material-symbols-outlined">arrow_back</span>
@@ -142,9 +152,9 @@ export default function EventoDetail() {
                 {/* Hero Media */}
                 <div className="relative w-full md:aspect-[16/9] aspect-[4/3] bg-stone-900 flex items-center justify-center overflow-hidden">
                     {isVideo ? (
-                        <video 
-                            src={evento.metadata?.original_media_url || evento.imagen_url || ''} 
-                            controls 
+                        <video
+                            src={evento.metadata?.original_media_url || evento.imagen_url || ''}
+                            controls
                             playsInline
                             className="w-full h-full object-contain bg-black"
                             poster={evento.imagen_url || undefined}
@@ -172,8 +182,8 @@ export default function EventoDetail() {
                             </div>
                         </div>
                     ) : (
-                        <img 
-                            src={getImage(evento)} 
+                        <img
+                            src={getImage(evento)}
                             alt={evento.titulo}
                             referrerPolicy="no-referrer"
                             onError={(e) => {
@@ -183,9 +193,9 @@ export default function EventoDetail() {
                             className="w-full h-full object-cover"
                         />
                     )}
-                    
+
                     {!isVideo && !isCarousel && <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-stone-900/40 to-transparent pointer-events-none"></div>}
-                    
+
                     <div className={`absolute bottom-6 left-6 text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-lg flex items-center gap-1.5 z-20 ${getBadgeClass(evento.tipo || 'Social')}`}>
                         {esSocial && <span style={{ fontSize: '12px' }}>📱</span>}
                         {evento.tipo || 'Redes'}
@@ -257,9 +267,9 @@ export default function EventoDetail() {
                                 </h3>
                                 <div className="grid grid-cols-1 gap-3">
                                     {evento.link_externo && (
-                                        <a 
-                                            href={evento.link_externo} 
-                                            target="_blank" 
+                                        <a
+                                            href={evento.link_externo}
+                                            target="_blank"
                                             rel="noreferrer"
                                             className="flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900 font-bold uppercase tracking-widest text-xs hover:scale-[1.02] transition-transform shadow-md"
                                         >
@@ -268,9 +278,9 @@ export default function EventoDetail() {
                                         </a>
                                     )}
                                     {evento.link_whatsapp && (
-                                        <a 
-                                            href={evento.link_whatsapp.startsWith('http') ? evento.link_whatsapp : `https://wa.me/${evento.link_whatsapp.replace(/[^0-9]/g, '')}`} 
-                                            target="_blank" 
+                                        <a
+                                            href={evento.link_whatsapp.startsWith('http') ? evento.link_whatsapp : `https://wa.me/${evento.link_whatsapp.replace(/[^0-9]/g, '')}`}
+                                            target="_blank"
                                             rel="noreferrer"
                                             className="flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-[#25D366] text-white font-bold uppercase tracking-widest text-xs hover:scale-[1.02] transition-transform shadow-md"
                                         >
@@ -279,9 +289,9 @@ export default function EventoDetail() {
                                         </a>
                                     )}
                                     {evento.link_instagram && (
-                                        <a 
-                                            href={evento.link_instagram} 
-                                            target="_blank" 
+                                        <a
+                                            href={evento.link_instagram}
+                                            target="_blank"
                                             rel="noreferrer"
                                             className="flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white font-bold uppercase tracking-widest text-xs hover:scale-[1.02] transition-transform shadow-md"
                                         >
@@ -290,9 +300,9 @@ export default function EventoDetail() {
                                         </a>
                                     )}
                                     {evento.link_facebook && (
-                                        <a 
-                                            href={evento.link_facebook} 
-                                            target="_blank" 
+                                        <a
+                                            href={evento.link_facebook}
+                                            target="_blank"
                                             rel="noreferrer"
                                             className="flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-[#1877F2] text-white font-bold uppercase tracking-widest text-xs hover:scale-[1.02] transition-transform shadow-md"
                                         >
