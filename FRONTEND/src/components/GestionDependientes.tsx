@@ -33,6 +33,10 @@ export default function GestionDependientes() {
             const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/mis-dependientes`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (res.status === 401) {
+                window.dispatchEvent(new Event('auth-unauthorized'));
+                return;
+            }
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail);
             setDependientes(data.dependientes || []);
@@ -64,6 +68,10 @@ export default function GestionDependientes() {
                 },
                 body: JSON.stringify(bodyData)
             });
+            if (res.status === 401) {
+                window.dispatchEvent(new Event('auth-unauthorized'));
+                return;
+            }
             const data = await res.json();
             if (!res.ok) {
                 const errMsg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);

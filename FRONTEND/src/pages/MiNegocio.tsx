@@ -119,6 +119,10 @@ export default function MiNegocio() {
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            if (resp.status === 401) {
+                window.dispatchEvent(new Event('auth-unauthorized'));
+                return;
+            }
             const data = await resp.json();
             setOfertas(data.ofertas || []);
         } catch {

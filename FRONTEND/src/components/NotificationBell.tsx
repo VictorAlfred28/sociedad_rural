@@ -30,6 +30,10 @@ export default function NotificationBell() {
                     Authorization: `Bearer ${token}`
                 }
             });
+            if (res.status === 401) {
+                window.dispatchEvent(new Event('auth-unauthorized'));
+                return;
+            }
             if (res.ok) {
                 const data = await res.json();
                 setNotifications(data.notificaciones);
