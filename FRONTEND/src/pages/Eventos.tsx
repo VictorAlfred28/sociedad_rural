@@ -394,12 +394,13 @@ export default function Eventos() {
                       <div className="mt-4 flex flex-col gap-2">
                         {/* Ubicación — null-safe */}
                         {lugarDisplay ? (
-                          <a
-                            href={`https://maps.google.com/?q=${encodeURIComponent(lugarDisplay)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-stone-700 dark:text-stone-300 text-[11px] font-bold hover:text-emerald-700 transition-colors"
-                          >
+                            <a
+                              href={`https://maps.google.com/?q=${encodeURIComponent(lugarDisplay)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-2 text-stone-700 dark:text-stone-300 text-[11px] font-bold hover:text-emerald-700 transition-colors"
+                            >
                             <div className="size-7 rounded-full bg-emerald-700/10 text-emerald-700 flex items-center justify-center">
                               <span className="material-symbols-outlined text-[16px]">location_on</span>
                             </div>
@@ -436,22 +437,22 @@ export default function Eventos() {
                       {(ev.link_instagram || ev.link_facebook || ev.link_whatsapp || ev.link_externo) && (
                         <div className="mt-4 pt-4 border-t border-stone-200/50 dark:border-stone-700/50 flex flex-wrap gap-2">
                           {ev.link_instagram && (
-                            <a href={ev.link_instagram} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
+                            <a href={ev.link_instagram} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
                               <span className="material-symbols-outlined text-[14px]">photo_camera</span> IG
                             </a>
                           )}
                           {ev.link_facebook && (
-                            <a href={ev.link_facebook} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1877F2] text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
+                            <a href={ev.link_facebook} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1877F2] text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
                               <span className="material-symbols-outlined text-[14px]">thumb_up</span> FB
                             </a>
                           )}
                           {ev.link_whatsapp && (
-                            <a href={ev.link_whatsapp.startsWith('http') ? ev.link_whatsapp : `https://wa.me/${ev.link_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#25D366] text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
+                            <a href={ev.link_whatsapp.startsWith('http') ? ev.link_whatsapp : `https://wa.me/${ev.link_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#25D366] text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
                               <span className="material-symbols-outlined text-[14px]">chat</span> WhatsApp
                             </a>
                           )}
                           {ev.link_externo && (
-                            <a href={ev.link_externo} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-800 dark:bg-stone-200 text-white dark:text-stone-900 text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
+                            <a href={ev.link_externo} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-800 dark:bg-stone-200 text-white dark:text-stone-900 text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
                               <span className="material-symbols-outlined text-[14px]">link</span> Entradas
                             </a>
                           )}

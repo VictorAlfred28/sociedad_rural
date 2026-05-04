@@ -31,12 +31,15 @@ export default function EventoDetail() {
     const [error, setError] = useState('');
     const [currentSlide, setCurrentSlide] = useState(0);
 
+    const navigatingRef = React.useRef(false);
+
     const handleBack = () => {
-        if (window.history.state && window.history.state.idx > 0) {
-            navigate(-1);
-        } else {
-            navigate('/eventos', { replace: true });
-        }
+        if (navigatingRef.current) return;
+        navigatingRef.current = true;
+        navigate('/eventos', { replace: true });
+        setTimeout(() => {
+            navigatingRef.current = false;
+        }, 400);
     };
 
     useEffect(() => {

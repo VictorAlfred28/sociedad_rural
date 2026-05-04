@@ -181,6 +181,8 @@ export const CapacitorUI = () => {
             if (canGoBack) {
                 if (location.pathname === '/home' || location.pathname === '/login') {
                     CapacitorApp.exitApp();
+                } else if (location.pathname.startsWith('/eventos/')) {
+                    navigate('/eventos', { replace: true });
                 } else {
                     navigate(-1);
                 }

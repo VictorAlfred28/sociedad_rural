@@ -46,6 +46,7 @@ export default function Buscador() {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigatingRef = useRef(false);
 
   const [query,   setQuery]   = useState('');
   const [dbQuery, setDbQuery] = useState('');
@@ -145,6 +146,9 @@ export default function Buscador() {
 
   /* actions */
   const select = (item: Item) => {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+
     pushHist(item.nombre);
     setHist(getHist());
     if (item.tipo === 'evento')
@@ -153,14 +157,21 @@ export default function Buscador() {
       navigate(`/eventos?municipio=${encodeURIComponent(item.nombre)}`);
     else
       navigate('/promociones');
+
+    setTimeout(() => navigatingRef.current = false, 400);
   };
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!query.trim()) return;
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+
     pushHist(query.trim());
     setHist(getHist());
     navigate(`/eventos?q=${encodeURIComponent(query.trim())}`);
+
+    setTimeout(() => navigatingRef.current = false, 400);
   };
 
   const clear = () => { setQuery(''); setDbQuery(''); inputRef.current?.focus(); };
