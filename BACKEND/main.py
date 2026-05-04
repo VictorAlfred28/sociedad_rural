@@ -5863,6 +5863,137 @@ def unregister_push_token(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# RUTAS PARA OFERTAS / PROMOCIONES (PANEL COMERCIO)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class OfertaCreate(BaseModel):
+    titulo: str
+    descripcion: Optional[str] = None
+    tipo: str
+    descuento_porcentaje: Optional[int] = None
+    fecha_fin: Optional[str] = None
+    imagen_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+
+class OfertaUpdateActivo(BaseModel):
+    activo: bool
+
+@app.get("/api/ofertas")
+def get_ofertas(request: Request):
+    authorization = request.headers.get("Authorization")
+    user_id = _get_user_from_bearer(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado.")
+
+    try:
+        res = supabase.table("promociones").select("*").eq("comercio_id", user_id).order("created_at", desc=True).execute()
+        return {"ofertas": res.data or []}
+    except Exception as e:
+        logger.error(f"[OFERTAS] Error al obtener ofertas: {e}")
+        raise HTTPException(status_code=500, detail="Error al cargar las ofertas.")
+
+@app.post("/api/ofertas")
+def create_oferta(oferta: OfertaCreate, request: Request):
+    authorization = request.headers.get("Authorization")
+    user_id = _get_user_from_bearer(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado.")
+
+    # Verificar que el usuario sea un comercio
+    comercio_check = supabase.table("comercios").select("id").eq("id", user_id).execute()
+    if not comercio_check.data:
+        raise HTTPException(status_code=403, detail="Solo los comercios pueden crear ofertas.")
+
+    try:
+        data_insert = {
+            "comercio_id": user_id,
+            "titulo": oferta.titulo,
+            "descripcion": oferta.descripcion,
+            "tipo": oferta.tipo,
+            "descuento_porcentaje": oferta.descuento_porcentaje,
+            "fecha_fin": oferta.fecha_fin,
+            "imagen_url": oferta.imagen_url,
+            "instagram_url": oferta.instagram_url,
+            "facebook_url": oferta.facebook_url,
+            "activo": True
+        }
+        res = supabase.table("promociones").insert(data_insert).execute()
+        return res.data[0]
+    except Exception as e:
+        logger.error(f"[OFERTAS] Error al crear oferta: {e}")
+        raise HTTPException(status_code=500, detail="Error al crear la oferta.")
+
+@app.patch("/api/ofertas/{oferta_id}")
+def update_oferta_status(oferta_id: str, update_data: OfertaUpdateActivo, request: Request):
+    authorization = request.headers.get("Authorization")
+    user_id = _get_user_from_bearer(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado.")
+
+    try:
+        # Verificar que la oferta pertenezca al comercio
+        check = supabase.table("promociones").select("comercio_id").eq("id", oferta_id).execute()
+        if not check.data or check.data[0]["comercio_id"] != user_id:
+            raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta oferta.")
+
+        res = supabase.table("promociones").update({"activo": update_data.activo}).eq("id", oferta_id).execute()
+        return res.data[0]
+    except Exception as e:
+        logger.error(f"[OFERTAS] Error al actualizar oferta: {e}")
+        raise HTTPException(status_code=500, detail="Error al actualizar la oferta.")
+
+@app.delete("/api/ofertas/{oferta_id}")
+def delete_oferta(oferta_id: str, request: Request):
+    authorization = request.headers.get("Authorization")
+    user_id = _get_user_from_bearer(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado.")
+
+    try:
+        check = supabase.table("promociones").select("comercio_id").eq("id", oferta_id).execute()
+        if not check.data or check.data[0]["comercio_id"] != user_id:
+            raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta oferta.")
+
+        supabase.table("promociones").delete().eq("id", oferta_id).execute()
+        return {"message": "Oferta eliminada correctamente."}
+    except Exception as e:
+        logger.error(f"[OFERTAS] Error al eliminar oferta: {e}")
+        raise HTTPException(status_code=500, detail="Error al eliminar la oferta.")
+
+@app.post("/api/ofertas/foto")
+def upload_oferta_foto(file: UploadFile = File(...), request: Request = None):
+    authorization = request.headers.get("Authorization") if request else None
+    user_id = _get_user_from_bearer(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado.")
+
+    try:
+        bucket_name = "promociones"
+        try:
+            supabase.storage.create_bucket(bucket_name, public=True)
+        except Exception:
+            pass
+
+        file_ext = file.filename.split(".")[-1]
+        file_name = f"{user_id}_{uuid.uuid4().hex[:8]}.{file_ext}"
+
+        file_bytes = file.file.read()
+
+        res = supabase.storage.from_(bucket_name).upload(
+            file=file_bytes,
+            path=file_name,
+            file_options={"content-type": file.content_type}
+        )
+
+        public_url = supabase.storage.from_(bucket_name).get_public_url(file_name)
+        return {"imagen_url": public_url}
+    except Exception as e:
+        logger.error(f"[OFERTAS] Error al subir foto: {e}")
+        raise HTTPException(status_code=500, detail="Error al subir la imagen.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import uvicorn
