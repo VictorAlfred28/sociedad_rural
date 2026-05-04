@@ -24,7 +24,6 @@ export default function Eventos() {
   const [municipiosList, setMunicipiosList] = useState<{id: string, nombre: string}[]>([]);
   const [fetchTrigger, setFetchTrigger] = useState(0);
   const autoRetried = useRef(false);
-  const isNavigatingBackRef = useRef(false);
   const firstLoadRef = useRef(true);
   const navigatingRef = useRef(false);
 
@@ -68,19 +67,6 @@ export default function Eventos() {
     }
   };
 
-  // Detect back navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      isNavigatingBackRef.current = true;
-      setTimeout(() => {
-        isNavigatingBackRef.current = false;
-      }, 300);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
   useEffect(() => {
     const fetchEventos = async () => {
       try {
@@ -91,8 +77,11 @@ export default function Eventos() {
         const res = await fetch(url);
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Error al obtener eventos');
-        setEventos(data.eventos || []);
-        cachedEventos = data.eventos || [];
+        
+        if (JSON.stringify(data.eventos || []) !== JSON.stringify(cachedEventos || [])) {
+          setEventos(data.eventos || []);
+          cachedEventos = data.eventos || [];
+        }
         autoRetried.current = false;
         setIsAutoRetrying(false);
       } catch (err: any) {
@@ -119,9 +108,7 @@ export default function Eventos() {
       return;
     }
 
-    if (!isNavigatingBackRef.current) {
-      fetchEventos();
-    }
+    fetchEventos();
   }, [filtroMunicipio, fetchTrigger]);
 
   const handleRetry = () => {
@@ -136,15 +123,15 @@ export default function Eventos() {
     const handleScroll = () => {
       sessionStorage.setItem('eventos_scroll_pos', window.scrollY.toString());
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
     
-    if (isNavigatingBackRef.current && eventos.length > 0) {
+    if (eventos.length > 0) {
       const pos = sessionStorage.getItem('eventos_scroll_pos');
       if (pos) {
-        window.scrollTo(0, parseInt(pos, 10));
+        setTimeout(() => window.scrollTo(0, parseInt(pos, 10)), 0);
       }
     }
     
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [eventos.length]);
 

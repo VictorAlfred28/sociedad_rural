@@ -31,6 +31,14 @@ export default function EventoDetail() {
     const [error, setError] = useState('');
     const [currentSlide, setCurrentSlide] = useState(0);
 
+    const handleBack = () => {
+        if (window.history.state && window.history.state.idx > 0) {
+            navigate(-1);
+        } else {
+            navigate('/eventos', { replace: true });
+        }
+    };
+
     useEffect(() => {
         const fetchEvento = async () => {
             try {
@@ -79,7 +87,7 @@ export default function EventoDetail() {
         return (
             <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-stone-900 max-w-md mx-auto shadow-2xl">
                 <header className="flex items-center p-4">
-                    <button onClick={() => navigate('/eventos')} className="text-stone-800 dark:text-stone-100 flex size-10 items-center justify-center rounded-full hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors">
+                    <button onClick={handleBack} className="text-stone-800 dark:text-stone-100 flex size-10 items-center justify-center rounded-full hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors">
                         <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                 </header>
@@ -100,10 +108,6 @@ export default function EventoDetail() {
     // Manejo de Carousel y Video para Instagram
     const isVideo = evento.metadata?.media_type === 'VIDEO';
     const isCarousel = evento.metadata?.media_type === 'CAROUSEL_ALBUM' && evento.metadata?.children?.data?.length > 0;
-
-    const handleBack = () => {
-        navigate('/eventos', { replace: true });
-    };
 
     return (
         <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 md:max-w-3xl md:border-x md:border-stone-200 dark:md:border-stone-800 mx-auto shadow-2xl overflow-x-hidden">
