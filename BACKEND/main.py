@@ -4018,6 +4018,28 @@ def mark_notifications_read(current_user=Depends(get_current_user)):
         )
 
 
+@app.put("/api/notificaciones/{notif_id}/leer")
+def mark_notification_read(notif_id: str, current_user=Depends(get_current_user)):
+    try:
+        supabase.table("notificaciones").update({"leido": True}).eq(
+            "id", notif_id
+        ).eq("usuario_id", current_user.id).execute()
+        return {"message": "OK"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/notificaciones/{notif_id}")
+def delete_notification(notif_id: str, current_user=Depends(get_current_user)):
+    try:
+        supabase.table("notificaciones").delete().eq(
+            "id", notif_id
+        ).eq("usuario_id", current_user.id).execute()
+        return {"message": "OK"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 class PreferenciaSonidoRequest(BaseModel):
     sonido_habilitado: bool
 
