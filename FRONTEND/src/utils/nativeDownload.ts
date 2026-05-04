@@ -26,19 +26,22 @@ export const handleNativeDownload = async (blob: Blob, filename: string): Promis
         reader.readAsDataURL(blob);
       });
 
-      // 2. Guardar en el directorio de Documentos del teléfono
+      // Asegurarse de que el nombre sea único para evitar problemas de caché o permisos
+      const uniqueFilename = `${new Date().getTime()}_${filename}`;
+
+      // 2. Guardar en el directorio de Cache del teléfono (no requiere permisos extra de almacenamiento en Android 10+)
       const savedFile = await Filesystem.writeFile({
-        path: filename,
+        path: uniqueFilename,
         data: base64Data,
-        directory: Directory.Documents,
+        directory: Directory.Cache,
       });
 
-      // 3. Abrir el diálogo nativo para compartir/abrir el archivo con apps instaladas (visores PDF)
+      // 3. Abrir el diálogo nativo para compartir/abrir el archivo con apps instaladas (visores PDF/Excel)
       await Share.share({
         title: filename,
-        text: `Aquí tienes tu documento: ${filename}`,
+        text: `Aquí tienes el reporte: ${filename}`,
         url: savedFile.uri,
-        dialogTitle: 'Abrir o Guardar archivo'
+        dialogTitle: 'Exportar Reporte'
       });
       
       return true;

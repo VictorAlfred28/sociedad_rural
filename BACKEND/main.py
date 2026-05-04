@@ -1227,7 +1227,7 @@ async def get_current_admin_optional(request: Request):
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
-        user_res = supabase.auth.get_user(token)
+        user_res = supabase_anon.auth.get_user(token)
         if not user_res or not user_res.user:
             raise HTTPException(status_code=401, detail="Token inválido")
         return user_res.user
@@ -1248,7 +1248,7 @@ def get_current_admin_or_camara(
 ):
     token = credentials.credentials
     try:
-        user_res = supabase.auth.get_user(token)
+        user_res = supabase_anon.auth.get_user(token)
         if not user_res or not user_res.user:
             raise HTTPException(status_code=401, detail="Token inválido")
 
@@ -3767,7 +3767,7 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request, backg
                     usuario_id=u["id"],
                     titulo="Nuevo evento disponible",
                     mensaje=payload.titulo,
-                    link_url=f"/agenda",
+                    link_url=f"/eventos/{payload.external_id}",
                     evento_id=evento_id
                 )
 
