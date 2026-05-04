@@ -257,7 +257,9 @@ export default function Cuotas() {
                       </div>
                       <div className="flex flex-1 flex-col">
                         <p className="text-[11px] font-black text-stone-800 dark:text-white uppercase tracking-tight font-display italic">{mesNombre}</p>
-                        <p className="text-xs font-black text-stone-900 dark:text-white mt-0.5">${pago.monto.toLocaleString('es-AR')}</p>
+                        <p className="text-xs font-black text-stone-900 dark:text-white mt-0.5">
+                          ${(pago.estado_pago === 'PENDIENTE' || pago.estado_pago === 'VENCIDO') && montoAPagar !== null ? montoAPagar.toLocaleString('es-AR') : pago.monto.toLocaleString('es-AR')}
+                        </p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <span className={`rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-widest ${
@@ -284,8 +286,8 @@ export default function Cuotas() {
 
       {/* Modal de Subida */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm max-h-[90vh] bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl overflow-y-auto animate-in fade-in zoom-in duration-200">
             <form onSubmit={handleUpload}>
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
