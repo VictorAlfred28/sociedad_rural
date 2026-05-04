@@ -143,8 +143,9 @@ export default function Login() {
           )}
 
           {errorMsg && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm font-medium">
-              {errorMsg}
+            <div className="mb-6 p-4 bg-red-50/80 border border-red-200 text-red-700 rounded-lg text-sm font-medium flex items-start gap-3 shadow-sm">
+              <span className="material-symbols-outlined text-red-500 shrink-0 mt-0.5">error</span>
+              <span>{errorMsg}</span>
             </div>
           )}
 

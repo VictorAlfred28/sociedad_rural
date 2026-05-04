@@ -548,6 +548,12 @@ def register(
         if rol_asignado not in ("SOCIO", "COMERCIO"):
             rol_asignado = "SOCIO"
 
+        if rol_asignado == "SOCIO" and socio.isStudent and not socio.studentCertificate:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Para completar el registro como estudiante, es obligatorio adjuntar la constancia de alumno regular vigente."
+            )
+
         # 3.B: Crear usuario en Supabase Auth
         user_password = socio.password if socio.password else "socio1234"
         default_passwords_list = ["comercio1234", "socio1234", "socio123"]
@@ -689,13 +695,13 @@ def register(
             "user already registered" in err_msg
             or ("already exists" in err_msg and "email" in err_msg)
         ):
-            friendly_detail = "El correo electrónico ya está registrado."
+            friendly_detail = "Este correo electrónico ya se encuentra registrado. Podés iniciar sesión o recuperar tu contraseña."
 
         elif "duplicate key value" in err_msg and "dni" in err_msg:
-            friendly_detail = "El DNI/CUIT ya está registrado."
+            friendly_detail = "El documento ingresado ya está asociado a un socio existente."
 
         elif "duplicate key value" in err_msg:
-            friendly_detail = "Datos duplicados en el sistema."
+            friendly_detail = "Ya existe una cuenta con estos datos. Si olvidaste tu acceso, podés recuperarlo fácilmente."
 
         else:
             friendly_detail = "Error al procesar el registro."
@@ -791,17 +797,11 @@ def register_comercio(
             "user already registered" in err_msg
             or ("already exists" in err_msg and "email" in err_msg)
         ):
-            friendly_detail = (
-                "El correo electrónico indicado ya se encuentra registrado."
-            )
+            friendly_detail = "Este correo electrónico ya se encuentra registrado. Podés iniciar sesión o recuperar tu contraseña."
         elif "duplicate key value" in err_msg and "cuit" in err_msg:
-            friendly_detail = (
-                "El CUIT ingresado ya se encuentra registrado en el sistema."
-            )
+            friendly_detail = "El documento ingresado ya está asociado a un socio existente."
         elif "duplicate key value" in err_msg:
-            friendly_detail = (
-                "Algunos de los datos brindados ya se encuentran registrados."
-            )
+            friendly_detail = "Ya existe una cuenta con estos datos. Si olvidaste tu acceso, podés recuperarlo fácilmente."
         else:
             friendly_detail = "Error al procesar el registro del comercio."
 
@@ -983,7 +983,7 @@ def login(
         if "Invalid login credentials" in str(e):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credenciales inválidas (Usuario o clave incorrecta)",
+                detail="Los datos ingresados no coinciden con nuestros registros. Verificá la información e intentá nuevamente.",
             )
 
         if isinstance(e, HTTPException):

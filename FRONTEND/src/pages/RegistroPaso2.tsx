@@ -55,6 +55,12 @@ export default function RegistroPaso2() {
       password: paso1Data.password,
     };
 
+    if (userRole === 'SOCIO' && esEstudiante && !studentCertificate) {
+      setErrorMsg('Para completar el registro como estudiante, es obligatorio adjuntar la constancia de alumno regular vigente.');
+      setLoading(false);
+      return;
+    }
+
     if (userRole === 'SOCIO') {
       payload.municipio = formData.municipio;
       payload.provincia = formData.provincia;
@@ -116,10 +122,11 @@ export default function RegistroPaso2() {
 
       if (!resp.ok) {
         console.log("BACKEND ERROR:", data);
-        const errorMsg = Array.isArray(data.detail) 
+        let errorMsgFromBackend = Array.isArray(data.detail) 
             ? data.detail.map((e: any) => `${e.loc[e.loc.length - 1]}: ${e.msg}`).join(', ') 
             : data.detail;
-        throw new Error(errorMsg || 'Error al completar el registro');
+            
+        throw new Error(errorMsgFromBackend || 'Error al completar el registro');
       }
 
       // Limpiar cualquier sesión previa (ej: Admin registrando socio) para evitar confusión de roles
@@ -202,8 +209,11 @@ export default function RegistroPaso2() {
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm font-medium">
-            {errorMsg}
+          <div className="mb-5 p-4 bg-red-50/80 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl text-sm font-semibold flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <span className="material-symbols-outlined text-red-500 shrink-0 mt-0.5">error</span>
+            <div className="flex flex-col">
+              <span>{errorMsg}</span>
+            </div>
           </div>
         )}
 
@@ -333,7 +343,7 @@ export default function RegistroPaso2() {
                     </label>
                     <div
                       onClick={() => document.getElementById('studentCertInput')?.click()}
-                      className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer ${studentCertificate ? 'border-primary bg-primary/5' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'}`}
+                      className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer ${studentCertificate ? 'border-primary bg-primary/5' : errorMsg.includes('constancia') ? 'border-red-400 bg-red-50 dark:bg-red-900/10 shadow-[0_0_15px_rgba(248,113,113,0.2)]' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'}`}
                     >
                       {studentCertificate ? (
                         <>
