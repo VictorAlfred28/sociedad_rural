@@ -535,7 +535,7 @@ export default function MiNegocio() {
 
                 {/* Modal de nueva oferta */}
                 {showForm && (
-                    <div className="fixed inset-0 bg-black/60 z-50 flex items-end">
+                    <div className="fixed inset-0 bg-black/60 z-[100] flex items-end">
                         <div className="w-full bg-white dark:bg-slate-900 rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto">
                             <div className="flex items-center justify-between mb-5">
                                 <h2 className="text-lg font-bold">Nueva Oferta</h2>
@@ -950,7 +950,7 @@ export default function MiNegocio() {
                 </div>
             )}
 
-            <BottomNav />
+            {!(showForm || showScanner) && <BottomNav />}
             </div>
         </div>
     );
