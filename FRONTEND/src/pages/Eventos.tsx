@@ -133,21 +133,22 @@ export default function Eventos() {
   };
 
   // Scroll restoration
+  React.useLayoutEffect(() => {
+    if (eventos.length > 0) {
+      const pos = sessionStorage.getItem('eventos_scroll_pos');
+      if (pos) {
+        window.scrollTo(0, parseInt(pos, 10));
+      }
+    }
+  }, [eventos.length]);
+
   useEffect(() => {
     const handleScroll = () => {
       sessionStorage.setItem('eventos_scroll_pos', window.scrollY.toString());
     };
-
-    if (eventos.length > 0) {
-      const pos = sessionStorage.getItem('eventos_scroll_pos');
-      if (pos) {
-        setTimeout(() => window.scrollTo(0, parseInt(pos, 10)), 0);
-      }
-    }
-
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [eventos.length]);
+  }, []);
 
   const now = new Date();
 

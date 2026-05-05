@@ -38,14 +38,8 @@ export default function EventoDetail() {
 
         navigatingRef.current = true;
 
-        // 🔥 CLAVE: avisamos a la pantalla anterior que venimos de detalle
-        sessionStorage.setItem('coming_from_detail', 'true');
-
-        if (window.history.state && window.history.state.idx > 0) {
-            navigate(-1); // vuelve correctamente a donde vino
-        } else {
-            navigate('/eventos', { replace: true }); // fallback seguro
-        }
+        // 🔥 Navegación determinística explícita a Eventos, ignorando historial previo y reemplazando para evitar loops
+        navigate('/eventos', { replace: true });
 
         setTimeout(() => {
             navigatingRef.current = false;
@@ -69,7 +63,8 @@ export default function EventoDetail() {
             }
         };
         if (slug) fetchEvento();
-    }, [slug, token]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [slug]);
 
     const getImage = (ev: EventoDetailData) => {
         if (ev.imagen_url) return ev.imagen_url;
