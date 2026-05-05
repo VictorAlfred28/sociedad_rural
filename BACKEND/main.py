@@ -923,7 +923,7 @@ def login(
             "SRNC2026!",
             "Familia1234"
         ]
-        if password in default_passwords or profile.get("password_changed") is False or profile.get("must_change_password") is True:
+        if password in default_passwords or profile.get("must_change_password") is True:
             necesita_cambio_password = True
 
         # Auditoría de Login para Administradores
