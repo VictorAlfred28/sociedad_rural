@@ -15,7 +15,8 @@ interface Oferta {
     titulo: string;
     descripcion: string;
     tipo: TipoOferta;
-    descuento_porcentaje: number | null;
+    valor_descuento: number | null;  // campo canónico
+    tipo_descuento: string | null;   // 'porcentaje' | 'fijo'
     imagen_url: string | null;
     instagram_url: string | null;
     facebook_url: string | null;
@@ -28,7 +29,8 @@ interface OfertaForm {
     titulo: string;
     descripcion: string;
     tipo: TipoOferta;
-    descuento_porcentaje: string;
+    valor_descuento: string;  // input del usuario — campo canónico
+    tipo_descuento: string;   // 'porcentaje' | 'fijo'
     fecha_fin: string;
     imagen_url: string;
     instagram_url: string;
@@ -89,7 +91,8 @@ export default function MiNegocio() {
         titulo: '',
         descripcion: '',
         tipo: 'promocion',
-        descuento_porcentaje: '',
+        valor_descuento: '',
+        tipo_descuento: 'porcentaje',
         fecha_fin: '',
         imagen_url: '',
         instagram_url: '',
@@ -185,7 +188,9 @@ export default function MiNegocio() {
                     titulo: form.titulo,
                     descripcion: form.descripcion,
                     tipo: form.tipo,
-                    descuento_porcentaje: form.descuento_porcentaje ? parseInt(form.descuento_porcentaje) : null,
+                    // F3: Campo canónico
+                    valor_descuento: form.valor_descuento ? parseFloat(form.valor_descuento) : null,
+                    tipo_descuento: form.tipo_descuento || 'porcentaje',
                     fecha_fin: form.fecha_fin || null,
                     imagen_url: imagen_url || null,
                     instagram_url: form.instagram_url || null,
@@ -198,7 +203,7 @@ export default function MiNegocio() {
                 throw new Error(data.detail || 'Error al crear oferta');
             }
             setShowForm(false);
-            setForm({ titulo: '', descripcion: '', tipo: 'promocion', descuento_porcentaje: '', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
+            setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
             setSelectedFile(null);
             await fetchOfertas();
         } catch (err: any) {
@@ -588,21 +593,35 @@ export default function MiNegocio() {
                                     />
                                 </div>
 
-                                {/* Descuento % — solo para descuento */}
+                                {/* Descuento — solo para tipo 'descuento' */}
                                 {form.tipo === 'descuento' && (
                                     <div>
-                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Porcentaje de descuento</label>
-                                        <div className="relative">
-                                            <input
-                                                className={inputClass + ' pr-10'}
-                                                type="number"
-                                                min="1"
-                                                max="100"
-                                                placeholder="Ej: 20"
-                                                value={form.descuento_porcentaje}
-                                                onChange={e => setForm({ ...form, descuento_porcentaje: e.target.value })}
-                                            />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Valor de descuento</label>
+                                        <div className="flex gap-2">
+                                            {/* Selector tipo */}
+                                            <select
+                                                className="rounded-xl text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 h-12 px-3 text-sm font-semibold shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                value={form.tipo_descuento}
+                                                onChange={e => setForm({ ...form, tipo_descuento: e.target.value })}
+                                            >
+                                                <option value="porcentaje">%</option>
+                                                <option value="fijo">$ fijo</option>
+                                            </select>
+                                            {/* Input valor */}
+                                            <div className="relative flex-1">
+                                                <input
+                                                    className={inputClass + ' pr-10'}
+                                                    type="number"
+                                                    min="0.01"
+                                                    step="0.01"
+                                                    placeholder={form.tipo_descuento === 'fijo' ? 'Ej: 500' : 'Ej: 20'}
+                                                    value={form.valor_descuento}
+                                                    onChange={e => setForm({ ...form, valor_descuento: e.target.value })}
+                                                />
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
+                                                    {form.tipo_descuento === 'fijo' ? '$' : '%'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -753,11 +772,13 @@ export default function MiNegocio() {
                                                     <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${cfg.badge}`}>
                                                         {cfg.label}
                                                     </span>
-                                                    {oferta.descuento_porcentaje && (
+                                                    {/* F3: Display con campo canónico */}
+                                                    {oferta.valor_descuento ? (
                                                         <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-                                                            -{oferta.descuento_porcentaje}%
+                                                            -{oferta.valor_descuento}
+                                                            {oferta.tipo_descuento === 'fijo' ? ' $' : '%'}
                                                         </span>
-                                                    )}
+                                                    ) : null}
                                                     {!oferta.activo && (
                                                         <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-300 text-slate-600">
                                                             Pausada

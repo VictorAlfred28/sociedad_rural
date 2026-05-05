@@ -6,7 +6,8 @@ interface Oferta {
     titulo: string;
     descripcion: string;
     tipo: 'promocion' | 'descuento' | 'beneficio';
-    descuento_porcentaje: number | null;
+    valor_descuento: number | null;   // campo canónico
+    tipo_descuento: string | null;    // 'porcentaje' | 'fijo'
     fecha_fin: string | null;
     imagen_url: string | null;
     comercio?: { nombre_apellido: string; rubro: string; municipio: string };
@@ -38,8 +39,10 @@ const DEFAULT_ITEMS = [
         titulo: 'Beneficios Exclusivos',
         descripcion: 'Descuentos especiales para socios en toda la provincia.',
         tipo: 'promocion' as const,
-        descuento_porcentaje: null,
+        valor_descuento: null,
+        tipo_descuento: null,
         imagen_url: null,
+        fecha_fin: null,
         comercio: { nombre_apellido: 'Sociedad Rural', rubro: 'Asociación', municipio: 'Provincia' }
     }
 ];
@@ -102,11 +105,13 @@ export default function FeaturedCarousel({ promociones, onViewPromotion }: Featu
                                 <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-white/10 text-white px-2.5 py-1 rounded-full backdrop-blur-md border border-white/20 shadow-sm">
                                     {current.comercio?.nombre_apellido || 'S.R.N.C'}
                                 </span>
-                                {current.descuento_porcentaje && (
+                                {/* F3: Badge de descuento — campo canónico */}
+                                {current.valor_descuento ? (
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-primary text-slate-900 px-2.5 py-1 rounded-full shadow-[0_0_15px_rgba(255,200,0,0.6)]">
-                                        -{current.descuento_porcentaje}%
+                                        -{current.valor_descuento}
+                                        {current.tipo_descuento === 'fijo' ? ' $' : '%'}
                                     </span>
-                                )}
+                                ) : null}
                             </div>
                             <h3 className="text-xl font-black tracking-tight leading-tight mb-1.5 uppercase italic truncate text-white drop-shadow-md">
                                 {current.titulo}

@@ -42,3 +42,8 @@ proyecto-produccion.zip
 .DS_Store
 Thumbs.db
 
+
+# Configuración de firma Android
+keystore.properties
+*.jks
+

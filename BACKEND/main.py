@@ -2681,7 +2681,8 @@ class OfertaRequest(BaseModel):
     titulo: str
     descripcion: Optional[str] = None
     tipo: str  # 'promocion' | 'descuento' | 'beneficio'
-    descuento_porcentaje: Optional[int] = None
+    valor_descuento: Optional[float] = None
+    tipo_descuento: Optional[str] = None
     imagen_url: Optional[str] = None
     fecha_fin: Optional[str] = None
     instagram_url: Optional[str] = None
@@ -2711,7 +2712,7 @@ def get_ofertas_publicas(municipio: Optional[str] = None):
         query = (
             supabase.table("promociones")
             .select(
-                "id, titulo, descripcion, tipo, descuento_porcentaje, "
+                "id, titulo, descripcion, tipo, "
                 "valor_descuento, tipo_descuento, imagen_url, "
                 "instagram_url, facebook_url, fecha_inicio, fecha_fin, "
                 "activo, es_exclusiva_profesionales, created_at, "
@@ -5892,7 +5893,8 @@ class OfertaCreate(BaseModel):
     titulo: str
     descripcion: Optional[str] = None
     tipo: str
-    descuento_porcentaje: Optional[int] = None
+    valor_descuento: Optional[float] = None  # campo canónico
+    tipo_descuento: Optional[str] = None     # 'porcentaje' | 'fijo'
     fecha_fin: Optional[str] = None
     imagen_url: Optional[str] = None
     instagram_url: Optional[str] = None
@@ -5923,7 +5925,8 @@ def create_oferta(oferta: OfertaCreate, request: Request, background_tasks: Back
         raise HTTPException(status_code=401, detail="No autorizado.")
 
     # Verificar que el usuario sea un comercio
-    comercio_check = supabase.table("comercios").select("id, nombre_fantasia").eq("id", user_id).execute()
+    # F0: Corregido de nombre_fantasia → nombre_comercio (columna real)
+    comercio_check = supabase.table("comercios").select("id, nombre_comercio").eq("id", user_id).execute()
     if not comercio_check.data:
         raise HTTPException(status_code=403, detail="Solo los comercios pueden crear ofertas.")
 
@@ -5933,7 +5936,8 @@ def create_oferta(oferta: OfertaCreate, request: Request, background_tasks: Back
             "titulo": oferta.titulo,
             "descripcion": oferta.descripcion,
             "tipo": oferta.tipo,
-            "descuento_porcentaje": oferta.descuento_porcentaje,
+            "valor_descuento": oferta.valor_descuento or 0.0,
+            "tipo_descuento": oferta.tipo_descuento or "porcentaje",
             "fecha_fin": oferta.fecha_fin,
             "imagen_url": oferta.imagen_url,
             "instagram_url": oferta.instagram_url,
@@ -5943,7 +5947,8 @@ def create_oferta(oferta: OfertaCreate, request: Request, background_tasks: Back
         res = supabase.table("promociones").insert(data_insert).execute()
         
         # Enviar notificación push a todos los socios aprobados en segundo plano
-        nombre_comercio = comercio_check.data[0].get("nombre_fantasia", "Un comercio")
+        # F0: Corregido de nombre_fantasia → nombre_comercio
+        nombre_comercio = comercio_check.data[0].get("nombre_comercio", "Un comercio")
         background_tasks.add_task(
             enviar_push_segmentado,
             titulo=f"¡Nueva oferta en {nombre_comercio}!",

@@ -12,7 +12,8 @@ interface Oferta {
   titulo: string;
   descripcion: string;
   tipo: 'promocion' | 'descuento' | 'beneficio';
-  descuento_porcentaje: number | null;
+  valor_descuento: number | null;   // campo canónico
+  tipo_descuento: string | null;    // 'porcentaje' | 'fijo'
   fecha_fin: string | null;
   imagen_url: string | null;
   instagram_url: string | null;
@@ -204,11 +205,12 @@ export default function Promociones() {
     }
 
     // 2. Ordenar por fecha y luego descuento
+    // F3: Ordenar por fecha y valor_descuento (campo canónico)
     return [...filtradas].sort((a, b) => {
       const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
       if (dateB !== dateA) return dateB - dateA;
-      return (b.descuento_porcentaje || 0) - (a.descuento_porcentaje || 0);
+      return (b.valor_descuento ?? 0) - (a.valor_descuento ?? 0);
     }).slice(0, 5); // Tomar las mejores 5
   }, [ofertas, user?.municipio]);
 
@@ -636,8 +638,12 @@ export default function Promociones() {
                               <img src={oferta.imagen_url} alt={oferta.titulo} className="w-full h-full object-cover rounded-xl" />
                             ) : (
                               <div className={`w-full h-full rounded-xl flex flex-col items-center justify-center text-white ${tab === 'ofertas' ? 'bg-[#995c27]' : 'bg-[#245b31]'}`}>
-                                {oferta.descuento_porcentaje ? (
-                                  <span className="text-xl font-black">-{oferta.descuento_porcentaje}%</span>
+                                {/* F3: Campo canónico — solo valor_descuento */}
+                                {oferta.valor_descuento ? (
+                                  <span className="text-xl font-black">
+                                    -{oferta.valor_descuento}
+                                    {oferta.tipo_descuento === 'fijo' ? ' $' : '%'}
+                                  </span>
                                 ) : (
                                   <span className="material-symbols-outlined text-3xl">{cfg.icon}</span>
                                 )}
