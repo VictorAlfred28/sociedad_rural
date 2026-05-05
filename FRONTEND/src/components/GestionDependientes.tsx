@@ -110,11 +110,24 @@ export default function GestionDependientes() {
     return (
         <div className="w-full mt-6">
             <div className="flex items-center justify-between px-2 mb-3">
-                <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest">{title}</h3>
+                <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest">
+                    {title} {!isComercio && `- ${dependientes.length} / 3`}
+                </h3>
                 {!showAddForm && (
                     <button
-                        onClick={() => setShowAddForm(true)}
-                        className="text-primary text-xs font-bold flex items-center gap-1 hover:brightness-110 active:scale-95 transition-all"
+                        onClick={() => {
+                            if (!isComercio && dependientes.length >= 3) {
+                                alert("Ya alcanzaste el máximo permitido de 3 familiares.");
+                                return;
+                            }
+                            setShowAddForm(true);
+                        }}
+                        disabled={!isComercio && dependientes.length >= 3}
+                        className={`text-xs font-bold flex items-center gap-1 transition-all ${
+                            !isComercio && dependientes.length >= 3
+                                ? 'text-slate-400 cursor-not-allowed opacity-50'
+                                : 'text-primary hover:brightness-110 active:scale-95'
+                        }`}
                     >
                         <span className="material-symbols-outlined text-sm">add</span>
                         Nuevo

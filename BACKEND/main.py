@@ -2913,6 +2913,22 @@ def agregar_dependiente(
             raise HTTPException(status_code=404, detail="Titular no encontrado")
         titular = titular_res.data[0]
 
+        # 1.5 Validar límite de familiares
+        if titular.get("rol") == "SOCIO":
+            familiares_res = (
+                supabase.table("profiles")
+                .select("id", count="exact")
+                .eq("titular_id", current_user.id)
+                .eq("user_type", "FAMILIAR")
+                .execute()
+            )
+            count = familiares_res.count if hasattr(familiares_res, "count") else len(familiares_res.data)
+            if count is not None and count >= 3:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Solo podés registrar hasta 3 familiares por socio."
+                )
+
         # 2. Email ficticio si no provee (para Supabase Auth)
         user_email = (
             req.email
