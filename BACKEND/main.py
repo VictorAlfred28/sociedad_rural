@@ -23,13 +23,160 @@ from fastapi import (
     Depends,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, HttpUrl, validator
+from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, Dict, Any
 
-def empty_string_to_none(v):
-    if isinstance(v, str) and v.strip() == "":
+# ─────────────────────────────────────────────────────────────────────────────
+# VALIDACIÓN Y NORMALIZACIÓN DE URLs SOCIALES (función centralizada)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Dominios permitidos para links de Instagram y Facebook
+_SOCIAL_URL_WHITELIST = {
+    # Instagram
+    "instagram.com", "www.instagram.com", "m.instagram.com",
+    # Facebook
+    "facebook.com", "www.facebook.com", "m.facebook.com", "fb.com", "www.fb.com",
+    "fb.me", "www.fb.me",
+    # WhatsApp (también usado como link_externo o instagram_url en algunos flujos)
+    "wa.me", "www.wa.me", "api.whatsapp.com", "chat.whatsapp.com",
+}
+
+
+def normalize_social_url(v):
+    """Normaliza y valida URLs de redes sociales (nivel producción).
+
+    Proceso:
+      1. Sanitiza: strip de espacios y caracteres de control.
+      2. Normaliza: agrega https:// si no tiene esquema.
+      3. Parsea con urllib.parse para validación estructural real.
+      4. Fuerza el dominio a minúsculas.
+      5. Aplica whitelist de dominios permitidos (Instagram, Facebook, WhatsApp).
+
+    Acepta: URLs con o sin protocolo, con subdominios (www, m.),
+    parámetros (?utm=...), fragmentos (#section).
+    Rechaza: dominios fuera del whitelist, URLs incompletas o mal formadas.
+    """
+    from urllib.parse import urlparse, urlunparse
+
+    if v is None:
         return None
+    if not isinstance(v, str):
+        return v
+
+    # 1. Sanitizar: quitar espacios y caracteres de control
+    v = v.strip().strip('\t\n\r')
+    if not v:
+        return None
+
+    # 2. Normalizar: agregar https:// si falta el esquema
+    if not re.match(r'^https?://', v, re.IGNORECASE):
+        v = 'https://' + v
+
+    # 3. Parsear con urllib para validación estructural real
+    try:
+        parsed = urlparse(v)
+    except Exception:
+        raise ValueError("Ingresá una URL válida (ej: instagram.com/tutienda)")
+
+    # Esquema debe ser http o https
+    if parsed.scheme.lower() not in ('http', 'https'):
+        raise ValueError("La URL debe comenzar con http:// o https://")
+
+    # Extraer hostname limpio (sin usuario:clave@ ni puerto)
+    netloc = parsed.netloc or ''
+    if '@' in netloc:
+        netloc = netloc.split('@')[-1]
+    hostname = netloc.split(':')[0].lower().strip()
+
+    if not hostname:
+        raise ValueError("Ingresá una URL con dominio válido (ej: instagram.com/tutienda)")
+
+    # 4. Validar estructura de dominio: mínimo 2 etiquetas, TLD de ≥2 chars
+    labels = hostname.split('.')
+    if len(labels) < 2:
+        raise ValueError("El dominio no es válido. Usá un link completo (ej: instagram.com/tutienda)")
+    tld = labels[-1]
+    if len(tld) < 2 or not re.match(r'^[a-z]+$', tld):
+        raise ValueError("El dominio no es válido. Usá un link completo (ej: instagram.com/tutienda)")
+    if not all(re.match(r'^[\w\-]+$', label) for label in labels if label):
+        raise ValueError("El dominio contiene caracteres inválidos")
+
+    # 5. Whitelist: solo dominios permitidos
+    if hostname not in _SOCIAL_URL_WHITELIST:
+        allowed = "instagram.com, facebook.com o wa.me"
+        raise ValueError(
+            f"Solo se permiten links de {allowed}. "
+            f"El dominio '{hostname}' no está habilitado."
+        )
+
+    # Reconstruir URL con hostname en minúsculas
+    normalized = urlunparse((
+        'https',          # forzar https siempre
+        hostname + ((':' + netloc.split(':')[1]) if ':' in netloc else ''),
+        parsed.path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment,
+    ))
+    return normalized
+
+
+def normalize_whatsapp_url(v):
+    """Normaliza URLs o números de WhatsApp.
+
+    Acepta:
+      - URL completa: https://wa.me/549...
+      - URL sin protocolo: wa.me/549...
+      - Número de teléfono: 3794123456 (10 dígitos AR) o 549379...
+      - String vacío → None
+    Rechaza:
+      - Texto que no sea número ni URL wa.me válida
+    """
+    from urllib.parse import urlparse
+
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        return v
+
+    v = v.strip().strip('\t\n\r')
+    if not v:
+        return None
+
+    # Si parece un número de teléfono (solo dígitos, +, espacios, guiones)
+    numero_raw = re.sub(r'[\s\-\(\)\+]', '', v)
+    if numero_raw.isdigit():
+        # Normalizar para Argentina: 10 dígitos → 549XXXXXXXXXX
+        if len(numero_raw) == 10:
+            numero_raw = '549' + numero_raw
+        elif len(numero_raw) == 11 and numero_raw.startswith('0'):
+            numero_raw = '549' + numero_raw[1:]
+        return f'https://wa.me/{numero_raw}'
+
+    # Si es una URL, agregar protocolo si falta
+    if not re.match(r'^https?://', v, re.IGNORECASE):
+        v = 'https://' + v
+
+    try:
+        parsed = urlparse(v)
+    except Exception:
+        raise ValueError("Ingresá un número de WhatsApp o link wa.me válido")
+
+    hostname = (parsed.netloc or '').split(':')[0].lower().strip()
+    if '@' in hostname:
+        hostname = hostname.split('@')[-1]
+
+    wa_domains = {'wa.me', 'www.wa.me', 'api.whatsapp.com', 'chat.whatsapp.com', 'whatsapp.com', 'www.whatsapp.com'}
+    if hostname not in wa_domains:
+        raise ValueError(
+            f"Solo se permiten links de WhatsApp (wa.me). "
+            f"El dominio '{hostname}' no está habilitado para este campo."
+        )
+
     return v
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 from dotenv import load_dotenv
 from supabase import create_client, Client, ClientOptions
 from datetime import datetime, timedelta
@@ -357,15 +504,18 @@ class EventCreate(BaseModel):
     tipo: str
     imagen_url: Optional[str] = None
     municipio_id: str
-    link_instagram: Optional[HttpUrl] = None
-    link_facebook: Optional[HttpUrl] = None
+    link_instagram: Optional[str] = None
+    link_facebook: Optional[str] = None
     link_whatsapp: Optional[str] = None
-    link_externo: Optional[HttpUrl] = None
+    link_externo: Optional[str] = None
     estado: Optional[str] = "borrador"
     destacado: Optional[bool] = False
     publico: Optional[bool] = True
 
-    _normalize_links = validator("link_instagram", "link_facebook", "link_externo", pre=True, allow_reuse=True)(empty_string_to_none)
+    _normalize_instagram = validator("link_instagram", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_facebook = validator("link_facebook", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_externo = validator("link_externo", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_whatsapp = validator("link_whatsapp", pre=True, always=True, allow_reuse=True)(normalize_whatsapp_url)
 
 
 class EventUpdate(BaseModel):
@@ -377,15 +527,19 @@ class EventUpdate(BaseModel):
     tipo: Optional[str] = None
     imagen_url: Optional[str] = None
     municipio_id: Optional[str] = None
-    link_instagram: Optional[HttpUrl] = None
-    link_facebook: Optional[HttpUrl] = None
+    link_instagram: Optional[str] = None
+    link_facebook: Optional[str] = None
     link_whatsapp: Optional[str] = None
-    link_externo: Optional[HttpUrl] = None
+    link_externo: Optional[str] = None
     estado: Optional[str] = None
     destacado: Optional[bool] = None
     publico: Optional[bool] = None
 
-    _normalize_links = validator("link_instagram", "link_facebook", "link_externo", pre=True, allow_reuse=True)(empty_string_to_none)
+    _normalize_instagram = validator("link_instagram", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_facebook = validator("link_facebook", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_externo = validator("link_externo", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_whatsapp = validator("link_whatsapp", pre=True, always=True, allow_reuse=True)(normalize_whatsapp_url)
+
 
 
 class WebhookEventoPayload(BaseModel):
@@ -2694,10 +2848,11 @@ class OfertaRequest(BaseModel):
     tipo_descuento: Optional[str] = None
     imagen_url: Optional[str] = None
     fecha_fin: Optional[str] = None
-    instagram_url: Optional[HttpUrl] = None
-    facebook_url: Optional[HttpUrl] = None
+    instagram_url: Optional[str] = None
+    facebook_url: Optional[str] = None
 
-    _normalize_urls = validator("instagram_url", "facebook_url", pre=True, allow_reuse=True)(empty_string_to_none)
+    _normalize_instagram = validator("instagram_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_facebook = validator("facebook_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
 
 
 class OfertaUpdateRequest(BaseModel):
@@ -2705,10 +2860,12 @@ class OfertaUpdateRequest(BaseModel):
     titulo: Optional[str] = None
     descripcion: Optional[str] = None
     imagen_url: Optional[str] = None
-    instagram_url: Optional[HttpUrl] = None
-    facebook_url: Optional[HttpUrl] = None
+    instagram_url: Optional[str] = None
+    facebook_url: Optional[str] = None
 
-    _normalize_urls = validator("instagram_url", "facebook_url", pre=True, allow_reuse=True)(empty_string_to_none)
+    _normalize_instagram = validator("instagram_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_facebook = validator("facebook_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+
 
 
 # ── ENDPOINTS OFERTAS ─────────────────────────────────────────────────────────
@@ -5926,10 +6083,10 @@ class OfertaCreate(BaseModel):
     tipo_descuento: Optional[str] = None     # 'porcentaje' | 'fijo'
     fecha_fin: Optional[str] = None
     imagen_url: Optional[str] = None
-    instagram_url: Optional[HttpUrl] = None
-    facebook_url: Optional[HttpUrl] = None
+    instagram_url: Optional[str] = None
+    facebook_url: Optional[str] = None
 
-    _normalize_urls = validator("instagram_url", "facebook_url", pre=True, allow_reuse=True)(empty_string_to_none)
+    _normalize_urls = validator("instagram_url", "facebook_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
 
 class OfertaUpdateActivo(BaseModel):
     activo: bool
@@ -5990,6 +6147,8 @@ def create_oferta(oferta: OfertaCreate, request: Request, background_tasks: Back
         )
         
         return res.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[OFERTAS] Error al crear oferta: {e}")
         raise HTTPException(status_code=500, detail="Error al crear la oferta.")

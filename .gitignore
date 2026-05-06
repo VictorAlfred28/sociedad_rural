@@ -47,3 +47,6 @@ Thumbs.db
 keystore.properties
 *.jks
 
+FRONTEND/android/app/release/
+FRONTEND/android/app/build/
+

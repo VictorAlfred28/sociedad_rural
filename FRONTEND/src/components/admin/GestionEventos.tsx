@@ -1,6 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
+// Normalización visual pre-submit (asistencia al usuario, backend es fuente de verdad)
+function normalizeSocialUrl(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return 'https://' + trimmed;
+}
+
+function normalizeWhatsappUrl(val: string): string {
+    const trimmed = val.trim();
+    if (!trimmed) return '';
+    // Si es solo números, convertir a wa.me link
+    const onlyDigits = trimmed.replace(/[\s\-\(\)\+]/g, '');
+    if (/^\d+$/.test(onlyDigits)) {
+        const num = onlyDigits.length === 10 ? '549' + onlyDigits : onlyDigits;
+        return `https://wa.me/${num}`;
+    }
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return 'https://' + trimmed;
+}
+
+
 export interface Evento {
     id: string;
     titulo: string;
@@ -129,12 +151,25 @@ export default function GestionEventos() {
                 } else {
                     url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/eventos/${editingId}`;
                     method = 'PUT';
-                    payload = formData;
+                    // Normalizar URLs sociales antes de enviar
+                    payload = {
+                        ...formData,
+                        link_instagram: normalizeSocialUrl(formData.link_instagram) || null,
+                        link_facebook: normalizeSocialUrl(formData.link_facebook) || null,
+                        link_externo: normalizeSocialUrl(formData.link_externo) || null,
+                        link_whatsapp: normalizeWhatsappUrl(formData.link_whatsapp) || null,
+                    };
                 }
             } else {
                 url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/eventos`;
                 method = 'POST';
-                payload = formData;
+                payload = {
+                    ...formData,
+                    link_instagram: normalizeSocialUrl(formData.link_instagram) || null,
+                    link_facebook: normalizeSocialUrl(formData.link_facebook) || null,
+                    link_externo: normalizeSocialUrl(formData.link_externo) || null,
+                    link_whatsapp: normalizeWhatsappUrl(formData.link_whatsapp) || null,
+                };
             }
 
             const res = await fetch(url, {
@@ -146,7 +181,14 @@ export default function GestionEventos() {
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || `Error al ${editingId ? 'actualizar' : 'crear'} evento`);
+            if (!res.ok) {
+                // Extraer mensaje legible de errores de validación Pydantic (HTTP 422)
+                let errorMsg = data.detail || `Error al ${editingId ? 'actualizar' : 'crear'} evento`;
+                if (Array.isArray(data.detail) && data.detail.length > 0) {
+                    errorMsg = data.detail[0].msg || errorMsg;
+                }
+                throw new Error(errorMsg);
+            }
 
             resetForm();
             fetchEventos();
@@ -156,6 +198,7 @@ export default function GestionEventos() {
             setFormLoading(false);
         }
     };
+
 
     const handleUpdateSocialStatus = async (id: string, newStatus: string) => {
         try {
@@ -390,22 +433,23 @@ export default function GestionEventos() {
                         </div>
 
                         <div>
-                            <label className={labelClass}>Instagram URL (Opcional)</label>
+                            <label className={labelClass}>Instagram (Opcional)</label>
                             <input
-                                type="url"
+                                type="text"
                                 className={inputClass}
-                                placeholder="https://instagram.com/..."
+                                placeholder="instagram.com/... o https://instagram.com/..."
                                 value={formData.link_instagram}
                                 onChange={e => setFormData({ ...formData, link_instagram: e.target.value })}
                             />
+                            <p className="text-[11px] text-slate-500 mt-1">Solo links de instagram.com o facebook.com</p>
                         </div>
 
                         <div>
-                            <label className={labelClass}>Facebook URL (Opcional)</label>
+                            <label className={labelClass}>Facebook (Opcional)</label>
                             <input
-                                type="url"
+                                type="text"
                                 className={inputClass}
-                                placeholder="https://facebook.com/..."
+                                placeholder="facebook.com/... o https://facebook.com/..."
                                 value={formData.link_facebook}
                                 onChange={e => setFormData({ ...formData, link_facebook: e.target.value })}
                             />
@@ -416,18 +460,19 @@ export default function GestionEventos() {
                             <input
                                 type="text"
                                 className={inputClass}
-                                placeholder="Ej. wa.me/..."
+                                placeholder="Número (3794...) o wa.me/549..."
                                 value={formData.link_whatsapp}
                                 onChange={e => setFormData({ ...formData, link_whatsapp: e.target.value })}
                             />
+                            <p className="text-[11px] text-slate-500 mt-1">Podés ingresar el número directamente</p>
                         </div>
 
                         <div>
                             <label className={labelClass}>Link Externo (Opcional)</label>
                             <input
-                                type="url"
+                                type="text"
                                 className={inputClass}
-                                placeholder="https://..."
+                                placeholder="instagram.com/... o facebook.com/..."
                                 value={formData.link_externo}
                                 onChange={e => setFormData({ ...formData, link_externo: e.target.value })}
                             />
