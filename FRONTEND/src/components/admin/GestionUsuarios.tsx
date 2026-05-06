@@ -585,7 +585,7 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                                         type="text"
                                         value={editFormData.nombre_apellido}
                                         onChange={e => setEditFormData({ ...editFormData, nombre_apellido: e.target.value })}
-                                        className="w-full h-11 bg-slate-800 border border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
@@ -594,7 +594,7 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                                         type="email"
                                         value={editFormData.email}
                                         onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
-                                        className="w-full h-11 bg-slate-800 border border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
@@ -603,7 +603,7 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                                         type="text"
                                         value={editFormData.telefono}
                                         onChange={e => setEditFormData({ ...editFormData, telefono: e.target.value })}
-                                        className="w-full h-11 bg-slate-800 border border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
@@ -612,7 +612,7 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                                         <select
                                             value={editFormData.municipio}
                                             onChange={e => setEditFormData({ ...editFormData, municipio: e.target.value })}
-                                            className="w-full h-11 bg-slate-800 border border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all appearance-none"
+                                            className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all appearance-none"
                                         >
                                             <option value="">Seleccioná un municipio</option>
                                             {municipiosDisponibles.map(m => (
@@ -629,7 +629,7 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                                         type="text"
                                         value={editFormData.barrio}
                                         onChange={e => setEditFormData({ ...editFormData, barrio: e.target.value })}
-                                        className="w-full h-11 bg-slate-800 border border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
                                         placeholder="Ej: Centro, Sudoeste"
                                     />
                                 </div>
@@ -637,7 +637,7 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                             <div className="p-6 border-t border-admin-border flex gap-3">
                                 <button
                                     onClick={() => setEditingUser(null)}
-                                    className="flex-1 h-12 bg-slate-800 text-slate-300 font-bold rounded-xl active:scale-95 transition-transform"
+                                    className="flex-1 h-12 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl active:scale-95 transition-transform"
                                 >
                                     Cancelar
                                 </button>

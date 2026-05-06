@@ -14,13 +14,35 @@ export default function RegistroPaso2() {
   const paso1Data = location.state?.registroData || {};
   const userRole: 'SOCIO' | 'COMERCIO' = paso1Data.rol || 'SOCIO';
 
-  const [formData, setFormData] = useState({
+  // --- Persistencia con sessionStorage ---
+  const loadSavedData = (key: string, defaultValue: any) => {
+    try {
+      const saved = sessionStorage.getItem('registro_paso2_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed[key] !== undefined ? parsed[key] : defaultValue;
+      }
+    } catch (e) {}
+    return defaultValue;
+  };
+
+  const [formData, setFormData] = useState(() => loadSavedData('formData', {
     municipio: '',
     provincia: 'Corrientes',
-  });
-  const [esProfesional, setEsProfesional] = useState(false);
-  const [esEstudiante, setEsEstudiante] = useState(false);
+  }));
+  const [esProfesional, setEsProfesional] = useState(() => loadSavedData('esProfesional', false));
+  const [esEstudiante, setEsEstudiante] = useState(() => loadSavedData('esEstudiante', false));
   const [studentCertificate, setStudentCertificate] = useState<File | null>(null);
+
+  // Guardar en sessionStorage cuando cambian los datos
+  useEffect(() => {
+    const dataToSave = {
+      formData,
+      esProfesional,
+      esEstudiante,
+    };
+    sessionStorage.setItem('registro_paso2_data', JSON.stringify(dataToSave));
+  }, [formData, esProfesional, esEstudiante]);
 
   // Cargar lista de municipios al montar (solo necesaria para SOCIO)
   useEffect(() => {
@@ -131,6 +153,9 @@ export default function RegistroPaso2() {
 
       // Limpiar cualquier sesión previa (ej: Admin registrando socio) para evitar confusión de roles
       logout();
+      // Limpiar datos de sesión al finalizar exitosamente
+      sessionStorage.removeItem('registro_form_data');
+      sessionStorage.removeItem('registro_paso2_data');
       navigate('/registro-exitoso');
     } catch (err: any) {
       setErrorMsg(err.message);

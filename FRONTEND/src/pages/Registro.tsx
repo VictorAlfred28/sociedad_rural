@@ -39,22 +39,35 @@ interface CamaraFormData {
 
 export default function Registro() {
   const navigate = useNavigate();
-  const [rol, setRol] = useState<Rol | null>(null);
+  // --- Persistencia con sessionStorage ---
+  const loadSavedData = (key: string, defaultValue: any) => {
+    try {
+      const saved = sessionStorage.getItem('registro_form_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed[key] !== undefined ? parsed[key] : defaultValue;
+      }
+    } catch (e) {}
+    return defaultValue;
+  };
 
-  const [socioData, setSocioData] = useState<SocioFormData>({
+  const [rol, setRol] = useState<Rol | null>(() => loadSavedData('rol', null));
+
+  const [socioData, setSocioData] = useState<SocioFormData>(() => loadSavedData('socioData', {
     nombre_apellido: '',
     dni_cuit: '',
     email: '',
     telefono: '',
     direccion: '',
     barrio: '',
-  });
+  }));
   const [esProfesional, setEsProfesional] = useState(false);
   const [socioPassword, setSocioPassword] = useState('');
   const [socioConfirmPassword, setSocioConfirmPassword] = useState('');
   const [socioPasswordError, setSocioPasswordError] = useState('');
+  const [socioDniError, setSocioDniError] = useState('');
 
-  const [comercioData, setComercioData] = useState<ComercioDTO>({
+  const [comercioData, setComercioData] = useState<ComercioDTO>(() => loadSavedData('comercioData', {
     nombre_comercio: '',
     cuit: '',
     email: '',
@@ -81,6 +94,16 @@ export default function Registro() {
   const [camaraError, setCamaraError] = useState('');
   const [camaraEnviada, setCamaraEnviada] = useState(false);
   const [municipios, setMunicipios] = useState<{ id: string; nombre: string }[]>([]);
+
+  // Guardar en sessionStorage cuando cambian los datos
+  React.useEffect(() => {
+    const dataToSave = {
+      rol,
+      socioData,
+      comercioData,
+    };
+    sessionStorage.setItem('registro_form_data', JSON.stringify(dataToSave));
+  }, [rol, socioData, comercioData]);
 
   // Cargar municipios dinámicamente
   React.useEffect(() => {
@@ -110,6 +133,12 @@ export default function Registro() {
     e.preventDefault();
 
     if (rol === 'SOCIO') {
+      if (!/^\d{8}$/.test(socioData.dni_cuit)) {
+        setSocioDniError('El DNI debe contener exactamente 8 números');
+        return;
+      }
+      setSocioDniError('');
+
       if (socioPassword.length < 8) {
         setSocioPasswordError('La contraseña debe tener al menos 8 caracteres.');
         return;
@@ -184,7 +213,7 @@ export default function Registro() {
     name: string,
     value: string,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void,
-    opts?: { type?: string; placeholder?: string; hint?: string }
+    opts?: { type?: string; placeholder?: string; hint?: string; error?: string }
   ) => (
     <div className="flex flex-col gap-1 py-2">
       <label className="flex flex-col w-full">
@@ -199,7 +228,8 @@ export default function Registro() {
           required
         />
       </label>
-      {opts?.hint && <p className="text-slate-500 dark:text-slate-400 text-xs px-1">{opts.hint}</p>}
+      {opts?.error && <p className="text-red-500 text-xs px-1">{opts.error}</p>}
+      {opts?.hint && !opts?.error && <p className="text-slate-500 dark:text-slate-400 text-xs px-1">{opts.hint}</p>}
     </div>
   );
 
@@ -331,7 +361,7 @@ export default function Registro() {
           </div>
           <form className="flex flex-col gap-0 p-4" onSubmit={handleNext}>
             {renderField('Nombre y Apellido', 'nombre_apellido', socioData.nombre_apellido, handleSocioChange, { placeholder: 'Ej: Juan Pérez' })}
-            {renderField('DNI', 'dni_cuit', socioData.dni_cuit, handleSocioChange, { type: 'number', placeholder: 'Solo números, sin puntos' })}
+            {renderField('DNI', 'dni_cuit', socioData.dni_cuit, handleSocioChange, { type: 'number', placeholder: 'Solo números, sin puntos', error: socioDniError })}
             {renderField('Dirección', 'direccion', socioData.direccion, handleSocioChange, { placeholder: 'Calle y número' })}
             
             {/* Teléfono con prefijo */}

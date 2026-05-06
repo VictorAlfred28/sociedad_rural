@@ -737,6 +737,21 @@ def register(
                 detail="Para completar el registro como estudiante, es obligatorio adjuntar la constancia de alumno regular vigente."
             )
 
+        if rol_asignado == "SOCIO":
+            if not re.match(r'^\d{8}$', str(socio.dni_cuit)):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El DNI debe contener exactamente 8 números"
+                )
+
+        # Validar si el email ya existe en la base de datos (profiles)
+        existing_profile = supabase.table("profiles").select("id").eq("email", socio.email).execute()
+        if existing_profile.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El correo ya se encuentra registrado"
+            )
+
         # 3.B: Crear usuario en Supabase Auth
         user_password = socio.password if socio.password else "socio1234"
         default_passwords_list = ["comercio1234", "socio1234", "socio123"]
@@ -878,7 +893,7 @@ def register(
             "user already registered" in err_msg
             or ("already exists" in err_msg and "email" in err_msg)
         ):
-            friendly_detail = "Este correo electrónico ya se encuentra registrado. Podés iniciar sesión o recuperar tu contraseña."
+            friendly_detail = "El correo ya se encuentra registrado"
 
         elif "duplicate key value" in err_msg and "dni" in err_msg:
             friendly_detail = "El documento ingresado ya está asociado a un socio existente."

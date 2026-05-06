@@ -165,9 +165,6 @@ export default function GestionDependientes() {
                         placeholder="Email" type="email" className={inputClass}
                         value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
                     />
-                    <p className="text-[11px] text-slate-400 px-1">
-                        Si no se ingresa un email, el acceso se realiza con DNI y la contraseña inicial.
-                    </p>
 
                     <div className="mt-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">
                         <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2">
