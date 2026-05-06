@@ -69,6 +69,12 @@ export default function Login() {
           // Pre-rellenar el campo de reenvío si el identificador es un email
           if (identificador.includes('@')) setReenvioEmail(identificador);
           setErrorMsg('Debe verificar su correo electrónico antes de ingresar.');
+        } else if (detail.startsWith('TITULAR_RESTRINGIDO')) {
+          // El titular del grupo familiar está restringido/suspendido
+          setErrorMsg(
+            'Tu acceso está bloqueado porque el socio titular de tu grupo familiar tiene la cuenta en estado restringido. ' +
+            'Comunicate con la administración para más información.'
+          );
         } else if (detail.startsWith('CUENTA_')) {
           const estado = detail.replace('CUENTA_', '');
           const msgs: Record<string, string> = {
@@ -82,6 +88,7 @@ export default function Login() {
           setErrorMsg(detail || 'Error al iniciar sesión');
         }
         return;
+
       }
 
       setSuccessMsg(`¡Bienvenido! Rol asignado: ${data.socio?.rol || 'USUARIO'}`);

@@ -1077,6 +1077,29 @@ def login(
                 detail=f"CUENTA_{profile.get('estado')}",
             )
 
+        # Bloqueo 3 (FAMILIAR): si el titular está restringido/suspendido,
+        # el integrante familiar NO puede acceder al sistema.
+        if profile.get("user_type") == "FAMILIAR" and profile.get("titular_id"):
+            titular_res = (
+                supabase.table("profiles")
+                .select("id, nombre_apellido, estado")
+                .eq("id", profile["titular_id"])
+                .execute()
+            )
+            if titular_res.data:
+                titular_profile = titular_res.data[0]
+                estados_bloqueantes = ["RESTRINGIDO", "SUSPENDIDO", "RECHAZADO"]
+                if titular_profile.get("estado") in estados_bloqueantes:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=(
+                            f"TITULAR_RESTRINGIDO: El socio titular "
+                            f"({titular_profile.get('nombre_apellido')}) "
+                            f"tiene su cuenta en estado {titular_profile.get('estado')}. "
+                            "No es posible acceder como integrante familiar."
+                        ),
+                    )
+
         # Validación: PRIMER LOGIN OBLIGATORIO SI USA PASS POR DEFECTO O FUE RESTABLECIDA POR ADMIN
         necesita_cambio_password = False
         default_passwords = [
@@ -1404,6 +1427,43 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             raise HTTPException(status_code=401, detail="Token inválido o malformado.")
         logger.error(f"Error verificando usuario: {str(e)}")
         raise HTTPException(status_code=401, detail="Error verificando credenciales.")
+
+
+def get_profile_with_titular(user_id: str) -> dict:
+    """
+    Retorna el perfil del usuario.
+    Si el usuario es FAMILIAR, incluye también el perfil de su titular bajo la
+    clave 'titular_perfil'. Usado internamente para validar propagación de estado.
+    """
+    res = (
+        supabase.table("profiles")
+        .select(
+            "id, nombre_apellido, estado, rol, user_type, titular_id, "
+            "perfiles_titulares:profiles!titular_id(id, nombre_apellido, estado)"
+        )
+        .eq("id", user_id)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+    return res.data[0]
+
+
+def require_titular(current_user=Depends(get_current_user)):
+    """
+    Dependencia que bloquea el acceso a endpoints financieros para integrantes
+    familiares (user_type == 'FAMILIAR').
+    Solo el socio titular puede ejecutar pagos.
+    """
+    perfil = get_profile_with_titular(current_user.id)
+    if perfil.get("user_type") == "FAMILIAR":
+        raise HTTPException(
+            status_code=403,
+            detail="Los integrantes de grupo familiar no pueden realizar pagos. "
+                   "El socio titular es el único habilitado para gestionar cuotas."
+        )
+    return current_user
+
 
 
 def get_current_admin_or_camara(
@@ -5408,7 +5468,8 @@ class PagoActionRequest(BaseModel):
 
 
 @app.get("/api/mis-pagos")
-def get_mis_pagos(current_user=Depends(get_current_user)):
+def get_mis_pagos(current_user=Depends(require_titular)):
+    """Retorna los pagos del socio titular. Bloqueado para integrantes FAMILIAR."""
     try:
         pagos = (
             supabase.table("pagos_cuotas")
@@ -5419,6 +5480,8 @@ def get_mis_pagos(current_user=Depends(get_current_user)):
         )
         return {"pagos": pagos.data}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -5427,8 +5490,9 @@ async def subir_comprobante(
     mes: int = Form(...),
     anio: int = Form(...),
     file: UploadFile = File(...),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_titular),
 ):
+    """Sube comprobante de pago. Bloqueado para integrantes FAMILIAR."""
     try:
         if not file.filename:
             raise HTTPException(
@@ -5727,7 +5791,8 @@ def calcular_cuota_dinamica_internal(user_id: str):
     }
 
 @app.get("/api/cuota/calcular")
-def calcular_cuota_dinamica(current_user=Depends(get_current_user)):
+def calcular_cuota_dinamica(current_user=Depends(require_titular)):
+    """Calcula la cuota del socio titular. Bloqueado para integrantes FAMILIAR."""
     try:
         return calcular_cuota_dinamica_internal(current_user.id)
     except Exception as e:

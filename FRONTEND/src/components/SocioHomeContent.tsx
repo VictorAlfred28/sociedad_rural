@@ -110,7 +110,7 @@ const PasaporteDecor = () => (
   </svg>
 );
 
-export default function SocioHomeContent() {
+export default function SocioHomeContent({ isFamiliar = false }: { isFamiliar?: boolean }) {
     const cardStyle = {
         background: `linear-gradient(145deg, #F8F3E6 0%, #EBE2CC 100%)`,
         backgroundImage: `${paperTexture}, linear-gradient(145deg, #F6F1E3 0%, #EBE0C8 100%)`,
@@ -161,24 +161,40 @@ export default function SocioHomeContent() {
                     </div>
                 </Link>
 
-                {/* 3. Aportes / Cuotas */}
-                <Link 
-                    to="/cuotas" 
-                    className="relative overflow-hidden flex flex-col items-start justify-start p-4 rounded-[18px] transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 group"
-                    style={cardStyle}
-                >
-                    <AportesDecor />
-                    
-                    <div className="relative z-10 w-[42px] h-[42px] rounded-full flex items-center justify-center mb-2.5 bg-[#8B5E34] shadow-[0px_4px_8px_rgba(139,94,52,0.3)] shrink-0 transform transition-transform group-hover:scale-105">
-                        <span className="material-symbols-outlined text-[22px] text-[#F8F3E6]" style={{fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}}>account_balance_wallet</span>
+                {/* 3. Aportes / Cuotas — solo titular */}
+                {isFamiliar ? (
+                    <div
+                        className="relative overflow-hidden flex flex-col items-start justify-start p-4 rounded-[18px] opacity-50 cursor-not-allowed"
+                        style={cardStyle}
+                        title="Solo el socio titular puede gestionar pagos"
+                    >
+                        <AportesDecor />
+                        <div className="relative z-10 w-[42px] h-[42px] rounded-full flex items-center justify-center mb-2.5 bg-slate-400 shadow-none shrink-0">
+                            <span className="material-symbols-outlined text-[22px] text-white">block</span>
+                        </div>
+                        <div className="relative z-10 w-full flex flex-col items-start pr-1">
+                            <h3 className="text-[17px] font-bold text-[#1a261a] leading-tight" style={{ fontFamily: 'Georgia, serif' }}>Aportes / Cuotas</h3>
+                            <div className="w-5 h-[2px] bg-slate-400 my-2" />
+                            <p className="text-[12px] text-[#555] leading-[1.3]">Solo el socio titular gestiona los pagos.</p>
+                        </div>
                     </div>
-                    
-                    <div className="relative z-10 w-full flex flex-col items-start pr-1">
-                        <h3 className="text-[17px] font-bold text-[#1a261a] leading-tight" style={{ fontFamily: 'Georgia, serif' }}>Aportes / Cuotas</h3>
-                        <div className="w-5 h-[2px] bg-[#8B5E34] my-2" />
-                        <p className="text-[12px] text-[#555] leading-[1.3]">Consultá y gestioná tus cuotas.</p>
-                    </div>
-                </Link>
+                ) : (
+                    <Link
+                        to="/cuotas"
+                        className="relative overflow-hidden flex flex-col items-start justify-start p-4 rounded-[18px] transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 group"
+                        style={cardStyle}
+                    >
+                        <AportesDecor />
+                        <div className="relative z-10 w-[42px] h-[42px] rounded-full flex items-center justify-center mb-2.5 bg-[#8B5E34] shadow-[0px_4px_8px_rgba(139,94,52,0.3)] shrink-0 transform transition-transform group-hover:scale-105">
+                            <span className="material-symbols-outlined text-[22px] text-[#F8F3E6]" style={{fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}}>account_balance_wallet</span>
+                        </div>
+                        <div className="relative z-10 w-full flex flex-col items-start pr-1">
+                            <h3 className="text-[17px] font-bold text-[#1a261a] leading-tight" style={{ fontFamily: 'Georgia, serif' }}>Aportes / Cuotas</h3>
+                            <div className="w-5 h-[2px] bg-[#8B5E34] my-2" />
+                            <p className="text-[12px] text-[#555] leading-[1.3]">Consultá y gestioná tus cuotas.</p>
+                        </div>
+                    </Link>
+                )}
 
                 {/* 4. Ñande Pasaporte */}
                 <Link 
