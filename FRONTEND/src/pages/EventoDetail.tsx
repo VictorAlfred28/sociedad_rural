@@ -251,7 +251,10 @@ export default function EventoDetail() {
 
                     {/* Botones Sociales / Acciones */}
                     <div className="flex flex-col gap-3">
-                        {(!evento.link_externo && !evento.link_whatsapp && !evento.link_instagram && !evento.link_facebook) ? (
+                        {(!evento.link_externo || evento.link_externo.trim() === "") && 
+                         (!evento.link_whatsapp || evento.link_whatsapp.trim() === "") && 
+                         (!evento.link_instagram || evento.link_instagram.trim() === "") && 
+                         (!evento.link_facebook || evento.link_facebook.trim() === "") ? (
                             <div className="text-xs font-bold text-stone-400 uppercase tracking-widest text-center mt-4">
                                 No hay enlaces asociados a este evento.
                             </div>
@@ -261,7 +264,7 @@ export default function EventoDetail() {
                                     Enlaces de Interés
                                 </h3>
                                 <div className="grid grid-cols-1 gap-3">
-                                    {evento.link_externo && (
+                                    {evento.link_externo && evento.link_externo.trim() !== "" && (
                                         <a
                                             href={evento.link_externo}
                                             target="_blank"
@@ -272,7 +275,7 @@ export default function EventoDetail() {
                                             Más Información / Entradas
                                         </a>
                                     )}
-                                    {evento.link_whatsapp && (
+                                    {evento.link_whatsapp && evento.link_whatsapp.trim() !== "" && (
                                         <a
                                             href={evento.link_whatsapp.startsWith('http') ? evento.link_whatsapp : `https://wa.me/${evento.link_whatsapp.replace(/[^0-9]/g, '')}`}
                                             target="_blank"
@@ -283,7 +286,7 @@ export default function EventoDetail() {
                                             Consultar por WhatsApp
                                         </a>
                                     )}
-                                    {evento.link_instagram && (
+                                    {evento.link_instagram && evento.link_instagram.trim() !== "" && (
                                         <a
                                             href={evento.link_instagram}
                                             target="_blank"
@@ -294,7 +297,7 @@ export default function EventoDetail() {
                                             Ver en Instagram
                                         </a>
                                     )}
-                                    {evento.link_facebook && (
+                                    {evento.link_facebook && evento.link_facebook.trim() !== "" && (
                                         <a
                                             href={evento.link_facebook}
                                             target="_blank"

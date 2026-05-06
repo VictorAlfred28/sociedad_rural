@@ -390,7 +390,7 @@ export default function GestionEventos() {
                         </div>
 
                         <div>
-                            <label className={labelClass}>Instagram URL</label>
+                            <label className={labelClass}>Instagram URL (Opcional)</label>
                             <input
                                 type="url"
                                 className={inputClass}
@@ -401,7 +401,7 @@ export default function GestionEventos() {
                         </div>
 
                         <div>
-                            <label className={labelClass}>Facebook URL</label>
+                            <label className={labelClass}>Facebook URL (Opcional)</label>
                             <input
                                 type="url"
                                 className={inputClass}
@@ -412,7 +412,7 @@ export default function GestionEventos() {
                         </div>
 
                         <div>
-                            <label className={labelClass}>WhatsApp (URL o Número)</label>
+                            <label className={labelClass}>WhatsApp (Opcional)</label>
                             <input
                                 type="text"
                                 className={inputClass}
@@ -423,7 +423,7 @@ export default function GestionEventos() {
                         </div>
 
                         <div>
-                            <label className={labelClass}>Link Externo (Web, Entradas)</label>
+                            <label className={labelClass}>Link Externo (Opcional)</label>
                             <input
                                 type="url"
                                 className={inputClass}

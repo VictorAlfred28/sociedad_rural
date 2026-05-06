@@ -460,24 +460,27 @@ export default function Eventos() {
                         </div>
 
                         {/* Botones Condicionales de Redes Sociales y Links */}
-                        {(ev.link_instagram || ev.link_facebook || ev.link_whatsapp || ev.link_externo) && (
+                        {( (ev.link_instagram && ev.link_instagram.trim() !== "") || 
+                           (ev.link_facebook && ev.link_facebook.trim() !== "") || 
+                           (ev.link_whatsapp && ev.link_whatsapp.trim() !== "") || 
+                           (ev.link_externo && ev.link_externo.trim() !== "") ) && (
                           <div className="mt-4 pt-4 border-t border-stone-200/50 dark:border-stone-700/50 flex flex-wrap gap-2">
-                            {ev.link_instagram && (
+                            {ev.link_instagram && ev.link_instagram.trim() !== "" && (
                               <a href={ev.link_instagram} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
                                 <span className="material-symbols-outlined text-[14px]">photo_camera</span> IG
                               </a>
                             )}
-                            {ev.link_facebook && (
+                            {ev.link_facebook && ev.link_facebook.trim() !== "" && (
                               <a href={ev.link_facebook} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1877F2] text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
                                 <span className="material-symbols-outlined text-[14px]">thumb_up</span> FB
                               </a>
                             )}
-                            {ev.link_whatsapp && (
+                            {ev.link_whatsapp && ev.link_whatsapp.trim() !== "" && (
                               <a href={ev.link_whatsapp.startsWith('http') ? ev.link_whatsapp : `https://wa.me/${ev.link_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#25D366] text-white text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
                                 <span className="material-symbols-outlined text-[14px]">chat</span> WhatsApp
                               </a>
                             )}
-                            {ev.link_externo && (
+                            {ev.link_externo && ev.link_externo.trim() !== "" && (
                               <a href={ev.link_externo} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-800 dark:bg-stone-200 text-white dark:text-stone-900 text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform shadow-sm">
                                 <span className="material-symbols-outlined text-[14px]">link</span> Entradas
                               </a>

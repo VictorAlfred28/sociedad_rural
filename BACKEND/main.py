@@ -25,6 +25,11 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, HttpUrl, validator
 from typing import Optional, Dict, Any
+
+def empty_string_to_none(v):
+    if isinstance(v, str) and v.strip() == "":
+        return None
+    return v
 from dotenv import load_dotenv
 from supabase import create_client, Client, ClientOptions
 from datetime import datetime, timedelta
@@ -360,6 +365,8 @@ class EventCreate(BaseModel):
     destacado: Optional[bool] = False
     publico: Optional[bool] = True
 
+    _normalize_links = validator("link_instagram", "link_facebook", "link_externo", pre=True, allow_reuse=True)(empty_string_to_none)
+
 
 class EventUpdate(BaseModel):
     titulo: Optional[str] = None
@@ -377,6 +384,8 @@ class EventUpdate(BaseModel):
     estado: Optional[str] = None
     destacado: Optional[bool] = None
     publico: Optional[bool] = None
+
+    _normalize_links = validator("link_instagram", "link_facebook", "link_externo", pre=True, allow_reuse=True)(empty_string_to_none)
 
 
 class WebhookEventoPayload(BaseModel):
@@ -2685,8 +2694,10 @@ class OfertaRequest(BaseModel):
     tipo_descuento: Optional[str] = None
     imagen_url: Optional[str] = None
     fecha_fin: Optional[str] = None
-    instagram_url: Optional[str] = None
-    facebook_url: Optional[str] = None
+    instagram_url: Optional[HttpUrl] = None
+    facebook_url: Optional[HttpUrl] = None
+
+    _normalize_urls = validator("instagram_url", "facebook_url", pre=True, allow_reuse=True)(empty_string_to_none)
 
 
 class OfertaUpdateRequest(BaseModel):
@@ -2694,8 +2705,10 @@ class OfertaUpdateRequest(BaseModel):
     titulo: Optional[str] = None
     descripcion: Optional[str] = None
     imagen_url: Optional[str] = None
-    instagram_url: Optional[str] = None
-    facebook_url: Optional[str] = None
+    instagram_url: Optional[HttpUrl] = None
+    facebook_url: Optional[HttpUrl] = None
+
+    _normalize_urls = validator("instagram_url", "facebook_url", pre=True, allow_reuse=True)(empty_string_to_none)
 
 
 # ── ENDPOINTS OFERTAS ─────────────────────────────────────────────────────────
@@ -5913,8 +5926,10 @@ class OfertaCreate(BaseModel):
     tipo_descuento: Optional[str] = None     # 'porcentaje' | 'fijo'
     fecha_fin: Optional[str] = None
     imagen_url: Optional[str] = None
-    instagram_url: Optional[str] = None
-    facebook_url: Optional[str] = None
+    instagram_url: Optional[HttpUrl] = None
+    facebook_url: Optional[HttpUrl] = None
+
+    _normalize_urls = validator("instagram_url", "facebook_url", pre=True, allow_reuse=True)(empty_string_to_none)
 
 class OfertaUpdateActivo(BaseModel):
     activo: bool
