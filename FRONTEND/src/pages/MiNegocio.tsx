@@ -8,6 +8,16 @@ import GestionDependientes from '../components/GestionDependientes';
 import NotificationBell from '../components/NotificationBell';
 import paisaje from '../assets/paisaje.png';
 
+// Normalización visual de URLs en el frontend.
+// Agrega https:// si el usuario omite el protocolo, para mejorar la UX.
+// El backend es la fuente de verdad para validación estructural.
+function normalizeSocialUrl(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return 'https://' + trimmed;
+}
+
 type TipoOferta = 'promocion' | 'descuento' | 'beneficio';
 
 interface Oferta {
@@ -193,14 +203,20 @@ export default function MiNegocio() {
                     tipo_descuento: form.tipo_descuento || 'porcentaje',
                     fecha_fin: form.fecha_fin || null,
                     imagen_url: imagen_url || null,
-                    instagram_url: form.instagram_url || null,
-                    facebook_url: form.facebook_url || null,
+                    // Normalizar URLs antes de enviar (agrega https:// si falta)
+                    instagram_url: normalizeSocialUrl(form.instagram_url) || null,
+                    facebook_url: normalizeSocialUrl(form.facebook_url) || null,
                 }),
             });
             if (!resp.ok) {
                 if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
                 const data = await resp.json();
-                throw new Error(data.detail || 'Error al crear oferta');
+                // Extraer mensaje legible de errores de validación Pydantic (HTTP 422)
+                let errorMsg = data.detail || 'Error al crear oferta';
+                if (Array.isArray(data.detail) && data.detail.length > 0) {
+                    errorMsg = data.detail[0].msg || errorMsg;
+                }
+                throw new Error(errorMsg);
             }
             setShowForm(false);
             setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
@@ -670,11 +686,12 @@ export default function MiNegocio() {
                                             </span>
                                             <input
                                                 className={inputClass + ' pl-12'}
-                                                placeholder="https://www.instagram.com/p/..."
+                                                placeholder="instagram.com/tutienda"
                                                 value={form.instagram_url}
                                                 onChange={e => setForm({ ...form, instagram_url: e.target.value })}
                                             />
                                         </div>
+                                        <p className="text-[11px] text-slate-400 mt-1 pl-1">Solo links de <strong>instagram.com</strong> — con o sin https://</p>
                                     </div>
                                     <div>
                                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Link de Facebook (Opcional)</label>
@@ -684,11 +701,12 @@ export default function MiNegocio() {
                                             </span>
                                             <input
                                                 className={inputClass + ' pl-12'}
-                                                placeholder="https://www.facebook.com/..."
+                                                placeholder="facebook.com/tutienda"
                                                 value={form.facebook_url}
                                                 onChange={e => setForm({ ...form, facebook_url: e.target.value })}
                                             />
                                         </div>
+                                        <p className="text-[11px] text-slate-400 mt-1 pl-1">Solo links de <strong>facebook.com</strong> — con o sin https://</p>
                                     </div>
                                 </div>
 
