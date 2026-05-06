@@ -70,9 +70,9 @@ export default function Login() {
           if (identificador.includes('@')) setReenvioEmail(identificador);
           setErrorMsg('Debe verificar su correo electrónico antes de ingresar.');
         } else if (detail.startsWith('TITULAR_RESTRINGIDO')) {
-          // El titular del grupo familiar está restringido/suspendido
+          // El titular del grupo familiar está restringido — mensaje estandarizado
           setErrorMsg(
-            'Tu acceso está bloqueado porque el socio titular de tu grupo familiar tiene la cuenta en estado restringido. ' +
+            'Tu cuenta está limitada porque el socio titular tiene restricciones en su cuenta. ' +
             'Comunicate con la administración para más información.'
           );
         } else if (detail.startsWith('CUENTA_')) {

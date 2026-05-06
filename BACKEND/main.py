@@ -26,6 +26,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, Dict, Any
 
+# =============================================================================
+# ESTADOS DE CUENTA — FUENTE ÚNICA DE VERDAD
+# =============================================================================
+# Estados que permiten login y acceso al sistema (con posibles restricciones de features)
+ESTADOS_ACTIVOS: frozenset = frozenset({"APROBADO", "RESTRINGIDO"})
+
+# Estados que bloquean completamente el acceso de familiares vinculados al titular
+# Si el titular tiene uno de estos estados, sus familiares no pueden operar.
+ESTADOS_BLOQUEANTES: frozenset = frozenset({"RESTRINGIDO", "SUSPENDIDO", "RECHAZADO"})
+
+# Todos los estados válidos del sistema (para validación en endpoints admin)
+ESTADOS_VALIDOS: frozenset = frozenset({"PENDIENTE", "APROBADO", "RECHAZADO", "SUSPENDIDO", "RESTRINGIDO"})
+
+# Mensaje estandarizado para el frontend cuando el titular está restringido
+MSG_TITULAR_RESTRINGIDO = (
+    "TITULAR_RESTRINGIDO: Tu cuenta está limitada porque el socio titular "
+    "tiene restricciones en su cuenta. Comunicate con la administración."
+)
+# =============================================================================
+
 # ─────────────────────────────────────────────────────────────────────────────
 # VALIDACIÓN Y NORMALIZACIÓN DE URLs SOCIALES (función centralizada)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1071,14 +1091,15 @@ def login(
             )
 
         # Bloqueo 2: Estado pendiente/suspendido/rechazado
-        if profile.get("estado") not in ["APROBADO", "RESTRINGIDO"]:
+        # Solo se permite ingresar si la cuenta está en un estado activo.
+        if profile.get("estado") not in ESTADOS_ACTIVOS:
             raise HTTPException(
                 status_code=403,
                 detail=f"CUENTA_{profile.get('estado')}",
             )
 
-        # Bloqueo 3 (FAMILIAR): si el titular está restringido/suspendido,
-        # el integrante familiar NO puede acceder al sistema.
+        # Bloqueo 3 (FAMILIAR): propaga el estado bloqueante del titular.
+        # Si el titular tiene un estado restringido, el familiar no puede acceder.
         if profile.get("user_type") == "FAMILIAR" and profile.get("titular_id"):
             titular_res = (
                 supabase.table("profiles")
@@ -1088,16 +1109,10 @@ def login(
             )
             if titular_res.data:
                 titular_profile = titular_res.data[0]
-                estados_bloqueantes = ["RESTRINGIDO", "SUSPENDIDO", "RECHAZADO"]
-                if titular_profile.get("estado") in estados_bloqueantes:
+                if titular_profile.get("estado") in ESTADOS_BLOQUEANTES:
                     raise HTTPException(
                         status_code=403,
-                        detail=(
-                            f"TITULAR_RESTRINGIDO: El socio titular "
-                            f"({titular_profile.get('nombre_apellido')}) "
-                            f"tiene su cuenta en estado {titular_profile.get('estado')}. "
-                            "No es posible acceder como integrante familiar."
-                        ),
+                        detail=MSG_TITULAR_RESTRINGIDO,
                     )
 
         # Validación: PRIMER LOGIN OBLIGATORIO SI USA PASS POR DEFECTO O FUE RESTABLECIDA POR ADMIN
@@ -2340,14 +2355,14 @@ def get_all_users(
 
 
 class UpdateUserStatusRequest(BaseModel):
-    estado: str  # "APROBADO" | "SUSPENDIDO" | "PENDIENTE" | "RECHAZADO" | "RESTRINGIDO"
+    estado: str  # Valores válidos definidos en ESTADOS_VALIDOS
 
     @validator('estado')
     def validate_estado(cls, v):
-        allowed = {"PENDIENTE", "APROBADO", "RECHAZADO", "SUSPENDIDO", "RESTRINGIDO"}
-        if v not in allowed:
-            raise ValueError(f"Estado inválido: {v}. Valores permitidos: {', '.join(sorted(allowed))}")
+        if v not in ESTADOS_VALIDOS:
+            raise ValueError(f"Estado inválido: {v}. Valores permitidos: {', '.join(sorted(ESTADOS_VALIDOS))}")
         return v
+
 
 
 @app.put("/api/admin/users/{user_id}/status")
@@ -4818,7 +4833,7 @@ def detectar_mora(
         query = (
             supabase.table("profiles")
             .select("id, nombre_apellido, telefono, rol")
-            .in_("estado", ["APROBADO", "RESTRINGIDO"])
+            .in_("estado", list(ESTADOS_ACTIVOS))
         )
 
         if not admin_user:
