@@ -76,7 +76,7 @@ export default function Registro() {
     direccion: '',
     municipio: '',
     provincia: 'Corrientes',
-  });
+  }));
   const [comercioPassword, setComercioPassword] = useState('');
   const [comercioConfirmPassword, setComercioConfirmPassword] = useState('');
   const [comercioPasswordError, setComercioPasswordError] = useState('');
