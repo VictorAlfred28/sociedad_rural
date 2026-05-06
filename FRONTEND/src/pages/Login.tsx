@@ -163,7 +163,7 @@ export default function Login() {
                 value={reenvioEmail}
                 onChange={e => setReenvioEmail(e.target.value)}
                 placeholder="Tu correo electrónico"
-                className="w-full px-3 h-9 rounded-lg border border-amber-300 bg-white text-sm outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full px-3 h-9 rounded-lg border border-amber-300 bg-white text-gray-900 dark:bg-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm outline-none focus:ring-1 focus:ring-amber-500"
               />
               <button
                 type="button"
