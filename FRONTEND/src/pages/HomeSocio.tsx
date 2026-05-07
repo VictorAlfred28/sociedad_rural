@@ -221,8 +221,9 @@ export default function HomeSocio() {
             Accesos rápidos
           </motion.p>
           <SocioHomeContent
-            isFamiliar={user?.user_type === 'FAMILIAR' || ['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')}
             isComercio={user?.rol === 'COMERCIO'}
+            isEmpleado={['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '') && user?.rol !== 'COMERCIO'}
+            isFamiliar={user?.user_type === 'FAMILIAR' && !['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')}
           />
         </div>
       </div>

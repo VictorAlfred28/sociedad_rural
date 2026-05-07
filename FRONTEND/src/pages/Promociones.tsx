@@ -5,6 +5,8 @@ import FeaturedCarousel from '../components/FeaturedCarousel';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import paisaje from '../assets/paisaje.png';
+import { RUBROS_COMERCIO, RUBRO_ICON, RUBRO_COLOR, RUBRO_LABEL } from '../types/comercio';
+
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface Oferta {
@@ -59,30 +61,12 @@ const normalizeRubro = (original: string) => {
   return original;
 };
 
-const RUBRO_LABELS: Record<string, string> = {
-  agropecuario: 'Agropecuario', veterinaria: 'Veterinaria',
-  maquinaria_agricola: 'Maquinaria', insumos_agricolas: 'Insumos Agríc.',
-  alimentacion: 'Alimentación', construccion: 'Construcción',
-  transporte: 'Transporte', socios_profesionales: 'Profesionales',
-  vestimentas: 'Vestimentas e Indumentarias', gurises: 'Gurises',
-  comercio_general: 'Comercio Gral.', combustible: 'Combustible', servicios: 'Servicios', otro: 'Otro',
-};
-const RUBRO_ICON: Record<string, string> = {
-  agropecuario: 'agriculture', veterinaria: 'vaccines',
-  maquinaria_agricola: 'precision_manufacturing', insumos_agricolas: 'science',
-  alimentacion: 'restaurant', construccion: 'construction',
-  transporte: 'local_shipping', socios_profesionales: 'work',
-  vestimentas: 'checkroom', gurises: 'child_care',
-  comercio_general: 'storefront', combustible: 'local_gas_station', servicios: 'handyman', otro: 'category',
-};
-const RUBRO_COLOR: Record<string, string> = {
-  agropecuario: 'bg-lime-500', veterinaria: 'bg-cyan-500',
-  maquinaria_agricola: 'bg-orange-500', insumos_agricolas: 'bg-emerald-500',
-  alimentacion: 'bg-amber-500', construccion: 'bg-stone-500',
-  transporte: 'bg-blue-500', socios_profesionales: 'bg-violet-500',
-  vestimentas: 'bg-pink-500', gurises: 'bg-yellow-500',
-  comercio_general: 'bg-rose-500', combustible: 'bg-red-600', servicios: 'bg-cyan-600', otro: 'bg-slate-500',
-};
+// ─── RUBROS: ahora importados desde types/comercio.ts (fuente única) ─────────
+// RUBRO_ICON, RUBRO_COLOR y RUBRO_LABEL provienen de la importación arriba.
+// RUBRO_LABELS es un alias local para compatibilidad con el resto del archivo.
+const RUBRO_LABELS = RUBRO_LABEL;
+
+
 
 const TIPO_CFG = {
   promocion: {
@@ -102,7 +86,9 @@ const TIPO_CFG = {
   },
 };
 
-const RUBROS = ['todos', 'vestimentas', 'gurises', 'socios_profesionales', 'veterinaria', 'maquinaria_agricola', 'insumos_agricolas', 'alimentacion', 'construccion', 'transporte', 'agropecuario', 'combustible', 'servicios'];
+// Lista de rubros para el filtro (generada dinámicamente desde la fuente única)
+const RUBROS = ['todos', ...RUBROS_COMERCIO.map(r => r.value)];
+
 
 type Tab = 'ofertas' | 'comercios' | 'profesionales';
 

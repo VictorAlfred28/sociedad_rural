@@ -65,6 +65,7 @@ interface SocioValidado {
 const TIPO_CONFIG = {
     promocion: {
         label: 'Promoción',
+        labelPlural: 'Promociones',
         icon: 'local_offer',
         color: 'bg-orange-500',
         light: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700',
@@ -73,6 +74,7 @@ const TIPO_CONFIG = {
     },
     descuento: {
         label: 'Descuento',
+        labelPlural: 'Descuentos',
         icon: 'percent',
         color: 'bg-emerald-500',
         light: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700',
@@ -81,6 +83,7 @@ const TIPO_CONFIG = {
     },
     beneficio: {
         label: 'Beneficio',
+        labelPlural: 'Beneficios',
         icon: 'star',
         color: 'bg-violet-500',
         light: 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-700',
@@ -90,7 +93,7 @@ const TIPO_CONFIG = {
 };
 
 export default function MiNegocio() {
-    const { user, token } = useAuth();
+    const { user, token, updateUser } = useAuth();
     const [ofertas, setOfertas] = useState<Oferta[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -317,22 +320,26 @@ export default function MiNegocio() {
                 body: formData,
             });
 
+            const data = await resp.json();
+
             if (!resp.ok) {
                 if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
-                const data = await resp.json();
                 throw new Error(data.detail || 'Error al subir logo');
             }
+
+            const finalUrl = `${data.foto_url}${data.foto_url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+            updateUser({ foto_url: finalUrl });
 
             setStatusMsg({ type: 'success', text: '✔ Logo actualizado correctamente' });
             setLogoPreview(null);
             setLogoFile(null);
-            setTimeout(() => window.location.reload(), 1500);
         } catch (err: any) {
             setStatusMsg({ type: 'error', text: err.message });
         } finally {
             setUpdatingLogo(false);
         }
     };
+
 
     const startScanner = async () => {
         setScanResult(null);
@@ -514,7 +521,7 @@ export default function MiNegocio() {
                             <div key={tipo} className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm border border-emerald-600/20 rounded-2xl p-3 text-center shadow-sm">
                                 <span className={`material-symbols-outlined text-xl block mb-1 ${cfg.text}`}>{cfg.icon}</span>
                                 <span className="text-xl font-bold block text-stone-800 dark:text-stone-100">{count}</span>
-                                <span className="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-wide">{cfg.label}s</span>
+                                <span className="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-wide">{cfg.labelPlural}</span>
                             </div>
                         );
                     })}
@@ -758,7 +765,7 @@ export default function MiNegocio() {
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
                                 }`}
                         >
-                            {f === 'todas' ? 'Todas' : TIPO_CONFIG[f].label + 's'}
+                            {f === 'todas' ? 'Todas' : TIPO_CONFIG[f].labelPlural}
                         </button>
                     ))}
                 </div>

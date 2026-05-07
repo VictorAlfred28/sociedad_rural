@@ -107,8 +107,21 @@ export default function CarnetDigital() {
                   </div>
 
                   <div className="flex items-center gap-4 mt-2">
-                    <div className="size-14 rounded-full border border-gray-400 bg-black/30 backdrop-blur-sm flex items-center justify-center shrink-0">
-                      <span className="text-2xl font-bold">{user?.nombre_apellido?.charAt(0) || 'O'}</span>
+                    <div className="size-14 rounded-full border border-gray-400 bg-black/30 backdrop-blur-sm flex items-center justify-center shrink-0 overflow-hidden">
+                      {user?.foto_url ? (
+                        <img
+                          src={user.foto_url}
+                          alt="Foto perfil"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback a inicial si la imagen falla
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-2xl font-bold text-white">${user?.nombre_apellido?.charAt(0) || 'O'}</span>`;
+                          }}
+                        />
+                      ) : (
+                        <span className="text-2xl font-bold text-white">{user?.nombre_apellido?.charAt(0) || 'O'}</span>
+                      )}
                     </div>
                     <div className="flex flex-col justify-center">
                       <p className="text-[10px] text-gray-300 font-bold tracking-widest mb-0.5">NOMBRE DEL MIEMBRO</p>
