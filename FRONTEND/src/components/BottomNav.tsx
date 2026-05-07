@@ -19,7 +19,6 @@ export default function BottomNav({ scrollContainerRef }: BottomNavProps) {
   const location = useLocation();
   const path     = location.pathname;
   const { user } = useAuth();
-  const isComercio = user?.rol === 'COMERCIO';
   const isAdmin    = user?.rol === 'ADMIN';
 
   // ── Estado: controlamos con CSS transform directo ────────────
@@ -143,11 +142,9 @@ export default function BottomNav({ scrollContainerRef }: BottomNavProps) {
   }, [applyVisibility]);
 
   // ── Tabs ─────────────────────────────────────────────────────
-  const centerTab = isComercio
-    ? { to: '/mi-negocio', label: 'NEGOCIO',  icon: 'storefront'           }
-    : isAdmin
-    ? { to: '/admin',      label: 'ADMIN',     icon: 'admin_panel_settings' }
-    : { to: '/eventos',    label: 'NOVEDADES', icon: 'event_note'           };
+  const centerTab = isAdmin
+    ? { to: '/admin',   label: 'ADMIN',     icon: 'admin_panel_settings' }
+    : { to: '/eventos', label: 'NOVEDADES', icon: 'event_note'           };
 
   const tabs = [
     { to: '/home',   label: 'INICIO',  icon: 'home'   },

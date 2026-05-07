@@ -86,6 +86,29 @@ const AportesDecor = () => (
   </svg>
 );
 
+// Decoración para tarjeta Mi Negocio (verde oscuro / comercio)
+const NegocioDecor = () => (
+  <svg className="absolute bottom-0 right-0 w-full h-[100px] pointer-events-none" style={{ opacity: 0.65, mixBlendMode: 'multiply' }} viewBox="0 0 200 100" preserveAspectRatio="none">
+    <defs>
+      <filter id="blurNegocio">
+        <feGaussianBlur stdDeviation="0.8" />
+      </filter>
+    </defs>
+    <g filter="url(#blurNegocio)">
+        <path d="M0 100 L200 100 L200 78 Q 120 60 0 82 Z" fill="#4a7c3e" opacity="0.45"/>
+        <path d="M0 100 L170 100 L170 85 Q 90 72 0 92 Z" fill="#3b6232" opacity="0.45"/>
+        <g stroke="#2d5a28" strokeWidth="1.5" strokeLinecap="round" opacity="0.75">
+          <line x1="20" y1="68" x2="20" y2="93" />
+          <line x1="60" y1="63" x2="60" y2="88" />
+          <line x1="100" y1="58" x2="100" y2="83" />
+          <line x1="140" y1="53" x2="140" y2="78" />
+          <line x1="5" y1="76" x2="185" y2="56" />
+          <line x1="5" y1="86" x2="185" y2="66" />
+        </g>
+    </g>
+  </svg>
+);
+
 const PasaporteDecor = () => (
   <svg className="absolute bottom-0 right-0 w-[130px] h-[110px] pointer-events-none" style={{ opacity: 0.65, mixBlendMode: 'multiply' }} viewBox="0 0 130 110">
     <defs>
@@ -110,7 +133,7 @@ const PasaporteDecor = () => (
   </svg>
 );
 
-export default function SocioHomeContent({ isFamiliar = false }: { isFamiliar?: boolean }) {
+export default function SocioHomeContent({ isFamiliar = false, isComercio = false }: { isFamiliar?: boolean; isComercio?: boolean }) {
     const cardStyle = {
         background: `linear-gradient(145deg, #F8F3E6 0%, #EBE2CC 100%)`,
         backgroundImage: `${paperTexture}, linear-gradient(145deg, #F6F1E3 0%, #EBE0C8 100%)`,
@@ -161,8 +184,26 @@ export default function SocioHomeContent({ isFamiliar = false }: { isFamiliar?: 
                     </div>
                 </Link>
 
-                {/* 3. Aportes / Cuotas — solo titular */}
-                {isFamiliar ? (
+                {/* 3. Tarjeta condicional por rol */}
+                {isComercio ? (
+                    /* COMERCIO: acceso directo a Mi Negocio (panel de gestión) */
+                    <Link
+                        to="/mi-negocio"
+                        className="relative overflow-hidden flex flex-col items-start justify-start p-4 rounded-[18px] transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 group"
+                        style={cardStyle}
+                    >
+                        <NegocioDecor />
+                        <div className="relative z-10 w-[42px] h-[42px] rounded-full flex items-center justify-center mb-2.5 bg-[#2d5a28] shadow-[0px_4px_8px_rgba(45,90,40,0.35)] shrink-0 transform transition-transform group-hover:scale-105">
+                            <span className="material-symbols-outlined text-[22px] text-[#F8F3E6]" style={{fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}}>storefront</span>
+                        </div>
+                        <div className="relative z-10 w-full flex flex-col items-start pr-1">
+                            <h3 className="text-[17px] font-bold text-[#1a261a] leading-tight" style={{ fontFamily: 'Georgia, serif' }}>Mi Negocio</h3>
+                            <div className="w-5 h-[2px] bg-[#2d5a28] my-2" />
+                            <p className="text-[12px] text-[#555] leading-[1.3]">Gestioná ofertas, empleados y publicaciones.</p>
+                        </div>
+                    </Link>
+                ) : isFamiliar ? (
+                    /* FAMILIAR: Aportes bloqueados */
                     <div
                         className="relative overflow-hidden flex flex-col items-start justify-start p-4 rounded-[18px] opacity-50 cursor-not-allowed"
                         style={cardStyle}
@@ -179,6 +220,7 @@ export default function SocioHomeContent({ isFamiliar = false }: { isFamiliar?: 
                         </div>
                     </div>
                 ) : (
+                    /* SOCIO titular: Aportes / Cuotas habilitado */
                     <Link
                         to="/cuotas"
                         className="relative overflow-hidden flex flex-col items-start justify-start p-4 rounded-[18px] transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 group"
