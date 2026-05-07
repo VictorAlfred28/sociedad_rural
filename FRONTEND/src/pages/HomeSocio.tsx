@@ -220,7 +220,7 @@ export default function HomeSocio() {
           >
             Accesos rápidos
           </motion.p>
-          <SocioHomeContent isFamiliar={user?.user_type === 'FAMILIAR'} />
+          <SocioHomeContent isFamiliar={user?.user_type === 'FAMILIAR' || ['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')} />
         </div>
       </div>
 

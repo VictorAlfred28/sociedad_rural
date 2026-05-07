@@ -108,6 +108,8 @@ export default function MiNegocio() {
         instagram_url: '',
         facebook_url: '',
     });
+    const [editingOfertaId, setEditingOfertaId] = useState<string | null>(null);
+
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -154,10 +156,10 @@ export default function MiNegocio() {
         };
     }, []);
 
-    const handleCreateOferta = async (e: React.FormEvent) => {
+    const handleSubmitOferta = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (!selectedFile) {
+        if (!selectedFile && !editingOfertaId) {
             setError('La imagen de la promoción es obligatoria.');
             return;
         }
@@ -165,7 +167,7 @@ export default function MiNegocio() {
         setSubmitting(true);
         setError('');
         try {
-            let imagen_url = '';
+            let imagen_url = form.imagen_url;
 
             // 1. Si hay un archivo seleccionado para la oferta, subirlo primero
             if (selectedFile) {
@@ -188,8 +190,13 @@ export default function MiNegocio() {
                 }
             }
 
-            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas`, {
-                method: 'POST',
+            const isEditing = !!editingOfertaId;
+            const url = isEditing 
+                ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas/${editingOfertaId}`
+                : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas`;
+
+            const resp = await fetch(url, {
+                method: isEditing ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
@@ -198,35 +205,55 @@ export default function MiNegocio() {
                     titulo: form.titulo,
                     descripcion: form.descripcion,
                     tipo: form.tipo,
-                    // F3: Campo canónico
                     valor_descuento: form.valor_descuento ? parseFloat(form.valor_descuento) : null,
                     tipo_descuento: form.tipo_descuento || 'porcentaje',
                     fecha_fin: form.fecha_fin || null,
                     imagen_url: imagen_url || null,
-                    // Normalizar URLs antes de enviar (agrega https:// si falta)
                     instagram_url: normalizeSocialUrl(form.instagram_url) || null,
                     facebook_url: normalizeSocialUrl(form.facebook_url) || null,
                 }),
             });
+            
             if (!resp.ok) {
                 if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
                 const data = await resp.json();
-                // Extraer mensaje legible de errores de validación Pydantic (HTTP 422)
-                let errorMsg = data.detail || 'Error al crear oferta';
+                let errorMsg = data.detail || `Error al ${isEditing ? 'editar' : 'crear'} oferta`;
                 if (Array.isArray(data.detail) && data.detail.length > 0) {
                     errorMsg = data.detail[0].msg || errorMsg;
                 }
                 throw new Error(errorMsg);
             }
-            setShowForm(false);
-            setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
-            setSelectedFile(null);
+            closeForm();
             await fetchOfertas();
         } catch (err: any) {
             setError(err.message);
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleEditOferta = (oferta: any) => {
+        setForm({
+            titulo: oferta.titulo,
+            descripcion: oferta.descripcion || '',
+            tipo: oferta.tipo,
+            valor_descuento: oferta.valor_descuento ? oferta.valor_descuento.toString() : '',
+            tipo_descuento: oferta.tipo_descuento || 'porcentaje',
+            fecha_fin: oferta.fecha_fin || '',
+            imagen_url: oferta.imagen_url || '',
+            instagram_url: oferta.instagram_url || '',
+            facebook_url: oferta.facebook_url || '',
+        });
+        setEditingOfertaId(oferta.id);
+        setSelectedFile(null);
+        setShowForm(true);
+    };
+
+    const closeForm = () => {
+        setShowForm(false);
+        setEditingOfertaId(null);
+        setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
+        setSelectedFile(null);
     };
 
     const toggleOferta = async (id: string, activo: boolean) => {
@@ -504,29 +531,7 @@ export default function MiNegocio() {
                     VALIDAR CARNET SOCIO
                 </button>
 
-                {/* BOTÓN SIMULACIÓN PARA TEST */}
-                <button
-                    onClick={() => {
-                        setScanResult({
-                            valido: true,
-                            mensaje: "Socio con deuda - Acceso Restringido",
-                            socio: {
-                                id: "sim-deudor",
-                                nombre_apellido: "CARLOS MÉNDEZ (TEST)",
-                                dni: "10123456",
-                                estado: "RESTRINGIDO",
-                                municipio: "Riachuelo",
-                                rol: "SOCIO",
-                                tipo_vinculo: "Titular"
-                            }
-                        });
-                        setShowScanner(false);
-                    }}
-                    className="w-full mb-4 flex items-center justify-center gap-2 bg-red-500/10 text-red-500 border border-red-500/30 font-bold py-2 rounded-xl transition-all active:scale-95 text-xs"
-                >
-                    <span className="material-symbols-outlined text-sm">science</span>
-                    Test: Simular Socio con Deuda
-                </button>
+
 
                 <div className="flex items-center gap-3 my-6">
                     <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
@@ -536,7 +541,12 @@ export default function MiNegocio() {
 
                 {/* Botón nueva oferta */}
                 <button
-                    onClick={() => setShowForm(true)}
+                    onClick={() => {
+                        setEditingOfertaId(null);
+                        setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
+                        setSelectedFile(null);
+                        setShowForm(true);
+                    }}
                     className="w-full mb-4 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-slate-900 font-bold py-3.5 rounded-2xl transition-all shadow-sm"
                 >
                     <span className="material-symbols-outlined">add_circle</span>
@@ -549,18 +559,18 @@ export default function MiNegocio() {
                     </div>
                 )}
 
-                {/* Modal de nueva oferta */}
+                {/* Modal de nueva/editar oferta */}
                 {showForm && (
                     <div className="fixed inset-0 bg-black/60 z-[100] flex items-end">
                         <div className="w-full bg-white dark:bg-slate-900 rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto">
                             <div className="flex items-center justify-between mb-5">
-                                <h2 className="text-lg font-bold">Nueva Oferta</h2>
-                                <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600">
+                                <h2 className="text-lg font-bold">{editingOfertaId ? 'Editar Oferta' : 'Nueva Oferta'}</h2>
+                                <button onClick={closeForm} className="text-slate-400 hover:text-slate-600">
                                     <span className="material-symbols-outlined">close</span>
                                 </button>
                             </div>
 
-                            <form onSubmit={handleCreateOferta} className="flex flex-col gap-4">
+                            <form onSubmit={handleSubmitOferta} className="flex flex-col gap-4">
                                 {/* Tipo */}
                                 <div>
                                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Tipo</label>
@@ -644,15 +654,15 @@ export default function MiNegocio() {
 
                                 {/* Imagen de la oferta */}
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Imagen de la Promoción *</label>
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Imagen de la Promoción {!editingOfertaId && '*'}</label>
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className={`w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative overflow-hidden ${selectedFile ? 'border-primary' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                                        className={`w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative overflow-hidden ${selectedFile || form.imagen_url ? 'border-primary' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
                                     >
-                                        {selectedFile ? (
+                                        {selectedFile || form.imagen_url ? (
                                             <>
                                                 <img
-                                                    src={URL.createObjectURL(selectedFile)}
+                                                    src={selectedFile ? URL.createObjectURL(selectedFile) : form.imagen_url}
                                                     alt="Preview"
                                                     className="absolute inset-0 w-full h-full object-cover opacity-50"
                                                 />
@@ -663,7 +673,7 @@ export default function MiNegocio() {
                                         ) : (
                                             <>
                                                 <span className="material-symbols-outlined text-slate-400 text-3xl">add_photo_alternate</span>
-                                                <span className="text-xs font-semibold text-slate-400">Subir foto de la oferta (OBLIGATORIA)</span>
+                                                <span className="text-xs font-semibold text-slate-400">Subir foto de la oferta {editingOfertaId ? '(Opcional)' : '(OBLIGATORIA)'}</span>
                                             </>
                                         )}
                                     </div>
@@ -728,7 +738,7 @@ export default function MiNegocio() {
                                     disabled={submitting}
                                     className="w-full bg-primary hover:bg-primary/90 text-slate-900 font-bold py-4 rounded-xl transition-all disabled:opacity-50 mt-2"
                                 >
-                                    {submitting ? 'Publicando...' : 'Publicar Oferta'}
+                                    {submitting ? 'Guardando...' : (editingOfertaId ? 'Guardar Cambios' : 'Publicar Oferta')}
                                 </button>
                             </form>
                         </div>
@@ -818,6 +828,13 @@ export default function MiNegocio() {
 
                                         {/* Acciones */}
                                         <div className="flex flex-col gap-1.5 shrink-0">
+                                            <button
+                                                onClick={() => handleEditOferta(oferta)}
+                                                className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center transition-all"
+                                                title="Editar"
+                                            >
+                                                <span className="material-symbols-outlined text-lg">edit</span>
+                                            </button>
                                             <button
                                                 onClick={() => toggleOferta(oferta.id, oferta.activo)}
                                                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${oferta.activo

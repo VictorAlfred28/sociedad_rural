@@ -151,6 +151,17 @@ export default function Cuotas() {
     }
   };
 
+  if (user?.user_type === 'FAMILIAR' || ['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stone-50 dark:bg-stone-900 text-center font-display">
+        <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">block</span>
+        <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">Acceso Restringido</h2>
+        <p className="text-sm text-slate-500 mb-6">Solo el titular de la cuenta puede gestionar las cuotas y aportes.</p>
+        <Link to="/home" className="px-6 py-3 bg-[#245b31] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] active:scale-95 transition-all">Volver al Inicio</Link>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden border-x border-slate-200 dark:border-slate-800">
       {/* Fondo con imagen sutil de ganadería/campo */}

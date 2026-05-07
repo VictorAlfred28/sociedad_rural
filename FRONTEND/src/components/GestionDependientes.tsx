@@ -8,6 +8,7 @@ export default function GestionDependientes() {
     const [error, setError] = useState('');
 
     const [showAddForm, setShowAddForm] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         nombre_apellido: '',
         dni_cuit: '',
@@ -51,7 +52,7 @@ export default function GestionDependientes() {
         if (isTitular) fetchDependientes();
     }, [isTitular]);
 
-    const handleAdd = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormLoading(true);
         setError('');
@@ -60,8 +61,13 @@ export default function GestionDependientes() {
             const bodyData = { ...formData };
             if (!bodyData.email) delete (bodyData as any).email;
 
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/agregar-dependiente`, {
-                method: 'POST',
+            const isEditing = !!editingId;
+            const url = isEditing 
+                ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/dependientes/${editingId}`
+                : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/agregar-dependiente`;
+
+            const res = await fetch(url, {
+                method: isEditing ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
@@ -78,14 +84,32 @@ export default function GestionDependientes() {
                 throw new Error(errMsg);
             }
 
-            setFormData({ nombre_apellido: '', dni_cuit: '', tipo_vinculo: '', telefono: '', email: '' });
-            setShowAddForm(false);
+            closeForm();
             fetchDependientes();
         } catch (err: any) {
             setError(err.message);
         } finally {
             setFormLoading(false);
         }
+    };
+
+    const handleEdit = (dep: any) => {
+        setFormData({
+            nombre_apellido: dep.nombre_apellido,
+            dni_cuit: dep.dni || '',
+            tipo_vinculo: dep.tipo_vinculo || '',
+            telefono: dep.telefono || '',
+            email: dep.email || '',
+        });
+        setEditingId(dep.id);
+        setShowAddForm(true);
+    };
+
+    const closeForm = () => {
+        setShowAddForm(false);
+        setEditingId(null);
+        setFormData({ nombre_apellido: '', dni_cuit: '', tipo_vinculo: '', telefono: '', email: '' });
+        setError('');
     };
 
     const handleDelete = async (id: string) => {
@@ -136,10 +160,12 @@ export default function GestionDependientes() {
             </div>
 
             {showAddForm && (
-                <form onSubmit={handleAdd} className="bg-white dark:bg-slate-900 border border-primary/20 p-4 rounded-2xl shadow-sm flex flex-col gap-3 mb-4">
+                <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 border border-primary/20 p-4 rounded-2xl shadow-sm flex flex-col gap-3 mb-4">
                     <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-slate-900 dark:text-slate-100 font-bold text-sm">{addTitle}</h4>
-                        <button type="button" onClick={() => setShowAddForm(false)} className="text-slate-400">
+                        <h4 className="text-slate-900 dark:text-slate-100 font-bold text-sm">
+                            {editingId ? `Editar ${isComercio ? 'Empleado' : 'Familiar'}` : addTitle}
+                        </h4>
+                        <button type="button" onClick={closeForm} className="text-slate-400">
                             <span className="material-symbols-outlined text-sm">close</span>
                         </button>
                     </div>
@@ -166,25 +192,27 @@ export default function GestionDependientes() {
                         value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
                     />
 
-                    <div className="mt-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2">
-                            Contraseña Inicial
-                        </label>
-                        <input
-                            type="text" readOnly disabled
-                            value="Familia1234"
-                            className={`${inputClass} bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-not-allowed`}
-                        />
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                            Esta es la contraseña inicial que el miembro debe usar para acceder.
-                        </p>
-                    </div>
+                    {!editingId && (
+                        <div className="mt-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2">
+                                Contraseña Inicial
+                            </label>
+                            <input
+                                type="text" readOnly disabled
+                                value="Familia1234"
+                                className={`${inputClass} bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-not-allowed`}
+                            />
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                Esta es la contraseña inicial que el miembro debe usar para acceder.
+                            </p>
+                        </div>
+                    )}
 
                     <button
                         type="submit" disabled={formLoading}
                         className="mt-2 h-11 rounded-xl bg-primary text-slate-900 font-bold shadow-lg shadow-primary/20 active:scale-95 transition-transform disabled:opacity-50"
                     >
-                        {formLoading ? 'Guardando...' : 'Guardar y Vincular'}
+                        {formLoading ? 'Guardando...' : (editingId ? 'Guardar Cambios' : 'Guardar y Vincular')}
                     </button>
                 </form>
             )}
@@ -207,13 +235,22 @@ export default function GestionDependientes() {
                                 <span className="text-slate-900 dark:text-slate-100 font-bold text-sm truncate">{dep.nombre_apellido}</span>
                                 <span className="text-slate-500 dark:text-slate-400 text-xs">{dep.tipo_vinculo} • DNI {dep.dni}</span>
                             </div>
-                            <button
-                                onClick={() => handleDelete(dep.id)}
-                                className="text-red-400 hover:text-red-500 bg-red-50 dark:bg-red-400/10 h-8 w-8 rounded-full flex items-center justify-center transition-colors"
-                                title="Desvincular"
-                            >
-                                <span className="material-symbols-outlined text-sm">delete</span>
-                            </button>
+                            <div className="flex gap-2 shrink-0">
+                                <button
+                                    onClick={() => handleEdit(dep)}
+                                    className="text-blue-400 hover:text-blue-500 bg-blue-50 dark:bg-blue-400/10 h-8 w-8 rounded-full flex items-center justify-center transition-colors"
+                                    title="Editar"
+                                >
+                                    <span className="material-symbols-outlined text-sm">edit</span>
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(dep.id)}
+                                    className="text-red-400 hover:text-red-500 bg-red-50 dark:bg-red-400/10 h-8 w-8 rounded-full flex items-center justify-center transition-colors"
+                                    title="Desvincular"
+                                >
+                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>

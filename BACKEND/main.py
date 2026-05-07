@@ -3253,6 +3253,57 @@ def agregar_dependiente(
         raise HTTPException(status_code=400, detail=f"Error al agregar: {str(e)}")
 
 
+class UpdateDependienteRequest(BaseModel):
+    nombre_apellido: Optional[str] = None
+    dni_cuit: Optional[str] = None
+    email: Optional[str] = None
+    telefono: Optional[str] = None
+    tipo_vinculo: Optional[str] = None
+
+@app.put("/api/dependientes/{dependiente_id}")
+def update_dependiente(
+    dependiente_id: str,
+    req: UpdateDependienteRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user=Depends(get_current_user),
+):
+    """Actualiza los datos de un perfil que depende del usuario en sesión."""
+    try:
+        dep_res = supabase.table("profiles").select("*").eq("id", dependiente_id).eq("titular_id", current_user.id).execute()
+        if not dep_res.data:
+            raise HTTPException(status_code=404, detail="Dependiente no encontrado o no autorizado")
+
+        update_data = {k: v for k, v in req.dict(exclude_unset=True).items() if v is not None}
+        if "dni_cuit" in update_data:
+            update_data["dni"] = update_data.pop("dni_cuit")
+
+        if not update_data:
+            return {"message": "No hay datos para actualizar"}
+
+        supabase.table("profiles").update(update_data).eq("id", dependiente_id).execute()
+
+        background_tasks.add_task(
+            registrar_auditoria,
+            usuario_id=current_user.id,
+            email_usuario=current_user.email,
+            rol_usuario=None,
+            accion="UPDATE",
+            tabla="profiles",
+            registro_id=dependiente_id,
+            datos_anteriores=dep_res.data[0],
+            datos_nuevos=update_data,
+            modulo="Gestión Dependientes",
+            request=request,
+        )
+
+        return {"message": "Dependiente actualizado correctamente", "dependiente": update_data}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=400, detail=f"Error al actualizar: {str(e)}")
+
+
 @app.delete("/api/dependientes/{dependiente_id}")
 def eliminar_dependiente(
     dependiente_id: str,
@@ -6186,6 +6237,20 @@ class OfertaCreate(BaseModel):
 class OfertaUpdateActivo(BaseModel):
     activo: bool
 
+class OfertaUpdate(BaseModel):
+    titulo: Optional[str] = None
+    descripcion: Optional[str] = None
+    tipo: Optional[str] = None
+    valor_descuento: Optional[float] = None
+    tipo_descuento: Optional[str] = None
+    fecha_fin: Optional[str] = None
+    imagen_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    activo: Optional[bool] = None
+
+    _normalize_urls = validator("instagram_url", "facebook_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+
 @app.get("/api/ofertas")
 def get_ofertas(request: Request):
     authorization = request.headers.get("Authorization")
@@ -6263,6 +6328,34 @@ def update_oferta_status(oferta_id: str, update_data: OfertaUpdateActivo, reques
 
         res = supabase.table("promociones").update({"activo": update_data.activo}).eq("id", oferta_id).execute()
         return res.data[0]
+    except Exception as e:
+        logger.error(f"[OFERTAS] Error al actualizar oferta: {e}")
+        raise HTTPException(status_code=500, detail="Error al actualizar la oferta.")
+
+@app.put("/api/ofertas/{oferta_id}")
+def update_oferta(oferta_id: str, update_data: OfertaUpdate, request: Request):
+    authorization = request.headers.get("Authorization")
+    user_id = _get_user_from_bearer(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado.")
+
+    try:
+        # Verificar que la oferta pertenezca al comercio
+        check = supabase.table("promociones").select("comercio_id").eq("id", oferta_id).execute()
+        if not check.data or check.data[0]["comercio_id"] != user_id:
+            raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta oferta.")
+
+        # Filtrar valores None del payload
+        update_dict = {k: v for k, v in update_data.dict(exclude_unset=True).items() if v is not None}
+        if not update_dict:
+            return {"message": "No hay datos para actualizar"}
+
+        res = supabase.table("promociones").update(update_dict).eq("id", oferta_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Oferta no encontrada.")
+        return res.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[OFERTAS] Error al actualizar oferta: {e}")
         raise HTTPException(status_code=500, detail="Error al actualizar la oferta.")
