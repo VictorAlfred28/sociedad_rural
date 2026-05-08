@@ -3991,12 +3991,17 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request, backg
     if not payload.titulo:
         raise HTTPException(status_code=400, detail="titulo es obligatorio")
 
-    # Guardar LOG de recepción
+    # Guardar LOG de recepción seguro (resumen sin payload completo)
     try:
         supabase.table("webhook_logs").insert({
+            "endpoint": "/api/v1/importar-evento",
             "source": "instagram_make",
             "external_id": payload.external_id,
-            "payload_json": payload.model_dump(),
+            "payload_resumen": {
+                "titulo": payload.titulo,
+                "fecha": payload.fecha,
+                "lugar": payload.lugar
+            },
             "status": "pending",
         }).execute()
     except Exception as e:
@@ -4005,11 +4010,19 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request, backg
     # 1. Validar Token de seguridad o Webhook Secret
     token = request.headers.get("X-Webhook-Token")
     secret_header = request.headers.get("x-webhook-secret")
-    webhook_secret = os.getenv("WEBHOOK_SECRET", "make_webhook_secret_2026")
+    webhook_secret = os.getenv("WEBHOOK_SECRET")
     secret_token = os.getenv("WEBHOOK_SECRET_TOKEN")
 
+    if not webhook_secret and not secret_token:
+        logger.critical("[WEBHOOK EVENTOS] Variables de entorno de seguridad no configuradas.")
+        # Actualizar LOG
+        supabase.table("webhook_logs").update({
+            "status": "error", "error_message": "Webhook not configured"
+        }).eq("external_id", payload.external_id).execute()
+        raise HTTPException(status_code=503, detail="Webhook not configured")
+
     authorized = False
-    if secret_header and secrets.compare_digest(secret_header, webhook_secret):
+    if secret_header and webhook_secret and secrets.compare_digest(secret_header, webhook_secret):
         authorized = True
     elif token and secret_token and secrets.compare_digest(token, secret_token):
         authorized = True
@@ -4702,11 +4715,9 @@ def enviar_whatsapp(telefono: str, mensaje: str):
         # Lógica para Argentina: Si tiene 10 dígitos (ej: 3794xxxxxx), anteponer 549
         if len(numero_limpio) == 10:
             numero_limpio = f"549{numero_limpio}"
-        # Si tiene 11 dígitos y empieza con 15 (común en AR), corregir a 549 + area + resto
-        elif len(numero_limpio) == 11 and numero_limpio.startswith("15"):
-            # Este es un caso borde, mejor dejarlo pasar o intentar normalizarlo si conocemos el area
-            pass
-        # Si empieza con 379 y tiene 10 digitos ya fue cubierto arriba.
+        # Si tiene 12 dígitos y empieza con 15 (ej: 153794330172), remover el 15 y anteponer 549
+        elif len(numero_limpio) == 12 and numero_limpio.startswith("15"):
+            numero_limpio = f"549{numero_limpio[2:]}"
         # Si tiene 13 y empieza con 549, ya está correcto.
 
         payload = {
@@ -4716,9 +4727,16 @@ def enviar_whatsapp(telefono: str, mensaje: str):
             "linkPreview": True,
         }
 
-        response = requests.post(url, json=payload, headers=headers)
-        if response.status_code not in [200, 201]:
-            logger.error(f"Error Evolution API: {response.status_code} - {response.text}")
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=10)
+            if response.status_code not in [200, 201]:
+                logger.error(f"Error Evolution API: {response.status_code} - {response.text}")
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout (10s) en Evolution API para {numero_limpio}. Mensaje abortado.")
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Error de conexión con Evolution API para {numero_limpio}.")
+        except requests.exceptions.RequestException as req_err:
+            logger.error(f"Error HTTP en Evolution API para {numero_limpio}: {req_err}")
 
     except Exception as e:
         logger.error(f"Error crítico enviando WhatsApp: {str(e)}")
@@ -5384,27 +5402,30 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
     Recibe eventos de Evolution API para responder consultas de socios de forma automática.
     """
     try:
-        # LOG DE DEBUG en activity_log para verificar si el webhook es alcanzado
+        # LOG DE DEBUG SEGURO: trazabilidad sin exponer secrets ni tokens
         try:
-            # NO USAR request.body() aquí porque consume el stream y rompe el request.json() posterior
-            supabase.table("activity_log").insert(
-                {
-                    "tipo_evento": "DEBUG_WEBHOOK",
-                    "descripcion": f"Webhook WhatsApp alcanzado. Headers: {dict(request.headers)}",
-                    "socio_id": None,
-                }
-            ).execute()
+            client_ip = request.client.host if request.client else "unknown"
+            supabase.table("webhook_logs").insert({
+                "endpoint": "/api/whatsapp/webhook",
+                "source": "evolution_api",
+                "status": "received",
+                "payload_resumen": {"ip": client_ip}
+            }).execute()
         except Exception as log_err:
-            logger.error(f"[WEBHOOK] Error guardando log debug: {log_err}")
+            logger.error(f"[WEBHOOK] Error guardando log seguro: {log_err}")
 
-        # 1. Validar Token de Seguridad (si está configurado)
+        # 1. Validar Token de Seguridad obligatoriamente
         secret_header = request.headers.get("webhook-secret")
         env_secret = os.getenv("WEBHOOK_SECRET_TOKEN")
+
+        if not env_secret:
+            logger.critical("[WEBHOOK WA] WEBHOOK_SECRET_TOKEN no configurado en entorno.")
+            raise HTTPException(status_code=503, detail="Webhook not configured")
 
         # Log inicial para debug
         logger.info("[WEBHOOK] Recibida petición WhatsApp.")
 
-        if env_secret and secret_header != env_secret:
+        if secret_header != env_secret:
             logger.warning("[WEBHOOK] Webhook secret mismatch. Acceso denegado.")
             raise HTTPException(status_code=401, detail="Webhook secret inválido")
 
@@ -5899,11 +5920,23 @@ def business_days_between(start_date, end_date) -> int:
 
 
 @app.get("/api/v1/cron/verificar-bloqueos")
-def cron_verificar_bloqueos():
+def cron_verificar_bloqueos(request: Request):
     """
     Se ejecuta diario. Verifica vencimientos y bloquea ('SUSPENDIDO') 
     si pasaron 10 días hábiles de mora.
     """
+    cron_secret_header = request.headers.get("X-Cron-Secret")
+    cron_secret_env = os.getenv("CRON_SECRET")
+
+    if not cron_secret_env:
+        logger.critical("[CRON] CRON_SECRET no configurado. Endpoint /api/v1/cron/verificar-bloqueos bloqueado.")
+        raise HTTPException(status_code=503, detail="Cron not configured")
+
+    if not cron_secret_header or not secrets.compare_digest(cron_secret_header, cron_secret_env):
+        client_ip = request.client.host if request.client else "unknown"
+        logger.warning(f"[CRON] Acceso no autorizado desde {client_ip} a /api/v1/cron/verificar-bloqueos")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     try:
         hoy = datetime.now(TZ_ARGENTINA).date()
         
@@ -5969,12 +6002,24 @@ def cron_verificar_bloqueos():
 
 
 @app.get("/api/v1/cron/notificar-mora")
-def cron_notificar_mora():
+def cron_notificar_mora(request: Request):
     """
     Se ejecuta el día 11 de cada mes.
     Notifica vía WhatsApp a los que tienen cuota vencida.
     Previene duplicados en el mismo mes usando la tabla 'notificaciones'.
     """
+    cron_secret_header = request.headers.get("X-Cron-Secret")
+    cron_secret_env = os.getenv("CRON_SECRET")
+
+    if not cron_secret_env:
+        logger.critical("[CRON] CRON_SECRET no configurado. Endpoint /api/v1/cron/notificar-mora bloqueado.")
+        raise HTTPException(status_code=503, detail="Cron not configured")
+
+    if not cron_secret_header or not secrets.compare_digest(cron_secret_header, cron_secret_env):
+        client_ip = request.client.host if request.client else "unknown"
+        logger.warning(f"[CRON] Acceso no autorizado desde {client_ip} a /api/v1/cron/notificar-mora")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     try:
         hoy = datetime.now(TZ_ARGENTINA).date()
         mes_actual_str = f"{hoy.year}-{hoy.month:02d}"
