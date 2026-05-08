@@ -220,9 +220,16 @@ export default function HomeSocio() {
           >
             Accesos rápidos
           </motion.p>
+          {/* 
+            LÓGICA DE PRIORIDAD DE ROLES (ordenada por precedencia):
+            1. isEmpleado: tipo_vinculo es 'Empleado'|'Encargado' (son dependientes, aunque hereden rol COMERCIO)
+            2. isComercio: es el TITULAR del comercio (rol COMERCIO sin tipo_vinculo de empleado)
+            3. isFamiliar: es familiar de un socio (user_type FAMILIAR, sin tipo_vinculo de empleado)
+            4. Socio titular normal: ninguno de los anteriores
+          */}
           <SocioHomeContent
-            isComercio={user?.rol === 'COMERCIO'}
-            isEmpleado={['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '') && user?.rol !== 'COMERCIO'}
+            isEmpleado={['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')}
+            isComercio={user?.rol === 'COMERCIO' && !['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')}
             isFamiliar={user?.user_type === 'FAMILIAR' && !['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')}
           />
         </div>
