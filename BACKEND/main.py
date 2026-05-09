@@ -3502,11 +3502,12 @@ def notificar_olvido_password(
 
         perfil = profile_res.data[0]
 
-        # 2. Registrar la solicitud en notificaciones_admin
+        # 2. Registrar la solicitud en notificaciones
         notif_data = {
             "usuario_id": perfil["id"],
             "tipo": "OLVIDO_PASSWORD",
-            "descripcion": f"El usuario {perfil['nombre_apellido']} (DNI: {perfil['dni']}) solicita restablecer su contraseña.",
+            "titulo": "Recuperación de Contraseña",
+            "mensaje": f"El usuario {perfil['nombre_apellido']} (DNI: {perfil['dni']}) solicita restablecer su contraseña.",
             "estado": "PENDIENTE",
             "metadata": {"email": perfil["email"]},
         }
