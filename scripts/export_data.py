@@ -23,7 +23,6 @@ TABLES = [
     "user_roles",
     "ofertas",
     "comercios",
-    "camaras",
     "eventos",
     "eventos_sociales",
     "pagos_cuotas",

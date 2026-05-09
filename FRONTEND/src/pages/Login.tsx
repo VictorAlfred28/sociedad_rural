@@ -108,8 +108,7 @@ export default function Login() {
         if (data.necesita_cambio_password) {
           navigate('/cambio-password');
         } else {
-          if (data.socio.rol === 'ADMIN')   navigate('/admin');
-          else if (data.socio.rol === 'CAMARA') navigate('/camara');
+          if (data.socio.rol === 'ADMIN') navigate('/admin');
           else navigate('/home');
         }
       }, 1000);

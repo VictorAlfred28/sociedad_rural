@@ -7,7 +7,7 @@ export interface Socio {
     dni: string;
     email: string;
     telefono: string;
-    rol: 'SOCIO' | 'ADMIN' | 'COMERCIO' | 'CAMARA';
+    rol: 'SOCIO' | 'ADMIN' | 'COMERCIO';
     estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'SUSPENDIDO' | 'RESTRINGIDO';
     motivo?: string;
     password_changed?: boolean;

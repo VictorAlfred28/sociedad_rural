@@ -217,14 +217,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from schemas.comercio import ComercioDTO
 from schemas.profesional import ProfesionalDTO
 
-"""
-FUNCIONALIDAD DESACTIVADA TEMPORALMENTE
-Módulo: Cámaras de Comercio
-Motivo: No se utilizará en esta etapa del sistema
-Estado: Código conservado para futura reactivación
-IMPORTANTE: No eliminar, solo mantener comentado
-"""
-ENABLE_CAMARAS = False
 
 """
 NUEVO SISTEMA DE QR DINÁMICO
@@ -452,8 +444,6 @@ class RegisterRequest(BaseModel):
     barrio: Optional[str] = None  # Barrio/localidad de residencia
     es_profesional: Optional[bool] = False
     password: Optional[str] = None
-    camara_denominacion: Optional[str] = None
-    camara_provincia: Optional[str] = None
     isStudent: Optional[bool] = False
     studentCertificate: Optional[str] = None
 
@@ -1494,57 +1484,6 @@ def require_titular(current_user=Depends(get_current_user)):
         )
     return current_user
 
-
-
-def get_current_admin_or_camara(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-):
-    token = credentials.credentials
-    try:
-        user_res = supabase_anon.auth.get_user(token)
-        if not user_res or not user_res.user:
-            raise HTTPException(status_code=401, detail="Token inválido")
-
-        profile_res = (
-            supabase.table("profiles")
-            .select("rol", "estado")
-            .eq("id", user_res.user.id)
-            .execute()
-        )
-        roles_res = (
-            supabase.table("user_roles")
-            .select("roles(nombre)")
-            .eq("user_id", user_res.user.id)
-            .execute()
-        )
-
-        if not profile_res.data:
-            raise HTTPException(status_code=403, detail="Perfil no encontrado")
-
-        rol = profile_res.data[0].get("rol")
-        estado = profile_res.data[0].get("estado")
-        user_roles = (
-            [r["roles"]["nombre"] for r in roles_res.data if r.get("roles")]
-            if roles_res.data
-            else []
-        )
-        has_admin_role = (
-            "SUPERADMIN" in user_roles
-            or "ADMINISTRADOR" in user_roles
-            or rol == "ADMIN"
-        )
-
-        if not (has_admin_role or rol == "CAMARA") or estado != "APROBADO":
-            raise HTTPException(
-                status_code=403,
-                detail="Requiere rol de Administrador o Cámara Aprobada",
-            )
-
-        return user_res.user
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=401, detail="Error verificando permisos")
 
 
 # 4.4 LISTADO DE MUNICIPIOS (DINÁMICO DESDE DB)
@@ -2696,7 +2635,7 @@ def create_commerce(
     comercio: ComercioDTO,
     request: Request,
     background_tasks: BackgroundTasks,
-    auth_user=Depends(get_current_admin_or_camara),
+    auth_user=Depends(get_current_admin),
 ):
     try:
         # Extraer rol y perfil del usuario autenticado
@@ -2713,31 +2652,9 @@ def create_commerce(
         user_rol = user_profile["rol"]
         user_municipio = user_profile["municipio"]
 
-        # Si el usuario es CAMARA, aplicar límites y reglas
+        # Si es ADMIN, usa el municipio del request; fallback al municipio del admin si aplica
         titular_id = None
-        final_municipio = None  # Se tomará del request si es ADMIN
-
-        if user_rol == "CAMARA":
-            # 1. Validar límite de 10 comercios
-            count_res = (
-                supabase.table("profiles")
-                .select("id", count="exact")
-                .eq("titular_id", auth_user.id)
-                .eq("rol", "COMERCIO")
-                .execute()
-            )
-            if count_res.count is not None and count_res.count >= 10:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Has alcanzado el límite de 10 comercios registrados para tu cámara.",
-                )
-
-            # 2. El municipio del comercio DEBE ser el mismo de la cámara
-            titular_id = auth_user.id
-            final_municipio = user_municipio
-        else:
-            # Si es ADMIN, usa el municipio del request; fallback al municipio del admin si aplica
-            final_municipio = comercio.municipio or user_municipio
+        final_municipio = comercio.municipio or user_municipio
 
         default_password = "comercio1234"
 
@@ -2809,7 +2726,7 @@ def create_profesional(
     prof: ProfesionalDTO,
     request: Request,
     background_tasks: BackgroundTasks,
-    auth_user=Depends(get_current_admin_or_camara),
+    auth_user=Depends(get_current_admin),
 ):
     try:
         # Extraer rol y perfil del usuario autenticado

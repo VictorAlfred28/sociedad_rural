@@ -4,16 +4,7 @@ import { PasswordInput } from '../components/ui/PasswordInput';
 import { ComercioDTO } from '../types/comercio';
 import { ComercioForm } from '../components/forms/ComercioForm';
 
-/*
-FUNCIONALIDAD DESACTIVADA TEMPORALMENTE
-Módulo: Cámaras de Comercio
-Motivo: No se utilizará en esta etapa del sistema
-Estado: Código conservado para futura reactivación
-IMPORTANTE: No eliminar, solo mantener comentado
-*/
-const ENABLE_CAMARAS = false;
-
-type Rol = 'SOCIO' | 'COMERCIO' | 'CAMARA';
+type Rol = 'SOCIO' | 'COMERCIO';
 
 // Campos comunes a ambos formularios (tabla profiles)
 interface FormDataBase {
@@ -26,15 +17,6 @@ interface SocioFormData extends FormDataBase {
   dni_cuit: string; // mapea a 'dni' en profiles
   direccion: string;
   barrio?: string;  // Barrio/localidad (nuevo)
-}
-interface CamaraFormData {
-  denominacion: string;       // Ej: "Cámara de Comercio de Santo Tomé"
-  cuit: string;               // CUIT de la cámara
-  municipio: string;
-  provincia: string;
-  responsable_nombre: string; // Nombre del responsable que solicita
-  email: string;
-  telefono: string;
 }
 
 export default function Registro() {
@@ -77,22 +59,6 @@ export default function Registro() {
     municipio: '',
     provincia: 'Corrientes',
   }));
-  const [comercioPassword, setComercioPassword] = useState('');
-  const [comercioConfirmPassword, setComercioConfirmPassword] = useState('');
-  const [comercioPasswordError, setComercioPasswordError] = useState('');
-
-  const [camaraData, setCamaraData] = useState<CamaraFormData>({
-    denominacion: '',
-    cuit: '',
-    municipio: '',
-    provincia: 'Corrientes',
-    responsable_nombre: '',
-    email: '',
-    telefono: '',
-  });
-  const [camaraLoading, setCamaraLoading] = useState(false);
-  const [camaraError, setCamaraError] = useState('');
-  const [camaraEnviada, setCamaraEnviada] = useState(false);
   const [municipios, setMunicipios] = useState<{ id: string; nombre: string }[]>([]);
 
   // Guardar en sessionStorage cuando cambian los datos
@@ -125,10 +91,6 @@ export default function Registro() {
     setComercioData({ ...comercioData, [e.target.name]: e.target.value });
   };
 
-  const handleCamaraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCamaraData({ ...camaraData, [e.target.name]: e.target.value });
-  };
-
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -158,7 +120,7 @@ export default function Registro() {
             password: socioPassword,
             rol: 'SOCIO',
             es_profesional: esProfesional,
-            barrio: socioData.barrio,    // Nuevo: barrio del socio
+            barrio: socioData.barrio,
           },
         },
       });
@@ -172,36 +134,6 @@ export default function Registro() {
           },
         },
       });
-    }
-  };
-
-  const handleCamaraSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCamaraLoading(true);
-    setCamaraError('');
-    try {
-      const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre_apellido: camaraData.responsable_nombre,
-          dni_cuit: camaraData.cuit,
-          email: camaraData.email,
-          telefono: camaraData.telefono,
-          rol: 'CAMARA',
-          municipio: camaraData.municipio,
-          camara_denominacion: camaraData.denominacion,
-          camara_provincia: camaraData.provincia,
-          password: 'camara1234'
-        }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Error al enviar la solicitud');
-      setCamaraEnviada(true);
-    } catch (err: any) {
-      setCamaraError(err.message);
-    } finally {
-      setCamaraLoading(false);
     }
   };
 
@@ -314,37 +246,6 @@ export default function Registro() {
             </div>
             <span className="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform">chevron_right</span>
           </button>
-
-          {/* ---- BANNER ESPECIAL CÁMARA (DESACTIVADO TEMPORALMENTE) ---- */}
-          {ENABLE_CAMARAS && (
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 border border-sky-200 dark:border-sky-700 p-5 shadow-sm">
-              {/* Decoración de fondo */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-sky-200/30 rounded-full -translate-y-8 translate-x-8" />
-              <div className="absolute bottom-0 left-0 w-20 h-20 bg-cyan-200/30 rounded-full translate-y-6 -translate-x-6" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="material-symbols-outlined text-sky-500 text-2xl">campaign</span>
-                  <span className="text-sky-600 dark:text-sky-400 font-bold text-sm uppercase tracking-wider">¡Atención Cámaras!</span>
-                </div>
-                <p className="text-slate-800 dark:text-slate-200 font-semibold text-base leading-snug mb-1">
-                  ¿Representás la Cámara de Comercio de tu municipio?
-                </p>
-                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-4">
-                  Por ejemplo: <em>"Cámara de Itatí"</em>, <em>"Cámara de San Cosme"</em>...
-                  Deberás solicitar autorización al Administrador para ser activada.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setRol('CAMARA')}
-                  className="w-full flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-xl active:scale-95 transition-all shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-xl">domain</span>
-                  Solicitar autorización aquí
-                  <span className="material-symbols-outlined text-lg">arrow_forward</span>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -363,7 +264,7 @@ export default function Registro() {
             {renderField('Nombre y Apellido', 'nombre_apellido', socioData.nombre_apellido, handleSocioChange, { placeholder: 'Ej: Juan Pérez' })}
             {renderField('DNI', 'dni_cuit', socioData.dni_cuit, handleSocioChange, { type: 'number', placeholder: 'Solo números, sin puntos', error: socioDniError })}
             {renderField('Dirección', 'direccion', socioData.direccion, handleSocioChange, { placeholder: 'Calle y número' })}
-            
+
             {/* Teléfono con prefijo */}
             <div className="flex flex-col gap-1 py-2">
               <label className="flex flex-col w-full">
@@ -416,8 +317,6 @@ export default function Registro() {
               <p className="text-slate-400 text-xs px-1 mt-1">La usarás para ingresar una vez que el Administrador apruebe tu cuenta.</p>
             </div>
 
-            {/* Toggle ¿Sos profesional? movido a Paso 2 por orden solicitado */}
-
             <div className="mt-6 mb-10">
               <button className="w-full bg-primary hover:bg-primary/90 text-background-dark font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors" type="submit">
                 Siguiente
@@ -439,7 +338,7 @@ export default function Registro() {
               Ingresá la información de tu empresa o negocio.
             </p>
           </div>
-          <ComercioForm 
+          <ComercioForm
             formData={comercioData}
             onChange={handleComercioChange}
             onSubmit={handleNext}
@@ -447,213 +346,6 @@ export default function Registro() {
             buttonText="Siguiente Paso"
             showPasswordHint={true}
           />
-        </>
-      )}
-
-      {/* --- FORMULARIO CÁMARA (DESACTIVADO TEMPORALMENTE) --- */}
-      {ENABLE_CAMARAS && rol === 'CAMARA' && (
-        <>
-          {/* Banner superior suave */}
-          <div className="mx-4 mt-4 rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-100 dark:from-sky-900/30 dark:to-cyan-900/30 border border-sky-200 dark:border-sky-700 p-4 flex gap-3 items-start">
-            <span className="material-symbols-outlined text-sky-500 text-3xl shrink-0">domain</span>
-            <div>
-              <p className="text-slate-800 dark:text-slate-200 font-bold text-base leading-snug">Solicitud de Cámara Municipal</p>
-              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 leading-relaxed">
-                Completá el formulario. El Administrador revisará tu solicitud y te contactará para activar la cuenta de tu Cámara.
-              </p>
-            </div>
-          </div>
-
-          {camaraEnviada ? (
-            /* Pantalla de éxito */
-            <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 gap-6 text-center">
-              <div className="w-20 h-20 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
-                <span className="material-symbols-outlined text-indigo-600 dark:text-indigo-400" style={{ fontSize: '44px' }}>task_alt</span>
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">¡Solicitud enviada!</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 leading-relaxed max-w-xs">
-                  Tu solicitud para <strong>{camaraData.denominacion}</strong> fue recibida correctamente.
-                  El Administrador revisará los datos y te contactará al correo <strong>{camaraData.email}</strong> para activar la cuenta.
-                </p>
-              </div>
-              <div className="w-full p-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 text-sm text-indigo-700 dark:text-indigo-300">
-                📋 Guardá este mensaje como referencia mientras aguardás la aprobación.
-              </div>
-            </div>
-          ) : (
-            <form className="flex flex-col gap-3 p-4 mt-2" onSubmit={handleCamaraSubmit}>
-              {camaraError && (
-                <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm font-medium">
-                  {camaraError}
-                </div>
-              )}
-
-              {/* Denominación */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-slate-900 dark:text-slate-100 pb-1">
-                  Denominación de la Cámara
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">business</span>
-                  <input
-                    name="denominacion"
-                    value={camaraData.denominacion}
-                    onChange={handleCamaraChange}
-                    className={`${inputClass} pl-12`}
-                    placeholder='Ej: Cámara de Comercio de Santo Tomé'
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* CUIT */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-slate-900 dark:text-slate-100 pb-1">
-                  CUIT de la Cámara
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">fingerprint</span>
-                  <input
-                    name="cuit"
-                    value={camaraData.cuit}
-                    onChange={handleCamaraChange}
-                    className={`${inputClass} pl-12`}
-                    placeholder='Solo números, sin guiones'
-                    type="number"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Municipio */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-slate-900 dark:text-slate-100 pb-1">
-                  Municipio
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">location_city</span>
-                  <input
-                    name="municipio"
-                    value={camaraData.municipio}
-                    onChange={handleCamaraChange}
-                    className={`${inputClass} pl-12`}
-                    placeholder='Ej: Santo Tomé'
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Provincia */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-slate-900 dark:text-slate-100 pb-1">
-                  Provincia
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">map</span>
-                  <input
-                    name="provincia"
-                    value={camaraData.provincia}
-                    onChange={handleCamaraChange}
-                    className={`${inputClass} pl-12`}
-                    placeholder='Ej: Corrientes'
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Datos del Responsable</p>
-
-              {/* Nombre responsable */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-slate-900 dark:text-slate-100 pb-1">
-                  Nombre del Responsable
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">person</span>
-                  <input
-                    name="responsable_nombre"
-                    value={camaraData.responsable_nombre}
-                    onChange={handleCamaraChange}
-                    className={`${inputClass} pl-12`}
-                    placeholder='Nombre y apellido del titular'
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Email */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-slate-900 dark:text-slate-100 pb-1">
-                  Email de contacto
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">mail</span>
-                  <input
-                    name="email"
-                    value={camaraData.email}
-                    onChange={handleCamaraChange}
-                    className={`${inputClass} pl-12`}
-                    placeholder='camara@municipio.gob.ar'
-                    type="email"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Teléfono */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-semibold text-slate-900 dark:text-slate-100 pb-1">
-                  Teléfono
-                </label>
-                <div className="flex gap-2">
-                  <div className="flex items-center justify-center w-16 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm shrink-0">+54</div>
-                  <input
-                    name="telefono"
-                    value={camaraData.telefono}
-                    onChange={handleCamaraChange}
-                    className={inputClass}
-                    placeholder="Cód. de área + número"
-                    type="tel"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Información importante para la Cámara */}
-              <div className="flex gap-3 items-start bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-700 rounded-xl p-5 mb-2 mt-4">
-                <div className="bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 p-2 rounded-full shrink-0">
-                  <span className="material-symbols-outlined text-xl block">info</span>
-                </div>
-                <div>
-                  <h4 className="text-teal-800 dark:text-teal-300 text-sm font-bold">Información de Registro</h4>
-                  <p className="text-teal-700/80 dark:text-teal-400/80 text-xs mt-1 leading-relaxed">
-                    Tu solicitud será enviada para aprobación administrativa. Una vez aprobada, recibirás una notificación y podrás reestablecer tu contraseña antes de realizar tu primer ingreso.
-                  </p>
-                  <p className="text-teal-700/80 dark:text-teal-400/80 text-xs mt-2 font-semibold">
-                    Contraseña temporal: <span className="text-teal-900 dark:text-teal-200">camara1234</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 mb-10">
-                <button
-                  type="submit"
-                  disabled={camaraLoading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-500/30 disabled:opacity-50"
-                >
-                  {camaraLoading
-                    ? 'Enviando solicitud...'
-                    : <>
-                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>send</span>
-                      Enviar Solicitud al Administrador
-                    </>
-                  }
-                </button>
-              </div>
-            </form>
-          )}
         </>
       )}
 

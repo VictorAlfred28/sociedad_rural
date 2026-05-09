@@ -84,26 +84,6 @@ export default function Onboarding() {
             <span className="material-symbols-outlined text-slate-300 pr-2">chevron_right</span>
           </button>
 
-          {/* Botón Cámara de Comercio (DESACTIVADO TEMPORALMENTE) */}
-          {/* 
-          <button
-            onClick={() => navigate('/registro?tipo=camara')}
-            className="group relative overflow-hidden flex items-center bg-white rounded-2xl p-4 w-full shadow-lg active:scale-95 transition-all text-left"
-          >
-            <div className="absolute left-0 top-0 bottom-0 w-2 bg-indigo-500 rounded-l-2xl"></div>
-
-            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-indigo-50 text-indigo-500 ml-4 shrink-0 transition-transform group-hover:scale-105">
-              <span className="material-symbols-outlined text-2xl">domain</span>
-            </div>
-
-            <div className="flex flex-col ml-4 flex-1">
-              <span className="text-slate-900 font-bold text-lg leading-tight">Cámara de Comercio</span>
-              <span className="text-slate-500 text-xs mt-1">Alta como cámara municipal</span>
-            </div>
-
-            <span className="material-symbols-outlined text-slate-300 pr-2">chevron_right</span>
-          </button>
-          */}
         </div>
 
         {/* Link Login */}

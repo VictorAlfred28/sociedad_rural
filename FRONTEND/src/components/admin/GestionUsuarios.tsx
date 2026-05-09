@@ -374,7 +374,6 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                         <option value="SOCIO">Socios</option>
                         <option value="PROFESIONAL">Profesionales</option>
                         <option value="COMERCIO">Comercios</option>
-                        {/* <option value="CAMARA">Cámaras</option> */}
                     </select>
 
                     <select
@@ -450,12 +449,10 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                                 <div className="flex items-center gap-3 truncate">
                                     <div className={`flex shrink-0 items-center justify-center rounded-xl size-10 border ${user?.rol === 'COMERCIO'
                                         ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                                        : user?.rol === 'CAMARA'
-                                            ? 'bg-purple-500/10 border-purple-500/20 text-purple-400'
-                                            : 'bg-admin-accent/10 border-admin-accent/20 text-admin-accent'
+                                        : 'bg-admin-accent/10 border-admin-accent/20 text-admin-accent'
                                         }`}>
                                         <span className="material-symbols-outlined text-xl">
-                                            {user?.rol === 'COMERCIO' ? 'storefront' : user?.rol === 'CAMARA' ? 'domain' : user?.es_profesional ? 'assignment_ind' : 'person'}
+                                            {user?.rol === 'COMERCIO' ? 'storefront' : user?.es_profesional ? 'assignment_ind' : 'person'}
                                         </span>
                                     </div>
                                     <div className="flex flex-col overflow-hidden">

@@ -26,8 +26,7 @@ export default function GestionAranceles() {
       });
       const data = await resp.json();
       if (resp.ok && data.cuotas) {
-        // Ocultar CÁMARA y mostrar el resto (incluyendo el nuevo GRUPO FAMILIAR y PROFESIONAL)
-        let filtered = data.cuotas.filter((c: CuotaConfig) => c.rol.toUpperCase() !== 'CAMARA');
+        let filtered = data.cuotas;
         
         // Asegurar que PROFESIONAL exista en la vista aunque no esté en DB aún
         if (!filtered.some((c: CuotaConfig) => c.rol.toUpperCase() === 'PROFESIONAL')) {
