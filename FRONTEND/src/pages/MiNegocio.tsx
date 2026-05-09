@@ -161,7 +161,7 @@ export default function MiNegocio() {
 
     const handleSubmitOferta = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!selectedFile && !editingOfertaId) {
             setError('La imagen de la promoción es obligatoria.');
             return;
@@ -194,7 +194,7 @@ export default function MiNegocio() {
             }
 
             const isEditing = !!editingOfertaId;
-            const url = isEditing 
+            const url = isEditing
                 ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas/${editingOfertaId}`
                 : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas`;
 
@@ -216,7 +216,7 @@ export default function MiNegocio() {
                     facebook_url: normalizeSocialUrl(form.facebook_url) || null,
                 }),
             });
-            
+
             if (!resp.ok) {
                 if (resp.status === 401) window.dispatchEvent(new Event('auth-unauthorized'));
                 const data = await resp.json();
@@ -397,7 +397,7 @@ export default function MiNegocio() {
                         const tokenToValidate = urlMatch ? urlMatch[2] : decodedText;
                         validarSocio(tokenToValidate);
                     },
-                    () => {}
+                    () => { }
                 );
             } catch (err) {
                 console.error('Camera access error:', err);
@@ -448,7 +448,7 @@ export default function MiNegocio() {
     return (
         <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
             {/* Fondo con imagen sutil de ganadería/campo */}
-            <div 
+            <div
                 className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
                 style={{
                     backgroundImage: `url(${paisaje})`,
@@ -459,540 +459,540 @@ export default function MiNegocio() {
             ></div>
 
             <div className="relative z-10 flex-1 flex flex-col">
-            {/* Header */}
-            <header className="px-6 pt-12 pb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <p className="text-stone-500 dark:text-stone-400 text-xs font-semibold uppercase tracking-widest">Panel de Comercio</p>
-                        <h1 className="text-2xl font-extrabold mt-1 text-stone-800 dark:text-stone-100">Mi Negocio</h1>
-                        <p className="text-emerald-700 dark:text-emerald-500 font-medium text-sm mt-0.5">{user?.nombre_apellido}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <NotificationBell />
-                        <div
-                            onClick={() => logoPreview ? confirmLogoUpload() : logoInputRef.current?.click()}
-                            className={`w-14 h-14 rounded-2xl flex items-center justify-center cursor-pointer transition-all active:opacity-80 relative group overflow-hidden ${logoPreview ? 'ring-4 ring-primary ring-offset-2 ring-offset-slate-900 shadow-[0_0_20px_rgba(255,200,0,0.5)]' : 'bg-white/10 hover:bg-white/20'}`}
-                            title={logoPreview ? "Click para confirmar subida" : "Cambiar logo"}
-                        >
-                            {updatingLogo ? (
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                            ) : logoPreview ? (
-                                <img src={logoPreview} alt="Preview" className="w-full h-full object-cover animate-pulse" />
-                            ) : user?.foto_url ? (
-                                <img src={user.foto_url} alt="Logo" className="w-full h-full object-cover" />
-                            ) : (
-                                <span className="material-symbols-outlined text-3xl text-white">storefront</span>
-                            )}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <span className="material-symbols-outlined text-sm text-white">{logoPreview ? 'check_circle' : 'edit'}</span>
-                            </div>
+                {/* Header */}
+                <header className="px-6 pt-12 pb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <p className="text-stone-500 dark:text-stone-400 text-xs font-semibold uppercase tracking-widest">Panel de Comercio</p>
+                            <h1 className="text-2xl font-extrabold mt-1 text-stone-800 dark:text-stone-100">Mi Negocio</h1>
+                            <p className="text-emerald-700 dark:text-emerald-500 font-medium text-sm mt-0.5">{user?.nombre_apellido}</p>
                         </div>
-                        <input
-                            type="file"
-                            ref={logoInputRef}
-                            className="hidden"
-                            accept="image/*"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleLogoUpload(file);
-                            }}
-                        />
-                    </div>
-                </div>
-
-                {statusMsg.text && (
-                    <div className={`mt-2 p-3 rounded-xl text-xs font-bold animate-in fade-in slide-in-from-top-2 flex items-center gap-2 ${statusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                        statusMsg.type === 'error' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                            'bg-primary/20 text-primary-light border border-primary/30'
-                        }`}>
-                        <span className="material-symbols-outlined text-sm">
-                            {statusMsg.type === 'success' ? 'check_circle' : statusMsg.type === 'error' ? 'info' : 'sync'}
-                        </span>
-                        {statusMsg.text}
-                    </div>
-                )}
-
-                {/* Stats row */}
-                <div className="grid grid-cols-3 gap-3 mt-4">
-                    {(['promocion', 'descuento', 'beneficio'] as TipoOferta[]).map(tipo => {
-                        const count = ofertas.filter(o => o.tipo === tipo && o.activo).length;
-                        const cfg = TIPO_CONFIG[tipo];
-                        return (
-                            <div key={tipo} className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm border border-emerald-600/20 rounded-2xl p-3 text-center shadow-sm">
-                                <span className={`material-symbols-outlined text-xl block mb-1 ${cfg.text}`}>{cfg.icon}</span>
-                                <span className="text-xl font-bold block text-stone-800 dark:text-stone-100">{count}</span>
-                                <span className="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-wide">{cfg.labelPlural}</span>
-                            </div>
-                        );
-                    })}
-                </div>
-            </header>
-
-            <main className="flex-1 px-4 pb-28 pt-4">
-                {/* BOTÓN SCANNER */}
-                <button
-                    onClick={startScanner}
-                    className="w-full mb-4 flex items-center justify-center gap-3 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95"
-                >
-                    <span className="material-symbols-outlined text-2xl">qr_code_scanner</span>
-                    VALIDAR CARNET SOCIO
-                </button>
-
-
-
-                <div className="flex items-center gap-3 my-6">
-                    <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mis Publicaciones</span>
-                    <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
-                </div>
-
-                {/* Botón nueva oferta */}
-                <button
-                    onClick={() => {
-                        setEditingOfertaId(null);
-                        setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
-                        setSelectedFile(null);
-                        setShowForm(true);
-                    }}
-                    className="w-full mb-4 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-slate-900 font-bold py-3.5 rounded-2xl transition-all shadow-sm"
-                >
-                    <span className="material-symbols-outlined">add_circle</span>
-                    Nueva Oferta / Beneficio
-                </button>
-
-                {error && !showScanner && (
-                    <div className="mb-3 p-3 bg-red-100 border border-red-300 text-red-700 rounded-xl text-sm">
-                        {error}
-                    </div>
-                )}
-
-                {/* Modal de nueva/editar oferta */}
-                {showForm && (
-                    <div className="fixed inset-0 bg-black/60 z-[100] flex items-end">
-                        <div className="w-full bg-white dark:bg-slate-900 rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto">
-                            <div className="flex items-center justify-between mb-5">
-                                <h2 className="text-lg font-bold">{editingOfertaId ? 'Editar Oferta' : 'Nueva Oferta'}</h2>
-                                <button onClick={closeForm} className="text-slate-400 hover:text-slate-600">
-                                    <span className="material-symbols-outlined">close</span>
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleSubmitOferta} className="flex flex-col gap-4">
-                                {/* Tipo */}
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Tipo</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {(['promocion', 'descuento', 'beneficio'] as TipoOferta[]).map(t => {
-                                            const cfg = TIPO_CONFIG[t];
-                                            return (
-                                                <button
-                                                    key={t}
-                                                    type="button"
-                                                    onClick={() => setForm({ ...form, tipo: t })}
-                                                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${form.tipo === t
-                                                        ? `border-current ${cfg.text} ${cfg.light}`
-                                                        : 'border-slate-200 dark:border-slate-700'
-                                                        }`}
-                                                >
-                                                    <span className={`material-symbols-outlined text-xl ${form.tipo === t ? cfg.text : 'text-slate-400'}`}>{cfg.icon}</span>
-                                                    <span className="text-xs font-semibold">{cfg.label}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Título */}
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Título *</label>
-                                    <input
-                                        className={inputClass}
-                                        placeholder="Ej: 20% en productos de campo"
-                                        value={form.titulo}
-                                        onChange={e => setForm({ ...form, titulo: e.target.value })}
-                                        required
-                                    />
-                                </div>
-
-                                {/* Descripción */}
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Descripción</label>
-                                    <textarea
-                                        className="w-full rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm resize-none"
-                                        rows={3}
-                                        placeholder="Describí tu oferta o beneficio..."
-                                        value={form.descripcion}
-                                        onChange={e => setForm({ ...form, descripcion: e.target.value })}
-                                    />
-                                </div>
-
-                                {/* Descuento — solo para tipo 'descuento' */}
-                                {form.tipo === 'descuento' && (
-                                    <div>
-                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Valor de descuento</label>
-                                        <div className="flex gap-2">
-                                            {/* Selector tipo */}
-                                            <select
-                                                className="rounded-xl text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 h-12 px-3 text-sm font-semibold shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                                value={form.tipo_descuento}
-                                                onChange={e => setForm({ ...form, tipo_descuento: e.target.value })}
-                                            >
-                                                <option value="porcentaje">%</option>
-                                                <option value="fijo">$ fijo</option>
-                                            </select>
-                                            {/* Input valor */}
-                                            <div className="relative flex-1">
-                                                <input
-                                                    className={inputClass + ' pr-10'}
-                                                    type="number"
-                                                    min="0.01"
-                                                    step="0.01"
-                                                    placeholder={form.tipo_descuento === 'fijo' ? 'Ej: 500' : 'Ej: 20'}
-                                                    value={form.valor_descuento}
-                                                    onChange={e => setForm({ ...form, valor_descuento: e.target.value })}
-                                                />
-                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
-                                                    {form.tipo_descuento === 'fijo' ? '$' : '%'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
+                        <div className="flex items-center gap-4">
+                            <NotificationBell />
+                            <div
+                                onClick={() => logoPreview ? confirmLogoUpload() : logoInputRef.current?.click()}
+                                className={`w-14 h-14 rounded-2xl flex items-center justify-center cursor-pointer transition-all active:opacity-80 relative group overflow-hidden ${logoPreview ? 'ring-4 ring-primary ring-offset-2 ring-offset-slate-900 shadow-[0_0_20px_rgba(255,200,0,0.5)]' : 'bg-white/10 hover:bg-white/20'}`}
+                                title={logoPreview ? "Click para confirmar subida" : "Cambiar logo"}
+                            >
+                                {updatingLogo ? (
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                                ) : logoPreview ? (
+                                    <img src={logoPreview} alt="Preview" className="w-full h-full object-cover animate-pulse" />
+                                ) : user?.foto_url ? (
+                                    <img src={user.foto_url} alt="Logo" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="material-symbols-outlined text-3xl text-white">storefront</span>
                                 )}
-
-                                {/* Imagen de la oferta */}
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Imagen de la Promoción {!editingOfertaId && '*'}</label>
-                                    <div
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className={`w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative overflow-hidden ${selectedFile || form.imagen_url ? 'border-primary' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
-                                    >
-                                        {selectedFile || form.imagen_url ? (
-                                            <>
-                                                <img
-                                                    src={selectedFile ? URL.createObjectURL(selectedFile) : form.imagen_url}
-                                                    alt="Preview"
-                                                    className="absolute inset-0 w-full h-full object-cover opacity-50"
-                                                />
-                                                <span className="relative z-10 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 px-3 py-1 rounded-full shadow-sm">
-                                                    Cambiar imagen
-                                                </span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span className="material-symbols-outlined text-slate-400 text-3xl">add_photo_alternate</span>
-                                                <span className="text-xs font-semibold text-slate-400">Subir foto de la oferta {editingOfertaId ? '(Opcional)' : '(OBLIGATORIA)'}</span>
-                                            </>
-                                        )}
-                                    </div>
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                                    />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                    <span className="material-symbols-outlined text-sm text-white">{logoPreview ? 'check_circle' : 'edit'}</span>
                                 </div>
-
-                                {/* Links de Redes Sociales */}
-                                <div className="grid grid-cols-1 gap-4">
-                                    <div>
-                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Link de Instagram (Opcional)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                                                <i className="fa-brands fa-instagram text-lg"></i>
-                                            </span>
-                                            <input
-                                                className={inputClass + ' pl-12'}
-                                                placeholder="instagram.com/tutienda"
-                                                value={form.instagram_url}
-                                                onChange={e => setForm({ ...form, instagram_url: e.target.value })}
-                                            />
-                                        </div>
-                                        <p className="text-[11px] text-slate-400 mt-1 pl-1">Solo links de <strong>instagram.com</strong> — con o sin https://</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Link de Facebook (Opcional)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                                                <i className="fa-brands fa-facebook text-lg"></i>
-                                            </span>
-                                            <input
-                                                className={inputClass + ' pl-12'}
-                                                placeholder="facebook.com/tutienda"
-                                                value={form.facebook_url}
-                                                onChange={e => setForm({ ...form, facebook_url: e.target.value })}
-                                            />
-                                        </div>
-                                        <p className="text-[11px] text-slate-400 mt-1 pl-1">Solo links de <strong>facebook.com</strong> — con o sin https://</p>
-                                    </div>
-                                </div>
-
-                                {/* Fecha de fin */}
-                                <div>
-                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Válido hasta (opcional)</label>
-                                    <input
-                                        className={inputClass}
-                                        type="date"
-                                        value={form.fecha_fin}
-                                        onChange={e => setForm({ ...form, fecha_fin: e.target.value })}
-                                    />
-                                </div>
-
-                                {error && <p className="text-red-500 text-sm">{error}</p>}
-
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="w-full bg-primary hover:bg-primary/90 text-slate-900 font-bold py-4 rounded-xl transition-all disabled:opacity-50 mt-2"
-                                >
-                                    {submitting ? 'Guardando...' : (editingOfertaId ? 'Guardar Cambios' : 'Publicar Oferta')}
-                                </button>
-                            </form>
+                            </div>
+                            <input
+                                type="file"
+                                ref={logoInputRef}
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleLogoUpload(file);
+                                }}
+                            />
                         </div>
                     </div>
-                )}
 
+                    {statusMsg.text && (
+                        <div className={`mt-2 p-3 rounded-xl text-xs font-bold animate-in fade-in slide-in-from-top-2 flex items-center gap-2 ${statusMsg.type === 'success' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                            statusMsg.type === 'error' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                                'bg-primary/20 text-primary-light border border-primary/30'
+                            }`}>
+                            <span className="material-symbols-outlined text-sm">
+                                {statusMsg.type === 'success' ? 'check_circle' : statusMsg.type === 'error' ? 'info' : 'sync'}
+                            </span>
+                            {statusMsg.text}
+                        </div>
+                    )}
 
-
-                {/* Filtros */}
-                <div className="flex gap-2 overflow-x-auto pb-1 mb-4 scrollbar-hide">
-                    {(['todas', 'promocion', 'descuento', 'beneficio'] as const).map(f => (
-                        <button
-                            key={f}
-                            onClick={() => setFiltro(f)}
-                            className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${filtro === f
-                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                                }`}
-                        >
-                            {f === 'todas' ? 'Todas' : TIPO_CONFIG[f].labelPlural}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Lista de ofertas */}
-                {loading ? (
-                    <div className="flex flex-col gap-3">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="h-28 rounded-2xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
-                        ))}
-                    </div>
-                ) : ofertasFiltradas.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 px-6 text-center text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
-                        <span className="material-symbols-outlined text-5xl mb-3 opacity-50">inventory_2</span>
-                        <p className="font-semibold text-slate-600 dark:text-slate-300">Aún no publicaste ofertas</p>
-                        <p className="text-xs mt-1">Beneficiá a los socios publicando acá.</p>
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-3">
-                        {ofertasFiltradas.map(oferta => {
-                            const cfg = TIPO_CONFIG[oferta.tipo];
+                    {/* Stats row */}
+                    <div className="grid grid-cols-3 gap-3 mt-4">
+                        {(['promocion', 'descuento', 'beneficio'] as TipoOferta[]).map(tipo => {
+                            const count = ofertas.filter(o => o.tipo === tipo && o.activo).length;
+                            const cfg = TIPO_CONFIG[tipo];
                             return (
-                                <div
-                                    key={oferta.id}
-                                    className={`rounded-2xl border p-4 transition-all ${oferta.activo ? cfg.light : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-60'
-                                        }`}
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                                            <div className={`w-14 h-14 rounded-xl ${cfg.color} flex items-center justify-center shrink-0 overflow-hidden`}>
-                                                {oferta.imagen_url ? (
-                                                    <img src={oferta.imagen_url} alt={oferta.titulo} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="material-symbols-outlined text-white text-2xl">{cfg.icon}</span>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                                                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${cfg.badge}`}>
-                                                        {cfg.label}
-                                                    </span>
-                                                    {/* F3: Display con campo canónico */}
-                                                    {oferta.valor_descuento ? (
-                                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-                                                            -{oferta.valor_descuento}
-                                                            {oferta.tipo_descuento === 'fijo' ? ' $' : '%'}
-                                                        </span>
-                                                    ) : null}
-                                                    {!oferta.activo && (
-                                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-300 text-slate-600">
-                                                            Pausada
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <h3 className="font-bold text-sm truncate">{oferta.titulo}</h3>
-                                                {oferta.descripcion && (
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{oferta.descripcion}</p>
-                                                )}
-                                                {oferta.fecha_fin && (
-                                                    <p className="text-xs text-slate-400 mt-1">
-                                                        <span className="material-symbols-outlined text-xs">schedule</span>{' '}
-                                                        Hasta {new Date(oferta.fecha_fin).toLocaleDateString('es-AR')}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Acciones */}
-                                        <div className="flex flex-col gap-1.5 shrink-0">
-                                            <button
-                                                onClick={() => handleEditOferta(oferta)}
-                                                className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center transition-all"
-                                                title="Editar"
-                                            >
-                                                <span className="material-symbols-outlined text-lg">edit</span>
-                                            </button>
-                                            <button
-                                                onClick={() => toggleOferta(oferta.id, oferta.activo)}
-                                                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${oferta.activo
-                                                    ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-                                                    : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
-                                                    }`}
-                                                title={oferta.activo ? 'Pausar' : 'Activar'}
-                                            >
-                                                <span className="material-symbols-outlined text-lg">
-                                                    {oferta.activo ? 'pause_circle' : 'play_circle'}
-                                                </span>
-                                            </button>
-                                            <button
-                                                onClick={() => deleteOferta(oferta.id)}
-                                                className="w-9 h-9 rounded-xl bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center transition-all"
-                                                title="Eliminar"
-                                            >
-                                                <span className="material-symbols-outlined text-lg">delete</span>
-                                            </button>
-                                        </div>
-                                    </div>
+                                <div key={tipo} className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm border border-emerald-600/20 rounded-2xl p-3 text-center shadow-sm">
+                                    <span className={`material-symbols-outlined text-xl block mb-1 ${cfg.text}`}>{cfg.icon}</span>
+                                    <span className="text-xl font-bold block text-stone-800 dark:text-stone-100">{count}</span>
+                                    <span className="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-wide">{cfg.labelPlural}</span>
                                 </div>
                             );
                         })}
                     </div>
-                )}
+                </header>
 
-                <div className="mt-8 mb-8">
-                    <GestionDependientes />
-                </div>
-            </main>
+                <main className="flex-1 px-4 pb-28 pt-4">
+                    {/* BOTÓN SCANNER */}
+                    <button
+                        onClick={startScanner}
+                        className="w-full mb-4 flex items-center justify-center gap-3 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95"
+                    >
+                        <span className="material-symbols-outlined text-2xl">qr_code_scanner</span>
+                        VALIDAR CARNET SOCIO
+                    </button>
 
-            {/* FULL SCREEN SCANNER MODAL */}
-            {showScanner && (
-                <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
 
-                    {/* Header Scanner */}
-                    <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
-                        <div className="text-white">
-                            <h2 className="font-bold text-lg">Escanear Carnet</h2>
-                            <p className="text-xs opacity-70">Enfoque el QR del socio</p>
-                        </div>
-                        <button
-                            onClick={stopScanner}
-                            className="size-12 rounded-full bg-white/10 flex items-center justify-center text-white backdrop-blur-md"
-                        >
-                            <span className="material-symbols-outlined">close</span>
-                        </button>
+
+                    <div className="flex items-center gap-3 my-6">
+                        <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mis Publicaciones</span>
+                        <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
                     </div>
 
-                    {/* Camera Viewport or Error */}
-                    {error ? (
-                        <div className="text-white text-center p-8">
-                            <span className="material-symbols-outlined text-6xl text-red-500 mb-4 block">no_photography</span>
-                            <p className="font-bold">{error}</p>
-                            <button onClick={stopScanner} className="mt-8 bg-white/20 px-6 py-2 rounded-full text-sm font-bold">Volver</button>
-                        </div>
-                    ) : (
-                        <div className="w-full max-w-md w-full relative">
-                            {/* The HTML5 QR Code div */}
-                            <div id="qr-reader" className="w-full !border-0 overflow-hidden rounded-3xl overflow-hidden [&>video]:object-cover [&>video]:h-[60vh] shadow-2xl"></div>
+                    {/* Botón nueva oferta */}
+                    <button
+                        onClick={() => {
+                            setEditingOfertaId(null);
+                            setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
+                            setSelectedFile(null);
+                            setShowForm(true);
+                        }}
+                        className="w-full mb-4 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-slate-900 font-bold py-3.5 rounded-2xl transition-all shadow-sm"
+                    >
+                        <span className="material-symbols-outlined">add_circle</span>
+                        Nueva Oferta / Beneficio
+                    </button>
 
-                            {/* Overlay mask for scanning area guide */}
-                            <div className="absolute inset-0 border-[60px] border-black/50 pointer-events-none rounded-3xl"></div>
-                            <div className="absolute inset-0 ring-2 ring-primary/50 pointer-events-none m-[60px] rounded-2xl">
-                                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-xl -translate-x-1 -translate-y-1"></div>
-                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-xl translate-x-1 -translate-y-1"></div>
-                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-xl -translate-x-1 translate-y-1"></div>
-                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-xl translate-x-1 translate-y-1"></div>
-                            </div>
+                    {error && !showScanner && (
+                        <div className="mb-3 p-3 bg-red-100 border border-red-300 text-red-700 rounded-xl text-sm">
+                            {error}
                         </div>
                     )}
 
-                    {/* Result Overlay */}
-                    {scanResult && (
-                        <div className={`absolute inset-0 flex flex-col justify-end p-4 pb-12 z-20 ${scanResult.valido ? 'bg-emerald-600/90' : 'bg-red-600/95'} backdrop-blur-md animate-in fade-in slide-in-from-bottom-10`}>
-
-                            <div className="bg-white rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden">
-                                <div className={`absolute top-0 left-0 right-0 h-4 ${scanResult.valido ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-
-                                <span className={`material-symbols-outlined text-7xl mb-4 mt-2 ${scanResult.valido ? 'text-emerald-500' : 'text-red-500'}`}>
-                                    {scanResult.valido ? 'verified' : 'cancel'}
-                                </span>
-
-                                <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase">
-                                    {scanResult.valido ? 'SOCIO VALIDADO' : 'CARNET INVÁLIDO'}
-                                </h2>
-
-                                <p className={`text-sm font-bold m-4 p-3 rounded-xl border ${scanResult.valido ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                    {scanResult.mensaje}
-                                </p>
-
-                                {scanResult.socio && (
-                                    <div className="bg-slate-50 p-4 rounded-2xl mt-4 mb-8 text-left border border-slate-100">
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Datos del Socio</p>
-                                        <p className="font-bold text-slate-900 text-lg uppercase leading-tight">{scanResult.socio.nombre_apellido}</p>
-                                        <p className="text-slate-600 font-mono mt-1">DNI/CUIT: {scanResult.socio.dni || 'No provisto'}</p>
-
-                                        <div className="mt-3 p-2 bg-slate-100/50 rounded-xl border border-slate-200">
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Tipo de Miembro</p>
-                                            <p className="text-sm font-bold text-primary dark:text-primary-light uppercase">
-                                                {scanResult.socio.rol === 'SOCIO'
-                                                    ? scanResult.socio.titular_id
-                                                        ? `Grupo Familiar - ${scanResult.socio.tipo_vinculo || 'Adherente'}`
-                                                        : 'Socio Común'
-                                                    : scanResult.socio.titular_id
-                                                        ? 'Empleado de Comercio'
-                                                        : 'Comercio Titular'
-                                                }
-                                            </p>
-                                        </div>
-
-                                        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
-                                            <span className="text-[10px] font-bold px-2 py-1 bg-slate-200 text-slate-700 rounded uppercase">
-                                                {scanResult.socio.municipio || 'Sin Municipio'}
-                                            </span>
-                                            <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${scanResult.socio.estado === 'APROBADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                ESTADO: {scanResult.socio.estado}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="flex gap-3">
-                                    {scanResult.valido && (
-                                        <button
-                                            onClick={() => stopScanner()}
-                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95"
-                                        >
-                                            Aplicar Beneficio
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={() => setScanResult(null)} // Resetear para escanear de nuevo
-                                        className={`flex-1 font-bold py-4 rounded-xl transition-transform active:scale-95 ${scanResult.valido ? 'bg-slate-100 text-slate-700' : 'bg-slate-900 text-white shadow-xl'}`}
-                                    >
-                                        Escanear otro
+                    {/* Modal de nueva/editar oferta */}
+                    {showForm && (
+                        <div className="fixed inset-0 bg-black/60 z-[100] flex items-end">
+                            <div className="w-full bg-white dark:bg-slate-900 rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto">
+                                <div className="flex items-center justify-between mb-5">
+                                    <h2 className="text-lg font-bold">{editingOfertaId ? 'Editar Oferta' : 'Nueva Oferta'}</h2>
+                                    <button onClick={closeForm} className="text-slate-400 hover:text-slate-600">
+                                        <span className="material-symbols-outlined">close</span>
                                     </button>
                                 </div>
-                                {!scanResult.valido && (
-                                    <button onClick={stopScanner} className="w-full text-slate-500 text-sm font-bold mt-4 py-2 uppercase tracking-widest">
-                                        Cerrar Lector
+
+                                <form onSubmit={handleSubmitOferta} className="flex flex-col gap-4">
+                                    {/* Tipo */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Tipo</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {(['promocion', 'descuento', 'beneficio'] as TipoOferta[]).map(t => {
+                                                const cfg = TIPO_CONFIG[t];
+                                                return (
+                                                    <button
+                                                        key={t}
+                                                        type="button"
+                                                        onClick={() => setForm({ ...form, tipo: t })}
+                                                        className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${form.tipo === t
+                                                            ? `border-current ${cfg.text} ${cfg.light}`
+                                                            : 'border-slate-200 dark:border-slate-700'
+                                                            }`}
+                                                    >
+                                                        <span className={`material-symbols-outlined text-xl ${form.tipo === t ? cfg.text : 'text-slate-400'}`}>{cfg.icon}</span>
+                                                        <span className="text-xs font-semibold">{cfg.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Título */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Título *</label>
+                                        <input
+                                            className={inputClass}
+                                            placeholder="Ej: 20% en productos de campo"
+                                            value={form.titulo}
+                                            onChange={e => setForm({ ...form, titulo: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+
+                                    {/* Descripción */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Descripción</label>
+                                        <textarea
+                                            className="w-full rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm resize-none"
+                                            rows={3}
+                                            placeholder="Describí tu oferta o beneficio..."
+                                            value={form.descripcion}
+                                            onChange={e => setForm({ ...form, descripcion: e.target.value })}
+                                        />
+                                    </div>
+
+                                    {/* Descuento — solo para tipo 'descuento' */}
+                                    {form.tipo === 'descuento' && (
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Valor de descuento</label>
+                                            <div className="flex gap-2">
+                                                {/* Selector tipo */}
+                                                <select
+                                                    className="rounded-xl text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 h-12 px-3 text-sm font-semibold shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                    value={form.tipo_descuento}
+                                                    onChange={e => setForm({ ...form, tipo_descuento: e.target.value })}
+                                                >
+                                                    <option value="porcentaje">%</option>
+                                                    <option value="fijo">$ fijo</option>
+                                                </select>
+                                                {/* Input valor */}
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        className={inputClass + ' pr-10'}
+                                                        type="number"
+                                                        min="0.01"
+                                                        step="0.01"
+                                                        placeholder={form.tipo_descuento === 'fijo' ? 'Ej: 500' : 'Ej: 20'}
+                                                        value={form.valor_descuento}
+                                                        onChange={e => setForm({ ...form, valor_descuento: e.target.value })}
+                                                    />
+                                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
+                                                        {form.tipo_descuento === 'fijo' ? '$' : '%'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Imagen de la oferta */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Imagen de la Promoción {!editingOfertaId && '*'}</label>
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className={`w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative overflow-hidden ${selectedFile || form.imagen_url ? 'border-primary' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                                        >
+                                            {selectedFile || form.imagen_url ? (
+                                                <>
+                                                    <img
+                                                        src={selectedFile ? URL.createObjectURL(selectedFile) : form.imagen_url}
+                                                        alt="Preview"
+                                                        className="absolute inset-0 w-full h-full object-cover opacity-50"
+                                                    />
+                                                    <span className="relative z-10 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 px-3 py-1 rounded-full shadow-sm">
+                                                        Cambiar imagen
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="material-symbols-outlined text-slate-400 text-3xl">add_photo_alternate</span>
+                                                    <span className="text-xs font-semibold text-slate-400">Subir foto de la oferta {editingOfertaId ? '(Opcional)' : '(OBLIGATORIA)'}</span>
+                                                </>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                        />
+                                    </div>
+
+                                    {/* Links de Redes Sociales */}
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Link de Instagram (Opcional)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                                    <i className="fa-brands fa-instagram text-lg"></i>
+                                                </span>
+                                                <input
+                                                    className={inputClass + ' pl-12'}
+                                                    placeholder="instagram.com/tutienda"
+                                                    value={form.instagram_url}
+                                                    onChange={e => setForm({ ...form, instagram_url: e.target.value })}
+                                                />
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 mt-1 pl-1">Solo links de <strong>instagram.com</strong> — con o sin https://</p>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Link de Facebook (Opcional)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                                    <i className="fa-brands fa-facebook text-lg"></i>
+                                                </span>
+                                                <input
+                                                    className={inputClass + ' pl-12'}
+                                                    placeholder="facebook.com/tutienda"
+                                                    value={form.facebook_url}
+                                                    onChange={e => setForm({ ...form, facebook_url: e.target.value })}
+                                                />
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 mt-1 pl-1">Solo links de <strong>facebook.com</strong> — con o sin https://</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Fecha de fin */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Válido hasta (opcional)</label>
+                                        <input
+                                            className={inputClass}
+                                            type="date"
+                                            value={form.fecha_fin}
+                                            onChange={e => setForm({ ...form, fecha_fin: e.target.value })}
+                                        />
+                                    </div>
+
+                                    {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                                    <button
+                                        type="submit"
+                                        disabled={submitting}
+                                        className="w-full bg-primary hover:bg-primary/90 text-slate-900 font-bold py-4 rounded-xl transition-all disabled:opacity-50 mt-2"
+                                    >
+                                        {submitting ? 'Guardando...' : (editingOfertaId ? 'Guardar Cambios' : 'Publicar Oferta')}
                                     </button>
-                                )}
+                                </form>
                             </div>
                         </div>
                     )}
-                </div>
-            )}
 
-            {!(showForm || showScanner) && <BottomNav />}
+
+
+                    {/* Filtros */}
+                    <div className="flex gap-2 overflow-x-auto pb-1 mb-4 scrollbar-hide">
+                        {(['todas', 'promocion', 'descuento', 'beneficio'] as const).map(f => (
+                            <button
+                                key={f}
+                                onClick={() => setFiltro(f)}
+                                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${filtro === f
+                                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                    }`}
+                            >
+                                {f === 'todas' ? 'Todas' : TIPO_CONFIG[f].labelPlural}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Lista de ofertas */}
+                    {loading ? (
+                        <div className="flex flex-col gap-3">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="h-28 rounded-2xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : ofertasFiltradas.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 px-6 text-center text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                            <span className="material-symbols-outlined text-5xl mb-3 opacity-50">inventory_2</span>
+                            <p className="font-semibold text-slate-600 dark:text-slate-300">Aún no publicaste ofertas</p>
+                            <p className="text-xs mt-1">Beneficiá a los socios publicando acá.</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-3">
+                            {ofertasFiltradas.map(oferta => {
+                                const cfg = TIPO_CONFIG[oferta.tipo];
+                                return (
+                                    <div
+                                        key={oferta.id}
+                                        className={`rounded-2xl border p-4 transition-all ${oferta.activo ? cfg.light : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-60'
+                                            }`}
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                <div className={`w-14 h-14 rounded-xl ${cfg.color} flex items-center justify-center shrink-0 overflow-hidden`}>
+                                                    {oferta.imagen_url ? (
+                                                        <img src={oferta.imagen_url} alt={oferta.titulo} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="material-symbols-outlined text-white text-2xl">{cfg.icon}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${cfg.badge}`}>
+                                                            {cfg.label}
+                                                        </span>
+                                                        {/* F3: Display con campo canónico */}
+                                                        {oferta.valor_descuento ? (
+                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                                                                -{oferta.valor_descuento}
+                                                                {oferta.tipo_descuento === 'fijo' ? ' $' : '%'}
+                                                            </span>
+                                                        ) : null}
+                                                        {!oferta.activo && (
+                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-300 text-slate-600">
+                                                                Pausada
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <h3 className="font-bold text-sm truncate">{oferta.titulo}</h3>
+                                                    {oferta.descripcion && (
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{oferta.descripcion}</p>
+                                                    )}
+                                                    {oferta.fecha_fin && (
+                                                        <p className="text-xs text-slate-400 mt-1">
+                                                            <span className="material-symbols-outlined text-xs">schedule</span>{' '}
+                                                            Hasta {new Date(oferta.fecha_fin).toLocaleDateString('es-AR')}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Acciones */}
+                                            <div className="flex flex-col gap-1.5 shrink-0">
+                                                <button
+                                                    onClick={() => handleEditOferta(oferta)}
+                                                    className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 flex items-center justify-center transition-all"
+                                                    title="Editar"
+                                                >
+                                                    <span className="material-symbols-outlined text-lg">edit</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => toggleOferta(oferta.id, oferta.activo)}
+                                                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${oferta.activo
+                                                        ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                                                        : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                                                        }`}
+                                                    title={oferta.activo ? 'Pausar' : 'Activar'}
+                                                >
+                                                    <span className="material-symbols-outlined text-lg">
+                                                        {oferta.activo ? 'pause_circle' : 'play_circle'}
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteOferta(oferta.id)}
+                                                    className="w-9 h-9 rounded-xl bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center transition-all"
+                                                    title="Eliminar"
+                                                >
+                                                    <span className="material-symbols-outlined text-lg">delete</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    <div className="mt-8 mb-8">
+                        <GestionDependientes />
+                    </div>
+                </main>
+
+                {/* FULL SCREEN SCANNER MODAL */}
+                {showScanner && (
+                    <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
+
+                        {/* Header Scanner */}
+                        <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
+                            <div className="text-white">
+                                <h2 className="font-bold text-lg">Escanear Pasaporte</h2>
+                                <p className="text-xs opacity-70">Enfoque el QR del socio</p>
+                            </div>
+                            <button
+                                onClick={stopScanner}
+                                className="size-12 rounded-full bg-white/10 flex items-center justify-center text-white backdrop-blur-md"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        {/* Camera Viewport or Error */}
+                        {error ? (
+                            <div className="text-white text-center p-8">
+                                <span className="material-symbols-outlined text-6xl text-red-500 mb-4 block">no_photography</span>
+                                <p className="font-bold">{error}</p>
+                                <button onClick={stopScanner} className="mt-8 bg-white/20 px-6 py-2 rounded-full text-sm font-bold">Volver</button>
+                            </div>
+                        ) : (
+                            <div className="w-full max-w-md w-full relative">
+                                {/* The HTML5 QR Code div */}
+                                <div id="qr-reader" className="w-full !border-0 overflow-hidden rounded-3xl overflow-hidden [&>video]:object-cover [&>video]:h-[60vh] shadow-2xl"></div>
+
+                                {/* Overlay mask for scanning area guide */}
+                                <div className="absolute inset-0 border-[60px] border-black/50 pointer-events-none rounded-3xl"></div>
+                                <div className="absolute inset-0 ring-2 ring-primary/50 pointer-events-none m-[60px] rounded-2xl">
+                                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-xl -translate-x-1 -translate-y-1"></div>
+                                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-xl translate-x-1 -translate-y-1"></div>
+                                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-xl -translate-x-1 translate-y-1"></div>
+                                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-xl translate-x-1 translate-y-1"></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Result Overlay */}
+                        {scanResult && (
+                            <div className={`absolute inset-0 flex flex-col justify-end p-4 pb-12 z-20 ${scanResult.valido ? 'bg-emerald-600/90' : 'bg-red-600/95'} backdrop-blur-md animate-in fade-in slide-in-from-bottom-10`}>
+
+                                <div className="bg-white rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden">
+                                    <div className={`absolute top-0 left-0 right-0 h-4 ${scanResult.valido ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+
+                                    <span className={`material-symbols-outlined text-7xl mb-4 mt-2 ${scanResult.valido ? 'text-emerald-500' : 'text-red-500'}`}>
+                                        {scanResult.valido ? 'verified' : 'cancel'}
+                                    </span>
+
+                                    <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase">
+                                        {scanResult.valido ? 'SOCIO VALIDADO' : 'CARNET INVÁLIDO'}
+                                    </h2>
+
+                                    <p className={`text-sm font-bold m-4 p-3 rounded-xl border ${scanResult.valido ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                        {scanResult.mensaje}
+                                    </p>
+
+                                    {scanResult.socio && (
+                                        <div className="bg-slate-50 p-4 rounded-2xl mt-4 mb-8 text-left border border-slate-100">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Datos del Socio</p>
+                                            <p className="font-bold text-slate-900 text-lg uppercase leading-tight">{scanResult.socio.nombre_apellido}</p>
+                                            <p className="text-slate-600 font-mono mt-1">DNI/CUIT: {scanResult.socio.dni || 'No provisto'}</p>
+
+                                            <div className="mt-3 p-2 bg-slate-100/50 rounded-xl border border-slate-200">
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Tipo de Miembro</p>
+                                                <p className="text-sm font-bold text-primary dark:text-primary-light uppercase">
+                                                    {scanResult.socio.rol === 'SOCIO'
+                                                        ? scanResult.socio.titular_id
+                                                            ? `Grupo Familiar - ${scanResult.socio.tipo_vinculo || 'Adherente'}`
+                                                            : 'Socio Común'
+                                                        : scanResult.socio.titular_id
+                                                            ? 'Empleado de Comercio'
+                                                            : 'Comercio Titular'
+                                                    }
+                                                </p>
+                                            </div>
+
+                                            <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
+                                                <span className="text-[10px] font-bold px-2 py-1 bg-slate-200 text-slate-700 rounded uppercase">
+                                                    {scanResult.socio.municipio || 'Sin Municipio'}
+                                                </span>
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${scanResult.socio.estado === 'APROBADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                    ESTADO: {scanResult.socio.estado}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex gap-3">
+                                        {scanResult.valido && (
+                                            <button
+                                                onClick={() => stopScanner()}
+                                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95"
+                                            >
+                                                Aplicar Beneficio
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => setScanResult(null)} // Resetear para escanear de nuevo
+                                            className={`flex-1 font-bold py-4 rounded-xl transition-transform active:scale-95 ${scanResult.valido ? 'bg-slate-100 text-slate-700' : 'bg-slate-900 text-white shadow-xl'}`}
+                                        >
+                                            Escanear otro
+                                        </button>
+                                    </div>
+                                    {!scanResult.valido && (
+                                        <button onClick={stopScanner} className="w-full text-slate-500 text-sm font-bold mt-4 py-2 uppercase tracking-widest">
+                                            Cerrar Lector
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!(showForm || showScanner) && <BottomNav />}
             </div>
         </div>
     );
