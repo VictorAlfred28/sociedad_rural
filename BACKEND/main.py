@@ -3511,7 +3511,7 @@ def notificar_olvido_password(
             "metadata": {"email": perfil["email"]},
         }
 
-        supabase.table("notificaciones_admin").insert(notif_data).execute()
+        supabase.table("notificaciones").insert(notif_data).execute()
 
         # 3. Notificar a todos los administradores (In-App y Push)
         # Buscamos todos los perfiles con rol ADMIN
@@ -3535,7 +3535,7 @@ def notificar_olvido_password(
     except Exception as e:
         logger.error(f"Error en notificar_olvido_password: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error al procesar solicitud: {str(e)}"
+            status_code=500, detail="No pudimos procesar tu solicitud en este momento. Intenta nuevamente o contacta a un administrador."
         )
 
 
@@ -3547,7 +3547,7 @@ def get_support_notifications(admin_user=Depends(get_current_admin)):
         res = (
             supabase.table("notificaciones")
             .select("*")
-            .eq("tipo", "admin")
+            .in_("tipo", ["admin", "OLVIDO_PASSWORD"])
             .eq("estado", "PENDIENTE")
             .order("fecha", desc=True)
             .execute()
