@@ -19,6 +19,7 @@ export default function Login() {
   const [reenvioEmail,      setReenvioEmail]      = useState('');
   const [reenvioLoading,    setReenvioLoading]    = useState(false);
   const [reenvioMsg,        setReenvioMsg]        = useState('');
+  const [isRecoveryMode,    setIsRecoveryMode]    = useState(false);
 
   const handleForgotPassword = async () => {
     if (!identificador) {
@@ -37,11 +38,21 @@ export default function Login() {
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.detail || 'Error al enviar solicitud');
 
-      setSuccessMsg(data.message);
+      setSuccessMsg(data.message || 'Se enviará una solicitud de restablecimiento a los administradores del sistema.');
+      setIsRecoveryMode(false);
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: any) => {
+    e.preventDefault();
+    if (isRecoveryMode) {
+      handleForgotPassword();
+    } else {
+      handleLogin(e);
     }
   };
 
@@ -201,7 +212,7 @@ export default function Login() {
           )}
 
 
-          <form className="space-y-6" onSubmit={handleLogin}>
+          <form className="space-y-6" onSubmit={handleSubmit}>
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-[#1e5028]">
@@ -217,36 +228,61 @@ export default function Login() {
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-[#1e5028]">
-                Contraseña
-              </label>
-              <PasswordInput
-                className="w-full px-4 h-12 rounded-lg border border-[#a1e8c1] bg-white focus:bg-white focus:ring-1 focus:ring-[#245b31] focus:border-[#245b31] transition-all outline-none text-slate-800 text-2xl tracking-[0.2em]"
-                placeholder="•••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <div className="flex justify-end mt-1">
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  disabled={resetLoading}
-                  className="text-xs font-semibold text-[#357a38] hover:underline"
-                >
-                  {resetLoading ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
-                </button>
+            {!isRecoveryMode && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-[#1e5028]">
+                  Contraseña
+                </label>
+                <PasswordInput
+                  className="w-full px-4 h-12 rounded-lg border border-[#a1e8c1] bg-white focus:bg-white focus:ring-1 focus:ring-[#245b31] focus:border-[#245b31] transition-all outline-none text-slate-800 text-2xl tracking-[0.2em]"
+                  placeholder="•••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <div className="flex justify-end mt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setErrorMsg(''); setSuccessMsg(''); setIsRecoveryMode(true); }}
+                    className="text-xs font-semibold text-[#357a38] hover:underline"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {isRecoveryMode && (
+              <div className="flex flex-col gap-2 mt-4 text-sm text-slate-600 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                Se enviará una solicitud de restablecimiento a los administradores del sistema. Te contactarán para validar tu identidad y habilitar una nueva contraseña.
+              </div>
+            )}
 
             <button
-              className="w-full bg-[#357a38] hover:bg-[#2e6831] text-white font-bold h-12 rounded-lg shadow-md transition-all active:scale-[0.98] disabled:opacity-50 mt-4 text-[15px]"
+              className="w-full bg-[#357a38] hover:bg-[#2e6831] text-white font-bold h-12 rounded-lg shadow-md transition-all active:scale-[0.98] disabled:opacity-50 mt-4 text-[15px] flex items-center justify-center gap-2"
               type="submit"
-              disabled={loading}
+              disabled={loading || resetLoading}
             >
-              {loading ? 'Validando...' : 'Ingresar al Portal'}
+              {(loading || resetLoading) && (
+                <span className="material-symbols-outlined animate-spin text-[18px]">autorenew</span>
+              )}
+              {isRecoveryMode 
+                ? (resetLoading ? 'Enviando...' : 'Solicitar Restablecimiento') 
+                : (loading ? 'Validando...' : 'Ingresar al Portal')
+              }
             </button>
+            
+            {isRecoveryMode && (
+              <div className="text-center mt-4">
+                 <button
+                  type="button"
+                  onClick={() => { setErrorMsg(''); setSuccessMsg(''); setIsRecoveryMode(false); }}
+                  className="text-sm font-semibold text-slate-500 hover:text-slate-700 hover:underline"
+                 >
+                   Volver al login
+                 </button>
+              </div>
+            )}
           </form>
 
           {/* Link a Registro inferior */}
