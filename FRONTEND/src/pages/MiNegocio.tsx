@@ -535,7 +535,7 @@ export default function MiNegocio() {
                         className="w-full mb-4 flex items-center justify-center gap-3 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95"
                     >
                         <span className="material-symbols-outlined text-2xl">qr_code_scanner</span>
-                        VALIDAR CARNET SOCIO
+                        VALIDAR PASAPORTE SOCIO
                     </button>
 
 
