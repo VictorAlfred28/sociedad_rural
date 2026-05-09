@@ -12,14 +12,15 @@ import GestionAdministradores from '../components/admin/GestionAdministradores';
 import GestionSoporte from '../components/admin/GestionSoporte';
 import ChangePasswordModal from '../components/admin/ChangePasswordModal';
 import GestionAranceles from '../components/admin/GestionAranceles';
+import RecordatoriosPago from '../components/admin/RecordatoriosPago';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles'
-  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles'>('panel');
+  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles' | 'recordatorios'
+  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles' | 'recordatorios'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
@@ -72,6 +73,7 @@ export default function AdminDashboard() {
 
   const adminNavItems = isSuperadmin ? [
     ...baseNavItems,
+    { id: 'recordatorios', icon: 'notifications_active', label: 'Recordatorios de Pago' },
     { id: 'administradores', icon: 'shield_person', label: 'Especial: Administradores' },
     { id: 'auditoria', icon: 'policy', label: 'Especial: Auditoría' },
   ] : baseNavItems;
@@ -268,6 +270,7 @@ export default function AdminDashboard() {
 
           {activeTab === 'pagos' && <ValidacionPagos />}
           {activeTab === 'reportes' && <ReportesPanel />}
+          {activeTab === 'recordatorios' && isSuperadmin && <RecordatoriosPago />}
         </div>
       </main>
 

@@ -6020,6 +6020,501 @@ def cron_notificar_mora(request: Request):
         logger.error(f"[CRON] Error notificar_mora: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# =============================================================================
+# MÓDULO: RECORDATORIOS INTELIGENTES DE PAGO
+# Sistema multichannel: WhatsApp + Push + In-App
+# Lógica: socios con 40+ días registrados sin pago aprobado
+# Anti-spam: cooldown configurable por canal (default 7 días)
+# =============================================================================
+
+# ── Constantes configurables ─────────────────────────────────────────────────
+REMINDER_DIAS_DESDE_REGISTRO = 40      # días mínimos desde registro para recordar
+REMINDER_COOLDOWN_DIAS = 7             # días de espera entre recordatorios del mismo canal
+REMINDER_EXCLUIR_ESTADOS = frozenset({"SUSPENDIDO", "RECHAZADO"})  # no recordar a estos
+
+# Link de pago institucional (frontend)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://sociedadruraldelnorte.agentech.ar")
+PAYMENT_LINK = f"{FRONTEND_URL}/cuotas"
+
+
+def _reminder_en_cooldown(user_id: str, canal: str) -> bool:
+    """
+    Devuelve True si el usuario ya recibió un recordatorio por este canal
+    dentro del período de cooldown (REMINDER_COOLDOWN_DIAS).
+    Consulta la tabla payment_reminder_logs.
+    """
+    try:
+        cutoff = (datetime.now(TZ_ARGENTINA) - timedelta(days=REMINDER_COOLDOWN_DIAS)).isoformat()
+        res = (
+            supabase.table("payment_reminder_logs")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("canal", canal)
+            .eq("resultado", "enviado")
+            .gte("created_at", cutoff)
+            .limit(1)
+            .execute()
+        )
+        return bool(res.data)
+    except Exception as e:
+        logger.error(f"[REMINDER] Error verificando cooldown {user_id}/{canal}: {e}")
+        return False  # ante la duda, no bloquear
+
+
+def _registrar_log_reminder(
+    user_id: str,
+    canal: str,
+    resultado: str,
+    mensaje: str = "",
+    motivo_omision: str = "",
+):
+    """Persiste el resultado del intento de envío en payment_reminder_logs."""
+    try:
+        supabase.table("payment_reminder_logs").insert({
+            "user_id": user_id,
+            "canal": canal,
+            "resultado": resultado,
+            "mensaje": mensaje[:1000] if mensaje else "",
+            "motivo_omision": motivo_omision,
+        }).execute()
+    except Exception as e:
+        logger.error(f"[REMINDER] Error guardando log {user_id}/{canal}: {e}")
+
+
+def _detectar_socios_sin_pago() -> list[dict]:
+    """
+    Retorna lista de socios (APROBADO, rol SOCIO) que:
+    - Tienen 40+ días desde created_at
+    - NO tienen ningún pago en estado APROBADO
+    - NO tienen comprobante pendiente de revisión (REVISION)
+    - NO están SUSPENDIDOS ni RECHAZADOS
+    """
+    try:
+        fecha_limite = (
+            datetime.now(TZ_ARGENTINA) - timedelta(days=REMINDER_DIAS_DESDE_REGISTRO)
+        ).isoformat()
+
+        # Socios activos registrados hace más de REMINDER_DIAS_DESDE_REGISTRO días
+        perfiles_res = (
+            supabase.table("profiles")
+            .select("id, nombre_apellido, telefono, email, estado, created_at")
+            .eq("rol", "SOCIO")
+            .in_("estado", ["APROBADO", "PENDIENTE"])
+            .lt("created_at", fecha_limite)
+            .execute()
+        )
+        perfiles = perfiles_res.data or []
+
+        socios_sin_pago = []
+
+        for p in perfiles:
+            uid = p["id"]
+
+            # Excluir estados bloqueantes
+            if p.get("estado") in REMINDER_EXCLUIR_ESTADOS:
+                continue
+
+            # Verificar si tiene algún pago APROBADO
+            pago_aprobado = (
+                supabase.table("pagos_cuotas")
+                .select("id")
+                .eq("socio_id", uid)
+                .eq("estado_pago", "APROBADO")
+                .limit(1)
+                .execute()
+            )
+            if pago_aprobado.data:
+                continue  # ya pagó, no recordar
+
+            # Verificar si tiene comprobante en revisión (no molestar mientras espera validación)
+            en_revision = (
+                supabase.table("pagos_cuotas")
+                .select("id")
+                .eq("socio_id", uid)
+                .eq("estado_pago", "REVISION")
+                .limit(1)
+                .execute()
+            )
+            if en_revision.data:
+                continue  # esperando aprobación, no molestar
+
+            socios_sin_pago.append(p)
+
+        return socios_sin_pago
+
+    except Exception as e:
+        logger.error(f"[REMINDER] Error detectando socios sin pago: {e}")
+        return []
+
+
+def _construir_mensaje_whatsapp(nombre: str) -> str:
+    """Genera el mensaje WhatsApp institucional, amigable y personalizado."""
+    nombre_corto = nombre.split()[0] if nombre else "Estimado/a socio/a"
+    return (
+        f"Hola {nombre_corto} 👋\n\n"
+        f"Te recordamos que tu cuota de socio de *Sociedad Rural Norte de Corrientes* "
+        f"aún figura como pendiente.\n\n"
+        f"Para mantener activos tus beneficios y el acceso completo al portal, "
+        f"te pedimos que regularices tu pago.\n\n"
+        f"📲 Podés abonar desde el portal:\n"
+        f"{PAYMENT_LINK}\n\n"
+        f"Si ya realizaste el pago, podés subir tu comprobante desde la misma sección "
+        f"o ignorar este mensaje.\n\n"
+        f"¡Muchas gracias! 🤝\n"
+        f"_Sociedad Rural Norte de Corrientes_"
+    )
+
+
+def _procesar_recordatorio_socio(socio: dict) -> dict:
+    """
+    Procesa los 3 canales de recordatorio para un socio.
+    Respeta cooldowns individuales por canal.
+    Retorna dict con resultado por canal.
+    """
+    uid = socio["id"]
+    nombre = socio.get("nombre_apellido", "Socio")
+    telefono = socio.get("telefono", "")
+    resultado = {"user_id": uid, "nombre": nombre, "whatsapp": "omitido", "push": "omitido", "inapp": "omitido"}
+
+    # ── Canal 1: WhatsApp ───────────────────────────────────────────────
+    if telefono and not _reminder_en_cooldown(uid, "whatsapp"):
+        try:
+            mensaje_wa = _construir_mensaje_whatsapp(nombre)
+            enviar_whatsapp(telefono, mensaje_wa)
+            _registrar_log_reminder(uid, "whatsapp", "enviado", mensaje_wa)
+            resultado["whatsapp"] = "enviado"
+        except Exception as e:
+            _registrar_log_reminder(uid, "whatsapp", "fallido", motivo_omision=str(e))
+            resultado["whatsapp"] = "fallido"
+    elif not telefono:
+        _registrar_log_reminder(uid, "whatsapp", "omitido", motivo_omision="sin_telefono")
+    else:
+        resultado["whatsapp"] = "cooldown"
+
+    # ── Canal 2: Push Notification ──────────────────────────────────────
+    if not _reminder_en_cooldown(uid, "push"):
+        try:
+            # Usar función existente — crea in-app + FCM en un solo call
+            # Pasamos tipo especial para que no duplique con el canal inapp
+            tokens_res = (
+                supabase.table("push_tokens")
+                .select("token")
+                .eq("usuario_id", uid)
+                .execute()
+            )
+            push_tokens = [t["token"] for t in (tokens_res.data or [])]
+
+            if push_tokens:
+                import json as _json
+                push_message = messaging.MulticastMessage(
+                    notification=messaging.Notification(
+                        title="💰 Recordatorio de Pago",
+                        body="Tu cuota aún figura pendiente. Ingresá para regularizarla.",
+                    ),
+                    data={
+                        "link_url": "/cuotas",
+                        "tipo": "recordatorio_pago",
+                        "sound_enabled": "true",
+                    },
+                    android=messaging.AndroidConfig(
+                        priority="high",
+                        notification=messaging.AndroidNotification(
+                            sound="notification",
+                            channel_id="high_importance_channel",
+                        ),
+                    ),
+                    apns=messaging.APNSConfig(
+                        payload=messaging.APNSPayload(
+                            aps=messaging.Aps(sound="notification.mp3", badge=1)
+                        )
+                    ),
+                    tokens=push_tokens,
+                )
+                resp_fcm = messaging.send_each_for_multicast(push_message)
+
+                # Limpiar tokens inválidos
+                invalidos = [
+                    push_tokens[i]
+                    for i, r in enumerate(resp_fcm.responses)
+                    if not r.success
+                    and getattr(r.exception, "code", None) in (
+                        "registration-token-not-registered",
+                        "invalid-argument",
+                        "invalid-registration-token",
+                    )
+                ]
+                if invalidos:
+                    supabase.table("push_tokens").delete().in_("token", invalidos).execute()
+
+                _registrar_log_reminder(uid, "push", "enviado")
+                resultado["push"] = f"enviado ({resp_fcm.success_count}/{len(push_tokens)})"
+            else:
+                _registrar_log_reminder(uid, "push", "omitido", motivo_omision="sin_tokens_fcm")
+                resultado["push"] = "sin_tokens"
+
+        except ValueError:
+            # Firebase no inicializado
+            _registrar_log_reminder(uid, "push", "omitido", motivo_omision="firebase_no_init")
+            resultado["push"] = "firebase_no_init"
+        except Exception as e:
+            _registrar_log_reminder(uid, "push", "fallido", motivo_omision=str(e))
+            resultado["push"] = "fallido"
+    else:
+        resultado["push"] = "cooldown"
+
+    # ── Canal 3: Notificación In-App ────────────────────────────────────
+    if not _reminder_en_cooldown(uid, "inapp"):
+        try:
+            supabase.table("notificaciones").insert({
+                "usuario_id": uid,
+                "titulo": "💰 Recordatorio de Pago",
+                "mensaje": (
+                    "Tu cuota de socio aún figura pendiente. "
+                    "Regularizá tu pago para mantener todos tus beneficios activos."
+                ),
+                "link_url": "/cuotas",
+                "leido": False,
+                "tipo": "recordatorio_pago",
+                "fecha": datetime.now(TZ_ARGENTINA).isoformat(),
+                "metadata": {"payment_link": PAYMENT_LINK},
+            }).execute()
+            _registrar_log_reminder(uid, "inapp", "enviado")
+            resultado["inapp"] = "enviado"
+        except Exception as e:
+            _registrar_log_reminder(uid, "inapp", "fallido", motivo_omision=str(e))
+            resultado["inapp"] = "fallido"
+    else:
+        resultado["inapp"] = "cooldown"
+
+    return resultado
+
+
+# ── CRON ENDPOINT ─────────────────────────────────────────────────────────────
+
+@app.get("/api/v1/cron/recordatorios-pago")
+def cron_recordatorios_pago(request: Request):
+    """
+    Cron diario (09:00 AM AR) — Detecta socios sin pago y envía recordatorios multichannel.
+
+    Autenticación: Header X-Cron-Secret (mismo secreto que otros cron endpoints).
+    Rate limit: protegido por el mismo CRON_SECRET.
+    Canales: WhatsApp + Push Notification + In-App.
+    Anti-spam: cooldown de 7 días por canal por usuario.
+    Registra todo en payment_reminder_logs.
+
+    Llamar desde Make.com / cron externo:
+      GET /api/v1/cron/recordatorios-pago
+      Header: X-Cron-Secret: {CRON_SECRET}
+    """
+    cron_secret_header = request.headers.get("X-Cron-Secret")
+    cron_secret_env = os.getenv("CRON_SECRET")
+
+    if not cron_secret_env:
+        logger.critical("[REMINDER-CRON] CRON_SECRET no configurado. Endpoint bloqueado.")
+        raise HTTPException(status_code=503, detail="Cron not configured")
+
+    if not cron_secret_header or not secrets.compare_digest(cron_secret_header, cron_secret_env):
+        client_ip = request.client.host if request.client else "unknown"
+        logger.warning(f"[REMINDER-CRON] Acceso no autorizado desde {client_ip}")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    logger.info("[REMINDER-CRON] Iniciando proceso de recordatorios de pago...")
+    inicio = datetime.now(TZ_ARGENTINA)
+
+    try:
+        socios = _detectar_socios_sin_pago()
+        logger.info(f"[REMINDER-CRON] {len(socios)} socios detectados sin pago.")
+
+        resultados = []
+        wa_enviados = 0
+        push_enviados = 0
+        inapp_enviados = 0
+
+        for socio in socios:
+            res = _procesar_recordatorio_socio(socio)
+            resultados.append(res)
+            if res["whatsapp"] == "enviado": wa_enviados += 1
+            if "enviado" in str(res["push"]): push_enviados += 1
+            if res["inapp"] == "enviado": inapp_enviados += 1
+
+        duracion = (datetime.now(TZ_ARGENTINA) - inicio).total_seconds()
+
+        logger.info(
+            f"[REMINDER-CRON] Completado en {duracion:.1f}s — "
+            f"WA:{wa_enviados} Push:{push_enviados} InApp:{inapp_enviados}"
+        )
+
+        return {
+            "status": "success",
+            "socios_evaluados": len(socios),
+            "whatsapp_enviados": wa_enviados,
+            "push_enviados": push_enviados,
+            "inapp_enviados": inapp_enviados,
+            "duracion_segundos": round(duracion, 2),
+            "detalle": resultados,
+        }
+
+    except Exception as e:
+        logger.error(f"[REMINDER-CRON] Error crítico: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── ENDPOINT ADMIN: historial de recordatorios ────────────────────────────────
+
+@app.get("/api/admin/recordatorios")
+def admin_listar_recordatorios(
+    request: Request,
+    user_id: Optional[str] = None,
+    canal: Optional[str] = None,
+    resultado: Optional[str] = None,
+    limit: int = 100,
+    current_user=Depends(get_current_admin),
+):
+    """
+    Panel Admin: historial de recordatorios enviados.
+    Filtros: user_id, canal (whatsapp/push/inapp), resultado (enviado/fallido/omitido).
+    Requiere JWT de admin/superadmin.
+    """
+    try:
+        query = (
+            supabase.table("payment_reminder_logs")
+            .select("*, profiles(nombre_apellido, email, telefono)")
+            .order("created_at", desc=True)
+            .limit(min(limit, 500))
+        )
+        if user_id:
+            query = query.eq("user_id", user_id)
+        if canal:
+            query = query.eq("canal", canal)
+        if resultado:
+            query = query.eq("resultado", resultado)
+
+        res = query.execute()
+        return {"recordatorios": res.data or [], "total": len(res.data or [])}
+
+    except Exception as e:
+        logger.error(f"[REMINDER-ADMIN] Error listando recordatorios: {e}")
+        raise HTTPException(status_code=500, detail="Error consultando recordatorios")
+
+
+@app.get("/api/admin/recordatorios/metricas")
+def admin_metricas_recordatorios(
+    request: Request,
+    current_user=Depends(get_current_admin),
+):
+    """
+    Dashboard admin: métricas de cobranza y tasa de respuesta.
+    Devuelve contadores agrupados por canal y resultado en últimos 30 días.
+    """
+    try:
+        hace_30_dias = (datetime.now(TZ_ARGENTINA) - timedelta(days=30)).isoformat()
+
+        res = (
+            supabase.table("payment_reminder_logs")
+            .select("canal, resultado")
+            .gte("created_at", hace_30_dias)
+            .execute()
+        )
+        logs = res.data or []
+
+        metricas: dict = {}
+        for log in logs:
+            key = f"{log['canal']}.{log['resultado']}"
+            metricas[key] = metricas.get(key, 0) + 1
+
+        # Socios sin pago actuales
+        socios_pendientes = len(_detectar_socios_sin_pago())
+
+        return {
+            "periodo_dias": 30,
+            "socios_pendientes_actuales": socios_pendientes,
+            "metricas_por_canal": metricas,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/recordatorios/reenviar/{user_id}")
+def admin_reenviar_recordatorio(
+    user_id: str,
+    request: Request,
+    current_user=Depends(get_current_superadmin),
+):
+    """
+    Reenvío manual desde panel admin (solo SUPERADMIN).
+    Ignora cooldown — fuerza el envío de los 3 canales.
+    Registra en logs con resultado.
+    """
+    try:
+        perfil_res = (
+            supabase.table("profiles")
+            .select("id, nombre_apellido, telefono, email, estado, rol")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        if not perfil_res.data:
+            raise HTTPException(status_code=404, detail="Socio no encontrado")
+
+        perfil = perfil_res.data
+
+        if perfil.get("rol") != "SOCIO":
+            raise HTTPException(status_code=400, detail="Solo aplicable a socios")
+
+        if perfil.get("estado") in REMINDER_EXCLUIR_ESTADOS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se puede recordar a un socio con estado {perfil.get('estado')}"
+            )
+
+        # Forzar envío ignorando cooldown (reenvío manual)
+        resultado = {}
+
+        # WhatsApp
+        telefono = perfil.get("telefono", "")
+        if telefono:
+            try:
+                msg = _construir_mensaje_whatsapp(perfil.get("nombre_apellido", "Socio"))
+                enviar_whatsapp(telefono, msg)
+                _registrar_log_reminder(user_id, "whatsapp", "enviado", msg)
+                resultado["whatsapp"] = "enviado"
+            except Exception as e:
+                _registrar_log_reminder(user_id, "whatsapp", "fallido", motivo_omision=str(e))
+                resultado["whatsapp"] = f"fallido: {str(e)}"
+        else:
+            resultado["whatsapp"] = "sin_telefono"
+
+        # In-App (siempre disponible)
+        try:
+            supabase.table("notificaciones").insert({
+                "usuario_id": user_id,
+                "titulo": "💰 Recordatorio de Pago — Administración",
+                "mensaje": (
+                    "La administración te recuerda que tu cuota sigue pendiente. "
+                    "Por favor regularizá tu situación para mantener tus beneficios activos."
+                ),
+                "link_url": "/cuotas",
+                "leido": False,
+                "tipo": "recordatorio_pago",
+                "fecha": datetime.now(TZ_ARGENTINA).isoformat(),
+            }).execute()
+            _registrar_log_reminder(user_id, "inapp", "enviado")
+            resultado["inapp"] = "enviado"
+        except Exception as e:
+            resultado["inapp"] = f"fallido: {str(e)}"
+
+        resultado["push"] = "procesado_via_inapp"
+
+        return {"status": "ok", "resultado": resultado}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ── PUSH TOKENS: Registro de tokens FCM (Android / Web) ──────────────────────
 # ─────────────────────────────────────────────────────────────────────────────
