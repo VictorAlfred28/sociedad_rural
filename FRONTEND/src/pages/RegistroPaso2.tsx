@@ -144,7 +144,6 @@ export default function RegistroPaso2() {
       const data = await resp.json();
 
       if (!resp.ok) {
-        console.log("BACKEND ERROR:", data);
         const friendlyMsg = parseBackendError(data.detail);
         throw new Error(friendlyMsg);
       }

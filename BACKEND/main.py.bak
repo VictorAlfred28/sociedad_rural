@@ -714,7 +714,7 @@ def procesar_imagen_evento(media_url: str, post_id: str) -> Optional[str]:
 
 # 2.5 ENDPOINT CHECK EMAIL — Verificación en tiempo real
 @app.get("/api/check-email")
-@limiter.limit("10/minute")
+@limiter.limit("30/minute")
 def check_email(email: str, type: str = "socio", request: Request = None):
     """
     Verifica si un email ya existe en el sistema.
@@ -897,17 +897,9 @@ def register(
             token=profile_data["email_verificacion_token"],
         )
 
-        # Filtrar campos sensibles del response (tokens, estado interno)
-        safe_profile = {
-            "id": profile_data.get("id"),
-            "nombre_apellido": profile_data.get("nombre_apellido"),
-            "email": profile_data.get("email"),
-            "rol": profile_data.get("rol"),
-            "estado": profile_data.get("estado"),
-        }
         return {
             "message": f"{rol_asignado.capitalize()} registrado correctamente. Revisá tu correo para verificar tu cuenta.",
-            "socio": safe_profile,
+            "socio": profile_data,
         }
 
     except Exception as e:
@@ -1007,20 +999,13 @@ def register_comercio(
             tipo_usuario="comercio",
         )
 
-        safe_profile_comercio = {
-            "id": profile_data.get("id"),
-            "nombre_apellido": profile_data.get("nombre_apellido"),
-            "email": profile_data.get("email"),
-            "rol": profile_data.get("rol"),
-            "estado": profile_data.get("estado"),
-        }
         return {
             "message": "Comercio registrado correctamente. Pendiente de aprobación por Admin.",
-            "socio": safe_profile_comercio,
+            "socio": profile_data,
         }
 
     except Exception as e:
-        logger.error(f"[REGISTER_COMERCIO] Error interno procesando registro")
+        logger.error(f"Error in register_comercio: {str(e)}", exc_info=True)
         err_msg = str(e).lower()
         if (
             "user already registered" in err_msg
@@ -1068,13 +1053,13 @@ def login(
             )
             if not response.data or len(response.data) == 0:
                 raise HTTPException(
-                    status_code=401, detail="Credenciales inválidas"
+                    status_code=401, detail="Credenciales inválidas (DNI no encontrado)"
                 )
             login_email = response.data[0]["email"]
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
-            raise HTTPException(status_code=401, detail="Credenciales inválidas")
+            raise HTTPException(status_code=500, detail="Error consultando DNI")
     else:
         tipo_identificacion = "username"  # Alfanumérico se asume como nombre de usuario
         try:
@@ -1087,16 +1072,16 @@ def login(
             if not response.data or len(response.data) == 0:
                 raise HTTPException(
                     status_code=401,
-                    detail="Credenciales inválidas",
+                    detail="Credenciales inválidas (Usuario no encontrado)",
                 )
             login_email = response.data[0]["email"]
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
-            raise HTTPException(status_code=401, detail="Credenciales inválidas")
+            raise HTTPException(status_code=500, detail="Error consultando Usuario")
 
     if not login_email:
-        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+        raise HTTPException(status_code=400, detail="Identificador no válido")
 
     logger.info(f"Login email resolved: {login_email}")
     # 4.B: AUTENTICAR CON SUPABASE AUTH
@@ -1124,7 +1109,7 @@ def login(
         profile_res = supabase.table("profiles").select("*").eq("id", user.id).execute()
         if not profile_res.data:
             raise HTTPException(
-                status_code=401, detail="Credenciales inválidas"
+                status_code=500, detail="Perfil no encontrado en base de datos"
             )
 
         profile = profile_res.data[0]
@@ -1371,9 +1356,8 @@ def get_current_superadmin(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logger.error(f"[AUTH] Error verificando permisos SUPERADMIN: {str(e)}")
         raise HTTPException(
-            status_code=401, detail="No autorizado"
+            status_code=401, detail=f"Error verificando permisos: {str(e)}"
         )
 
 
@@ -1566,7 +1550,7 @@ def listar_comercios(rubro: Optional[str] = None, municipio: Optional[str] = Non
         result = query.execute()
         return {"comercios": result.data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── ENDPOINTS PARA QR DINÁMICO ────────────────────────────────────────────────
@@ -1612,7 +1596,7 @@ def generar_qr(request: Request):
         ).execute()
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error generando token QR: {str(e)}"
         )
 
     return {"token": new_token_str, "expires_at": expires_at}
@@ -1700,7 +1684,7 @@ def validar_qr_dinamico(data: QRTokenValidarRequest):
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── ENDPOINT CHATBOT ESPECIALIZADO ──────────────────────────────────────────
@@ -1744,7 +1728,7 @@ async def upload_chat_image(
         logger.error(f"Error en endpoint upload_chat_image: {str(e)}")
         logger.error(f"Error subiendo imagen a Supabase Storage: {str(e)}")
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error en servidor al procesar imagen: {str(e)}"
         )
 
 
@@ -1895,7 +1879,7 @@ def valida_socio(socio_id: str):
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=f"Error al validar socio: {str(e)}")
 
 
 @app.post("/api/change-password")
@@ -1942,7 +1926,7 @@ def change_password(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error actualizando la contraseña: {str(e)}"
         )
 
 
@@ -1973,7 +1957,7 @@ def get_all_administradores(superadmin_user=Depends(get_current_superadmin)):
 
         return {"administradores": list(users.values())}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/admin/administradores")
@@ -2018,7 +2002,7 @@ def create_administrador(
                 raise HTTPException(
                     status_code=400, detail="El correo electrónico ya está registrado"
                 )
-            raise HTTPException(status_code=500, detail="Error interno del servidor")
+            raise HTTPException(status_code=500, detail=f"Error Auth: {str(e)}")
 
         # 2. Crear Perfil
         profile_data = {
@@ -2037,7 +2021,7 @@ def create_administrador(
         except Exception as e:
             supabase.auth.admin.delete_user(user_id)
             raise HTTPException(
-                status_code=500, detail="Error interno del servidor"
+                status_code=500, detail=f"Error creando perfil: {str(e)}"
             )
 
         # 3. Asignar Roles
@@ -2072,7 +2056,7 @@ def create_administrador(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.put("/api/admin/administradores/{user_id}/role")
@@ -2154,7 +2138,7 @@ def update_administrador_role(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/api/admin/administradores/{user_id}")
@@ -2196,7 +2180,7 @@ def delete_administrador(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # 5. ENDPOINT ADMIN: LISTAR PENDIENTES
@@ -2216,7 +2200,7 @@ def get_pending_users(
         )
         return {"users": response.data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # 6. ENDPOINTS ADMIN: APROBAR / RECHAZAR USUARIO
@@ -2279,7 +2263,7 @@ def approve_user(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=f"Error al aprobar: {str(e)}")
 
 
 @app.post("/api/admin/users/{user_id}/reject")
@@ -2324,7 +2308,7 @@ def reject_user(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=f"Error al rechazar: {str(e)}")
 
 
 # 6.B ENDPOINTS ADMIN OPTIMIZADOS (SPEC)
@@ -2347,7 +2331,7 @@ def get_all_users(
         )
         return {"users": response.data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 class UpdateUserStatusRequest(BaseModel):
@@ -2412,7 +2396,7 @@ def update_user_status(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al actualizar estado: {str(e)}"
         )
 
 
@@ -2471,7 +2455,7 @@ def update_user_details(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al editar usuario: {str(e)}"
         )
 
 
@@ -2531,7 +2515,7 @@ def delete_user(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al eliminar usuario: {str(e)}"
         )
 
 
@@ -2626,7 +2610,7 @@ def reset_user_password(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al restablecer contraseña: {str(e)}"
         )
 
 
@@ -2667,7 +2651,7 @@ def get_metrics_overview(admin_user=Depends(get_current_admin)):
         }
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error cargando métricas: {str(e)}"
         )
 
 
@@ -2757,10 +2741,9 @@ def create_commerce(
         }
 
     except Exception as e:
-        logger.error(f"[ADMIN] Error creando comercio: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Error interno del servidor",
+            detail=f"Error al crear comercio: {str(e)}",
         )
 
 # 7.5 ENDPOINT ADMIN: CREAR PROFESIONAL
@@ -2857,7 +2840,7 @@ def create_profesional(
             pass
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Error interno del servidor",
+            detail=f"Error al crear profesional: {str(e)}",
         )
 
 
@@ -2885,7 +2868,7 @@ def get_profesionales_publicos(municipio: Optional[str] = None):
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail="Error interno del servidor"
+            detail=f"Error al obtener profesionales: {str(e)}"
         )
 
 
@@ -3010,7 +2993,7 @@ def update_profile(
             except Exception as e:
                 raise HTTPException(
                     status_code=400,
-                    detail="Error interno del servidor",
+                    detail=f"No se pudo actualizar el email de acceso: {str(e)}",
                 )
 
         res = (
@@ -3040,7 +3023,7 @@ def update_profile(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al editar usuario: {str(e)}"
         )
 
 
@@ -3093,7 +3076,7 @@ def change_my_password(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al cambiar contraseña: {str(e)}"
         )
 
 
@@ -3110,7 +3093,7 @@ def get_mis_dependientes(current_user=Depends(get_current_user)):
         )
         return {"dependientes": res.data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/agregar-dependiente", status_code=201)
@@ -3210,7 +3193,7 @@ def agregar_dependiente(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=400, detail="Error interno del servidor")
+        raise HTTPException(status_code=400, detail=f"Error al agregar: {str(e)}")
 
 
 class UpdateDependienteRequest(BaseModel):
@@ -3261,7 +3244,7 @@ def update_dependiente(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=400, detail="Error interno del servidor")
+        raise HTTPException(status_code=400, detail=f"Error al actualizar: {str(e)}")
 
 
 @app.delete("/api/dependientes/{dependiente_id}")
@@ -3310,7 +3293,7 @@ def eliminar_dependiente(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # UploadFile y File ya importados al inicio del archivo
@@ -3369,7 +3352,7 @@ async def upload_foto(
 
     except Exception as e:
         logger.error(f"Error subiendo foto de perfil: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=f"Error subiendo foto: {str(e)}")
 
 
 @app.post("/api/ofertas/foto")
@@ -3422,7 +3405,7 @@ async def upload_oferta_foto(
     except Exception as e:
         logger.error(f"Error en endpoint /api/ofertas/foto: {str(e)}")
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error subiendo imagen de oferta: {str(e)}"
         )
 
 
@@ -3559,7 +3542,7 @@ def resolve_support_notification(notif_id: str, admin_user=Depends(get_current_a
         ).eq("id", notif_id).execute()
         return {"message": "Solicitud marcada como resuelta"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/admin/notificaciones-soporte/{notif_id}/reset-password")
@@ -3648,7 +3631,7 @@ def admin_reset_password(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al resetear contraseña: {str(e)}"
         )
 
 
@@ -3676,7 +3659,7 @@ def update_support_note(
         ).execute()
         return {"message": "Nota actualizada correctamente"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── ENDPOINT DE AUDITORÍA (ADMIN) ─────────────────────────────────────────────
@@ -3710,7 +3693,7 @@ def get_auditoria(
         return {"logs": res.data}
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error obteniendo logs de auditoría: {str(e)}"
         )
 
 
@@ -3768,7 +3751,7 @@ def get_combined_eventos(
     except Exception as e:
         logger.error(f"Error combinando eventos: {str(e)}")
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al obtener eventos: {str(e)}"
         )
 
 
@@ -3841,7 +3824,7 @@ def create_evento(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=f"Error al crear evento: {str(e)}")
 
 
 @app.delete("/api/admin/eventos/{evento_id}")
@@ -3879,7 +3862,7 @@ def delete_evento(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al eliminar evento: {str(e)}"
         )
 
 
@@ -3934,7 +3917,7 @@ def update_evento(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al actualizar evento: {str(e)}"
         )
 
 
@@ -4094,7 +4077,7 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request, backg
         }).eq("external_id", payload.external_id).execute()
         
         # Devolver 500 para Make retry
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── ENDPOINTS GESTIÓN DE EVENTOS DE REDES SOCIALES (ADMIN) ───────────────────
@@ -4118,7 +4101,7 @@ def get_all_social_eventos(
         response = query.range(offset, offset + limit - 1).execute()
         return {"eventos": response.data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 class UpdateEventoSocialStatusRequest(BaseModel):
@@ -4168,7 +4151,7 @@ def update_evento_social_status(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al actualizar estado del evento: {str(e)}"
         )
 
 
@@ -4228,7 +4211,7 @@ def update_evento_social(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al actualizar evento: {str(e)}"
         )
 
 
@@ -4269,7 +4252,7 @@ def delete_evento_social(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al eliminar evento: {str(e)}"
         )
 
 
@@ -4299,7 +4282,7 @@ def get_user_notifications(limit: int = 50, current_user=Depends(get_current_use
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error obteniendo notificaciones: {str(e)}"
         )
 
 
@@ -4316,7 +4299,7 @@ def mark_notifications_read(current_user=Depends(get_current_user)):
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al actualizar notificaciones: {str(e)}"
         )
 
 
@@ -4328,7 +4311,7 @@ def mark_notification_read(notif_id: str, current_user=Depends(get_current_user)
         ).eq("usuario_id", current_user.id).execute()
         return {"message": "OK"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/api/notificaciones/{notif_id}")
@@ -4339,7 +4322,7 @@ def delete_notification(notif_id: str, current_user=Depends(get_current_user)):
         ).eq("usuario_id", current_user.id).execute()
         return {"message": "OK"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 class PreferenciaSonidoRequest(BaseModel):
@@ -4365,7 +4348,7 @@ def update_sound_preference(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(
-            status_code=500, detail="Error interno del servidor"
+            status_code=500, detail=f"Error al actualizar preferencia: {str(e)}"
         )
 
 
@@ -4839,7 +4822,7 @@ async def procesar_rendicion_bc(
         }
     except Exception as e:
         logger.error(f"Error procesando rendición bancaria: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=f"Error crítico: {str(e)}")
 
 
 # 12.5 AUTOMACIÓN: Detección de Mora (Cron)
@@ -4970,7 +4953,7 @@ def detectar_mora(
 
     except Exception as e:
         logger.error(f"Error en detectar_mora: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # 12.5b TEST: Endpoint de prueba directa WhatsApp (Solo Admin)
@@ -4999,7 +4982,7 @@ def test_whatsapp_directo(
             "message": f"Mensaje enviado al número {req.numero}. Verificá el celular."
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/admin/users/{user_id}/activity")
@@ -5021,7 +5004,7 @@ def get_user_activity(user_id: str, admin_user=Depends(get_current_admin)):
         )
         return {"activity": res.data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # 12.6 REPORTES: Exportación de Socios (Excel/PDF)
@@ -5545,7 +5528,7 @@ def get_mis_pagos(current_user=Depends(require_titular)):
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/pagos/subir-comprobante")
@@ -5605,7 +5588,7 @@ async def subir_comprobante(
 
         return {"status": "success", "url": url_publica}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/admin/pagos/pendientes")
@@ -5621,7 +5604,7 @@ def get_pagos_pendientes(current_admin=Depends(get_current_admin)):
         )
         return {"pendientes": res.data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/admin/pagos/aprobar")
@@ -5739,7 +5722,7 @@ def rechazar_pago(req: PagoActionRequest, current_admin=Depends(get_current_admi
         }).eq("id", pago_id).execute()
         return {"status": "success", "motivo": motivo}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -5759,7 +5742,7 @@ def get_cuotas_valores():
         response = supabase.table("configuracion_cuotas").select("*").execute()
         return {"cuotas": response.data}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/admin/cuotas/valores")
 def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_current_admin)):
@@ -5779,7 +5762,7 @@ def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_cu
                 }).execute()
         return {"status": "success"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def calcular_cuota_dinamica_internal(user_id: str):
     # fetch user profile
@@ -5861,7 +5844,7 @@ def calcular_cuota_dinamica(current_user=Depends(require_titular)):
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MÓDULO CRON: CONTROL DE MORA Y WHATSAPP AUTOMÁTICO
@@ -5961,7 +5944,7 @@ def cron_verificar_bloqueos(request: Request):
         return {"status": "success", "cuotas_vencidas_marcadas": marcados, "socios_suspendidos": bloqueos}
     except Exception as e:
         logger.error(f"[CRON] Error verificar_bloqueos: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/v1/cron/notificar-mora")
@@ -6040,7 +6023,7 @@ def cron_notificar_mora(request: Request):
         return {"status": "success", "whatsapp_enviados": enviados, "errores": errores}
     except Exception as e:
         logger.error(f"[CRON] Error notificar_mora: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =============================================================================
@@ -6423,7 +6406,7 @@ def cron_recordatorios_pago(request: Request):
 
     except Exception as e:
         logger.error(f"[REMINDER-CRON] Error crítico: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── ENDPOINT ADMIN: historial de recordatorios ────────────────────────────────
@@ -6502,7 +6485,7 @@ def admin_metricas_recordatorios(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/admin/recordatorios/reenviar/{user_id}")
@@ -6585,7 +6568,7 @@ def admin_reenviar_recordatorio(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
