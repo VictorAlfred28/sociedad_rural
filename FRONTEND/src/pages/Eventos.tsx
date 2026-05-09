@@ -5,6 +5,7 @@ import { Evento } from '../components/admin/GestionEventos';
 import { useAuth } from '../context/AuthContext';
 import paisaje from '../assets/paisaje.png';
 import { Capacitor } from '@capacitor/core';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const STORAGE_KEY = 'eventos_filtro_municipio';
 let cachedEventos: Evento[] | null = null;
@@ -25,6 +26,8 @@ export default function Eventos() {
   const [filtroMes, setFiltroMes] = useState<number | null>(null);
   const [municipiosList, setMunicipiosList] = useState<{ id: string, nombre: string }[]>([]);
   const [fetchTrigger, setFetchTrigger] = useState(0);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const autoRetried = useRef(false);
   const firstLoadRef = useRef(true);
   const navigatingRef = useRef(false);
@@ -32,6 +35,17 @@ export default function Eventos() {
   const isNative = Capacitor.isNativePlatform();
 
   const initializedRef = useRef(false);
+
+  // Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -207,20 +221,75 @@ export default function Eventos() {
             <label className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400 px-1">
               Filtrar por localidad
             </label>
-            <div className="relative">
-              <select
-                value={filtroMunicipio || ''}
-                onChange={(e) => setFiltroMunicipioSynced(e.target.value || null)}
-                className="w-full appearance-none bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/50 rounded-2xl px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-sm"
+            {/* Dropdown custom — compatible dark/light mode, Android WebView, Chrome */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen(o => !o)}
+                className="w-full flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl px-4 py-3 text-sm text-emerald-900 dark:text-emerald-300 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-sm transition-colors"
+                aria-haspopup="listbox"
+                aria-expanded={dropdownOpen}
               >
-                <option value="">Todas las localidades</option>
-                {municipiosList.map(m => (
-                  <option key={m.id} value={m.nombre}>{m.nombre}</option>
-                ))}
-              </select>
-              <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-600 dark:text-emerald-400">
-                expand_more
-              </span>
+                <span className="truncate">
+                  {filtroMunicipio || 'Todas las localidades'}
+                </span>
+                <span
+                  className={`material-symbols-outlined text-emerald-600 dark:text-emerald-400 shrink-0 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`}
+                >
+                  expand_more
+                </span>
+              </button>
+
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.ul
+                    initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    role="listbox"
+                    className="absolute z-50 top-[calc(100%+6px)] left-0 right-0 max-h-60 overflow-y-auto rounded-2xl bg-white dark:bg-stone-900 border border-emerald-200 dark:border-emerald-800/60 shadow-xl shadow-stone-900/10 dark:shadow-stone-900/50 py-1"
+                  >
+                    {/* Opción 'Todas' */}
+                    <li
+                      role="option"
+                      aria-selected={!filtroMunicipio}
+                      onClick={() => { setFiltroMunicipioSynced(null); setDropdownOpen(false); }}
+                      className={`flex items-center gap-2 px-4 py-3 text-sm font-bold cursor-pointer transition-colors ${
+                        !filtroMunicipio
+                          ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                          : 'text-stone-800 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[16px] shrink-0 text-emerald-600 dark:text-emerald-400">public</span>
+                      Todas las localidades
+                      {!filtroMunicipio && <span className="material-symbols-outlined text-[14px] ml-auto text-emerald-600 dark:text-emerald-400">check</span>}
+                    </li>
+
+                    {/* Separador */}
+                    <li className="h-px bg-stone-100 dark:bg-stone-800 mx-3 my-1" aria-hidden />
+
+                    {/* Municipios */}
+                    {municipiosList.map(m => (
+                      <li
+                        key={m.id}
+                        role="option"
+                        aria-selected={filtroMunicipio === m.nombre}
+                        onClick={() => { setFiltroMunicipioSynced(m.nombre); setDropdownOpen(false); }}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold cursor-pointer transition-colors ${
+                          filtroMunicipio === m.nombre
+                            ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold'
+                            : 'text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[16px] shrink-0 text-stone-400 dark:text-stone-500">location_on</span>
+                        {m.nombre}
+                        {filtroMunicipio === m.nombre && <span className="material-symbols-outlined text-[14px] ml-auto text-emerald-600 dark:text-emerald-400">check</span>}
+                      </li>
+                    ))}
+                  </motion.ul>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
