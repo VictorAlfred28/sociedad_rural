@@ -321,7 +321,7 @@ export default function RegistroPaso2() {
                     </div>
                     <div>
                       <p className="text-amber-800 dark:text-amber-300 text-sm font-bold leading-relaxed">
-                        Próximamente tendrás beneficios especiales por ser profesional activo en la Sociedad Rural Norte de Corrientes
+                        Próximamente tendrás beneficios especiales por ser profesional activo en Sociedad Rural Del Norte De Corrientes
                       </p>
                     </div>
                   </div>

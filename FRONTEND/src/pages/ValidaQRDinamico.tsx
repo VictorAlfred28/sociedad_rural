@@ -126,7 +126,7 @@ export default function ValidaQRDinamico() {
       </div>
 
       <p className="mt-8 text-[11px] text-slate-400 font-bold uppercase tracking-[0.2em]">
-          Sociedad Rural de Corrientes
+          Sociedad Rural Del Norte De Corrientes
       </p>
     </div>
   );

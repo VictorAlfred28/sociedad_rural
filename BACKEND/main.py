@@ -269,7 +269,7 @@ scheduler = BackgroundScheduler(timezone=TZ_ARGENTINA)
 #     replace_existing=True,
 # )
 
-app = FastAPI(title="Sociedad Rural Norte de Corrientes API")
+app = FastAPI(title="Sociedad Rural Del Norte De Corrientes API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -655,7 +655,7 @@ def _html_verificacion(nombre: str, url: str) -> str:
       <h2 style="color:#245b31;margin-bottom:8px;">Verificación de correo electrónico</h2>
       <p style="color:#444;font-size:15px;">Hola <strong>{nombre}</strong>,</p>
       <p style="color:#444;font-size:15px;">
-        Gracias por registrarte en <strong>Sociedad Rural Norte de Corrientes</strong>.
+        Gracias por registrarte en <strong>Sociedad Rural Del Norte De Corrientes</strong>.
         Para completar tu registro, verificá tu dirección de correo electrónico.
       </p>
       <div style="text-align:center;margin:32px 0;">
@@ -674,7 +674,7 @@ def _html_aprobacion(nombre: str, login_url: str) -> str:
       <h2 style="color:#245b31;margin-bottom:8px;">Tu cuenta fue aprobada ✅</h2>
       <p style="color:#444;font-size:15px;">Hola <strong>{nombre}</strong>,</p>
       <p style="color:#444;font-size:15px;">
-        Tu cuenta en <strong>Sociedad Rural Norte de Corrientes</strong> fue aprobada por el administrador.
+        Tu cuenta en <strong>Sociedad Rural Del Norte De Corrientes</strong> fue aprobada por el administrador.
         Ya podés ingresar al portal.
       </p>
       <div style="text-align:center;margin:32px 0;">
@@ -1232,7 +1232,7 @@ def _enviar_email_verificacion_bg(email: str, nombre: str, token: str):
     url = f"{frontend_url}/verificar-email?token={token}"
     enviar_email_html(
         destinatario=email,
-        asunto="Verificá tu correo — Sociedad Rural Norte de Corrientes",
+        asunto="Verificá tu correo — Sociedad Rural Del Norte De Corrientes",
         html_body=_html_verificacion(nombre, url),
     )
 
@@ -2249,7 +2249,7 @@ def approve_user(
             background_tasks.add_task(
                 enviar_email_html,
                 destinatario=usuario_aprobado["email"],
-                asunto="¡Tu cuenta fue aprobada! — Sociedad Rural Norte de Corrientes",
+                asunto="¡Tu cuenta fue aprobada! — Sociedad Rural Del Norte De Corrientes",
                 html_body=_html_aprobacion(
                     nombre=usuario_aprobado.get("nombre_apellido", ""),
                     login_url=f"{frontend_url}/login",
@@ -4939,7 +4939,7 @@ def detectar_mora(
                 if socio.get("telefono"):
                     mensaje_wa = (
                         f"Hola {socio['nombre_apellido']}! 👋\n"
-                        f"Detectamos un atraso en el pago de tu cuota de la Sociedad Rural ({mes_actual}/{anio_actual}).\n\n"
+                        f"Detectamos un atraso en el pago de tu cuota de *Sociedad Rural Del Norte De Corrientes* ({mes_actual}/{anio_actual}).\n\n"
                         "¿Deseás regularizar tu situación? Respondé *SÍ*, *ACEPTO* o *PAGAR* para enviarte el detalle de tu deuda y el link de pago."
                     )
                     enviar_whatsapp(socio["telefono"], mensaje_wa)
@@ -4969,10 +4969,10 @@ def test_whatsapp_directo(
     """
     try:
         mensaje = req.mensaje or (
-            "🔔 *PRUEBA - SOCIEDAD RURAL DEL NORTE*\n\n"
+            "🔔 *PRUEBA - SOCIEDAD RURAL DEL NORTE DE CORRIENTES*\n\n"
             "Este es un mensaje de prueba del sistema automático de notificaciones. "
             "Si recibiste este mensaje, la integración con WhatsApp está funcionando correctamente.\n\n"
-            "_Sociedad Rural del Norte de Corrientes_"
+            "_Sociedad Rural Del Norte De Corrientes_"
         )
         enviar_whatsapp(req.numero, mensaje)
         return {
@@ -5133,7 +5133,7 @@ def exportar_contabilidad_csv(admin_user=Depends(get_current_admin)):
         writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_MINIMAL)
 
         # Encabezado del Reporte
-        writer.writerow(["REPORTE DE CONTABILIDAD - SOCIEDAD RURAL"])
+        writer.writerow(["REPORTE DE CONTABILIDAD - SOCIEDAD RURAL DEL NORTE DE CORRIENTES"])
         writer.writerow(
             [
                 "Fecha de Generación",
@@ -5317,7 +5317,7 @@ def exportar_socios_pdf(admin_user=Depends(get_current_admin)):
         elements.append(Spacer(1, 30))
         elements.append(
             Paragraph(
-                "Documento emitido por el Sistema de Gestión Digital - Sociedad Rural.",
+                "Documento emitido por el Sistema de Gestión Digital - Sociedad Rural Del Norte De Corrientes.",
                 styles["Italic"],
             )
         )
@@ -5487,7 +5487,7 @@ async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
                     f"*Total adeudado: ${total:,.0f}*\n\n"
                     "Podés abonar y subir tu comprobante de transferencia siguiendo este link:\n"
                     "https://sociedadruraldelnorte.agentech.ar/pagar-cuota\n\n"
-                    "_Muchas gracias! Sociedad Rural del Norte de Corrientes._"
+                    "_Muchas gracias! Sociedad Rural Del Norte De Corrientes._"
                 )
                 background_tasks.add_task(enviar_whatsapp, numero_sender, msg_deuda)
 
@@ -5651,7 +5651,7 @@ def validar_pago(
 
         c = canvas.Canvas(filepath, pagesize=A4)
         c.setFont("Helvetica-Bold", 20)
-        c.drawString(50, 750, "SOCIEDAD RURAL NORTE CORRIENTES")
+        c.drawString(50, 750, "SOCIEDAD RURAL DEL NORTE DE CORRIENTES")
         c.setFont("Helvetica", 14)
         c.drawString(50, 720, "RECIBO OFICIAL DE CUOTA SOCIAL")
 
@@ -5696,7 +5696,7 @@ def validar_pago(
                 f"¡Hola {socio_profile['nombre_apellido']}! 👋\n"
                 f"Queriamos confirmarte que hemos recibido y validado el pago de tu Cuota Social ({pago['fecha_vencimiento'][:7]}).\n\n"
                 f"Podés descargar tu Recibo Oficial directamente aquí: {pdf_url}\n\n"
-                "Muchas gracias por estar al día. Sociedad Rural del Norte de Corrientes."
+                "Muchas gracias por estar al día. Sociedad Rural Del Norte De Corrientes."
             )
             background_tasks.add_task(
                 enviar_whatsapp, socio_profile["telefono"], mensaje_wa
@@ -6153,7 +6153,7 @@ def _construir_mensaje_whatsapp(nombre: str) -> str:
     nombre_corto = nombre.split()[0] if nombre else "Estimado/a socio/a"
     return (
         f"Hola {nombre_corto} 👋\n\n"
-        f"Te recordamos que tu cuota de socio de *Sociedad Rural Norte de Corrientes* "
+        f"Te recordamos que tu cuota de socio de *Sociedad Rural Del Norte De Corrientes* "
         f"aún figura como pendiente.\n\n"
         f"Para mantener activos tus beneficios y el acceso completo al portal, "
         f"te pedimos que regularices tu pago.\n\n"
@@ -6162,7 +6162,7 @@ def _construir_mensaje_whatsapp(nombre: str) -> str:
         f"Si ya realizaste el pago, podés subir tu comprobante desde la misma sección "
         f"o ignorar este mensaje.\n\n"
         f"¡Muchas gracias! 🤝\n"
-        f"_Sociedad Rural Norte de Corrientes_"
+        f"_Sociedad Rural Del Norte De Corrientes_"
     )
 
 

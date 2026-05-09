@@ -642,7 +642,7 @@ export default function Promociones() {
                               {oferta.titulo}
                             </h4>
                             <p className="text-stone-600 dark:text-stone-400 text-xs line-clamp-2 leading-relaxed mb-4">
-                              {oferta.descripcion || 'Beneficio exclusivo para socios de la Sociedad Rural.'}
+                              {oferta.descripcion || 'Beneficio exclusivo para socios de Sociedad Rural Del Norte De Corrientes.'}
                             </p>
                           </div>
                         </div>

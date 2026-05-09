@@ -26,7 +26,7 @@ export const Chatbot: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
-            text: '¡Hola! Soy SapucAI, tu asistente de la Sociedad Rural. ¿En qué puedo asesorarte hoy?',
+            text: '¡Hola! Soy SapucAI, tu asistente de Sociedad Rural Del Norte De Corrientes. ¿En qué puedo asesorarte hoy?',
             sender: 'bot',
             timestamp: new Date(),
         }

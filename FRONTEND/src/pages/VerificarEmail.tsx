@@ -95,7 +95,7 @@ export default function VerificarEmail() {
       </div>
 
       <p className="mt-8 text-xs text-stone-400">
-        Sociedad Rural Norte de Corrientes
+        Sociedad Rural Del Norte De Corrientes
       </p>
     </div>
   );

@@ -146,7 +146,7 @@ export default function Login() {
         {/* Títulos */}
         <div className="flex flex-col items-center mb-8 text-center drop-shadow-sm">
           <h1 className="text-[2.2rem] font-extrabold text-[#245b31] tracking-tight mb-2">Portal Digital</h1>
-          <p className="text-[#644236] font-medium text-base">Sociedad Rural Norte de Corrientes</p>
+          <p className="text-[#644236] font-medium text-base">Sociedad Rural Del Norte De Corrientes</p>
         </div>
 
         {/* Formulario / Tarjeta blanca */}

@@ -139,7 +139,7 @@ export default function GestionSoporte() {
         if (!telefono) return alert('El usuario no tiene un teléfono registrado.');
         // Limpiar número (solo dígitos y +)
         const cleanPhone = telefono.replace(/[^\d+]/g, '');
-        const message = encodeURIComponent(`Hola ${nombre}! 👋 Soy de la Sociedad Rural. Te contacto con respecto a tu solicitud de soporte.`);
+        const message = encodeURIComponent(`Hola ${nombre}! 👋 Soy de Sociedad Rural Del Norte De Corrientes. Te contacto con respecto a tu solicitud de soporte.`);
         window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
     };
 
