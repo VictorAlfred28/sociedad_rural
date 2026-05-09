@@ -26,7 +26,7 @@ export default function CambioPassword() {
             return;
         }
 
-        if (password === 'Familia1234') {
+        if (password === 'SRNC2026!') {
             setErrorMsg('No puedes usar la contraseña temporal como nueva contraseña.');
             return;
         }

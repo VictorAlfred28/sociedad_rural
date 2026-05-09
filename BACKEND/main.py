@@ -44,6 +44,9 @@ MSG_TITULAR_RESTRINGIDO = (
     "TITULAR_RESTRINGIDO: Tu cuenta está limitada porque el socio titular "
     "tiene restricciones en su cuenta. Comunicate con la administración."
 )
+
+# Usuarios excluidos permanentemente de recordatorios y mora
+EMAILS_EXCLUIDOS_MORA: frozenset = frozenset({"victoralfredo2498@gmail.com"})
 # =============================================================================
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -766,8 +769,8 @@ def register(
             )
 
         # 3.B: Crear usuario en Supabase Auth
-        user_password = socio.password if socio.password else "socio1234"
-        default_passwords_list = ["comercio1234", "socio1234", "socio123"]
+        user_password = socio.password if socio.password else "SRNC2026!"
+        default_passwords_list = ["comercio1234", "socio1234", "socio123", "SRNC2026!"]
 
         user_password_was_set = (
             socio.password is not None
@@ -930,7 +933,7 @@ def register_comercio(
 ):
     try:
         rol_asignado = "COMERCIO"
-        default_password = "comercio1234"
+        default_password = "SRNC2026!"
         user_password = comercio.password if comercio.password else default_password
 
         auth_response = supabase.auth.admin.create_user(
@@ -2679,7 +2682,7 @@ def create_commerce(
         titular_id = None
         final_municipio = comercio.municipio or user_municipio
 
-        default_password = "comercio1234"
+        default_password = "SRNC2026!"
 
         auth_response = supabase.auth.admin.create_user(
             {
@@ -2769,7 +2772,7 @@ def create_profesional(
         # Si es ADMIN, usa el municipio del request; fallback al municipio del admin si aplica
         final_municipio = prof.municipio or user_municipio
 
-        default_password = "profesional1234"
+        default_password = "SRNC2026!"
 
         auth_response = supabase.auth.admin.create_user(
             {
@@ -3137,7 +3140,7 @@ def agregar_dependiente(
         )
         
         # Asignar contraseña inicial fija
-        user_password = "Familia1234"
+        user_password = "SRNC2026!"
 
         # 3. Crear usuario en Auth
         auth_response = supabase.auth.admin.create_user(
@@ -4865,7 +4868,7 @@ def detectar_mora(
             query = query.in_("rol", ["SOCIO", "COMERCIO"])
 
         socios_res = query.execute()
-        socios = socios_res.data
+        socios = [s for s in (socios_res.data or []) if s.get("email") not in EMAILS_EXCLUIDOS_MORA]
 
         # Definir rango del mes para la consulta de pagos (Ajuste 1)
         fecha_inicio_mes = f"{anio_actual}-{mes_actual:02d}-01"
@@ -5912,9 +5915,11 @@ def cron_verificar_bloqueos(request: Request):
                 if dias_habiles >= 10:
                     socio_id = cuota["socio_id"]
                     
-                    perfil_res = supabase.table("profiles").select("estado").eq("id", socio_id).execute()
+                    perfil_res = supabase.table("profiles").select("estado, email").eq("id", socio_id).execute()
                     if perfil_res.data:
                         perfil = perfil_res.data[0]
+                        if perfil.get("email") in EMAILS_EXCLUIDOS_MORA:
+                            continue  # Excluido de bloqueos automáticos
                         # Si no está suspendido ya, lo suspendemos
                         if perfil.get("estado") != "SUSPENDIDO":
                             supabase.table("profiles").update({
@@ -6038,9 +6043,9 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://sociedadruraldelnorte.agentech
 PAYMENT_LINK = f"{FRONTEND_URL}/cuotas"
 
 
-def _reminder_en_cooldown(user_id: str, canal: str) -> bool:
+def _reminder_en_cooldown(user_id: str, canal: str, tipo_reminder: str = "MORA_40") -> bool:
     """
-    Devuelve True si el usuario ya recibió un recordatorio por este canal
+    Devuelve True si el usuario ya recibió un recordatorio por este canal y tipo
     dentro del período de cooldown (REMINDER_COOLDOWN_DIAS).
     Consulta la tabla payment_reminder_logs.
     """
@@ -6051,6 +6056,7 @@ def _reminder_en_cooldown(user_id: str, canal: str) -> bool:
             .select("id")
             .eq("user_id", user_id)
             .eq("canal", canal)
+            .eq("tipo_reminder", tipo_reminder)
             .eq("resultado", "enviado")
             .gte("created_at", cutoff)
             .limit(1)
@@ -6058,7 +6064,7 @@ def _reminder_en_cooldown(user_id: str, canal: str) -> bool:
         )
         return bool(res.data)
     except Exception as e:
-        logger.error(f"[REMINDER] Error verificando cooldown {user_id}/{canal}: {e}")
+        logger.error(f"[REMINDER] Error verificando cooldown {user_id}/{canal}/{tipo_reminder}: {e}")
         return False  # ante la duda, no bloquear
 
 
@@ -6068,6 +6074,7 @@ def _registrar_log_reminder(
     resultado: str,
     mensaje: str = "",
     motivo_omision: str = "",
+    tipo_reminder: str = "MORA_40",
 ):
     """Persiste el resultado del intento de envío en payment_reminder_logs."""
     try:
@@ -6075,6 +6082,7 @@ def _registrar_log_reminder(
             "user_id": user_id,
             "canal": canal,
             "resultado": resultado,
+            "tipo_reminder": tipo_reminder,
             "mensaje": mensaje[:1000] if mensaje else "",
             "motivo_omision": motivo_omision,
         }).execute()
@@ -6085,17 +6093,18 @@ def _registrar_log_reminder(
 def _detectar_socios_sin_pago() -> list[dict]:
     """
     Retorna lista de socios (APROBADO, rol SOCIO) que:
-    - Tienen 40+ días desde created_at
+    - Tienen 40+ días (MORA_40) o exactamente 29 días (PRE_VENCIMIENTO_30) desde created_at
     - NO tienen ningún pago en estado APROBADO
     - NO tienen comprobante pendiente de revisión (REVISION)
     - NO están SUSPENDIDOS ni RECHAZADOS
     """
     try:
+        # Detectamos socios desde el día 29 en adelante para evaluar a todos en memoria.
         fecha_limite = (
-            datetime.now(TZ_ARGENTINA) - timedelta(days=REMINDER_DIAS_DESDE_REGISTRO)
+            datetime.now(TZ_ARGENTINA) - timedelta(days=29)
         ).isoformat()
 
-        # Socios activos registrados hace más de REMINDER_DIAS_DESDE_REGISTRO días
+        # Socios activos registrados hace al menos 29 días
         perfiles_res = (
             supabase.table("profiles")
             .select("id, nombre_apellido, telefono, email, estado, created_at")
@@ -6107,13 +6116,32 @@ def _detectar_socios_sin_pago() -> list[dict]:
         perfiles = perfiles_res.data or []
 
         socios_sin_pago = []
+        now_utc = datetime.now(timezone.utc)
 
         for p in perfiles:
+            if p.get("email") in EMAILS_EXCLUIDOS_MORA:
+                continue
+                
             uid = p["id"]
 
             # Excluir estados bloqueantes
             if p.get("estado") in REMINDER_EXCLUIR_ESTADOS:
                 continue
+                
+            # Calcular días registrados exactos
+            created_at_str = p.get("created_at")
+            if not created_at_str:
+                continue
+                
+            created_at_dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+            dias_registrado = (now_utc - created_at_dt).days
+
+            if dias_registrado >= REMINDER_DIAS_DESDE_REGISTRO:
+                p["tipo_reminder"] = "MORA_40"
+            elif dias_registrado == 29:
+                p["tipo_reminder"] = "PRE_VENCIMIENTO_30"
+            else:
+                continue # Días entre 30 y 39 no reciben mensaje nuevo
 
             # Verificar si tiene algún pago APROBADO
             pago_aprobado = (
@@ -6148,22 +6176,36 @@ def _detectar_socios_sin_pago() -> list[dict]:
         return []
 
 
-def _construir_mensaje_whatsapp(nombre: str) -> str:
-    """Genera el mensaje WhatsApp institucional, amigable y personalizado."""
+def _construir_mensaje_whatsapp(nombre: str, tipo_reminder: str = "MORA_40") -> str:
+    """Genera el mensaje WhatsApp institucional, diferenciando PREVENTIVO y MORA."""
     nombre_corto = nombre.split()[0] if nombre else "Estimado/a socio/a"
-    return (
-        f"Hola {nombre_corto} 👋\n\n"
-        f"Te recordamos que tu cuota de socio de *Sociedad Rural Del Norte De Corrientes* "
-        f"aún figura como pendiente.\n\n"
-        f"Para mantener activos tus beneficios y el acceso completo al portal, "
-        f"te pedimos que regularices tu pago.\n\n"
-        f"📲 Podés abonar desde el portal:\n"
-        f"{PAYMENT_LINK}\n\n"
-        f"Si ya realizaste el pago, podés subir tu comprobante desde la misma sección "
-        f"o ignorar este mensaje.\n\n"
-        f"¡Muchas gracias! 🤝\n"
-        f"_Sociedad Rural Del Norte De Corrientes_"
-    )
+    
+    if tipo_reminder == "PRE_VENCIMIENTO_30":
+        return (
+            f"Hola {nombre_corto} 👋\n\n"
+            f"Te recordamos que mañana se cumplirán 30 días desde tu registro como socio de *Sociedad Rural Del Norte De Corrientes*.\n\n"
+            f"Actualmente tu cuota aún figura pendiente de pago.\n\n"
+            f"Contás con un plazo adicional de 10 días para regularizarla y evitar restricciones o bloqueos preventivos de tu cuenta y beneficios.\n\n"
+            f"📲 Podés realizar el pago desde aquí:\n"
+            f"{PAYMENT_LINK}\n\n"
+            f"Si ya abonaste o enviaste comprobante, podés ignorar este mensaje.\n\n"
+            f"Muchas gracias 🤝\n"
+            f"_Sociedad Rural Del Norte De Corrientes_"
+        )
+    else:
+        return (
+            f"Hola {nombre_corto} 👋\n\n"
+            f"Te recordamos que tu cuota de socio de *Sociedad Rural Del Norte De Corrientes* "
+            f"aún figura como pendiente.\n\n"
+            f"Para mantener activos tus beneficios y el acceso completo al portal, "
+            f"te pedimos que regularices tu pago.\n\n"
+            f"📲 Podés abonar desde el portal:\n"
+            f"{PAYMENT_LINK}\n\n"
+            f"Si ya realizaste el pago, podés subir tu comprobante desde la misma sección "
+            f"o ignorar este mensaje.\n\n"
+            f"¡Muchas gracias! 🤝\n"
+            f"_Sociedad Rural Del Norte De Corrientes_"
+        )
 
 
 def _procesar_recordatorio_socio(socio: dict) -> dict:
@@ -6175,25 +6217,26 @@ def _procesar_recordatorio_socio(socio: dict) -> dict:
     uid = socio["id"]
     nombre = socio.get("nombre_apellido", "Socio")
     telefono = socio.get("telefono", "")
+    tipo_reminder = socio.get("tipo_reminder", "MORA_40")
     resultado = {"user_id": uid, "nombre": nombre, "whatsapp": "omitido", "push": "omitido", "inapp": "omitido"}
 
     # ── Canal 1: WhatsApp ───────────────────────────────────────────────
-    if telefono and not _reminder_en_cooldown(uid, "whatsapp"):
+    if telefono and not _reminder_en_cooldown(uid, "whatsapp", tipo_reminder):
         try:
-            mensaje_wa = _construir_mensaje_whatsapp(nombre)
+            mensaje_wa = _construir_mensaje_whatsapp(nombre, tipo_reminder)
             enviar_whatsapp(telefono, mensaje_wa)
-            _registrar_log_reminder(uid, "whatsapp", "enviado", mensaje_wa)
+            _registrar_log_reminder(uid, "whatsapp", "enviado", mensaje_wa, tipo_reminder=tipo_reminder)
             resultado["whatsapp"] = "enviado"
         except Exception as e:
-            _registrar_log_reminder(uid, "whatsapp", "fallido", motivo_omision=str(e))
+            _registrar_log_reminder(uid, "whatsapp", "fallido", motivo_omision=str(e), tipo_reminder=tipo_reminder)
             resultado["whatsapp"] = "fallido"
     elif not telefono:
-        _registrar_log_reminder(uid, "whatsapp", "omitido", motivo_omision="sin_telefono")
+        _registrar_log_reminder(uid, "whatsapp", "omitido", motivo_omision="sin_telefono", tipo_reminder=tipo_reminder)
     else:
         resultado["whatsapp"] = "cooldown"
 
     # ── Canal 2: Push Notification ──────────────────────────────────────
-    if not _reminder_en_cooldown(uid, "push"):
+    if not _reminder_en_cooldown(uid, "push", tipo_reminder):
         try:
             # Usar función existente — crea in-app + FCM en un solo call
             # Pasamos tipo especial para que no duplique con el canal inapp
@@ -6207,10 +6250,13 @@ def _procesar_recordatorio_socio(socio: dict) -> dict:
 
             if push_tokens:
                 import json as _json
+                title_push = "💰 Tu cuota aún está pendiente" if tipo_reminder == "PRE_VENCIMIENTO_30" else "💰 Recordatorio de Pago"
+                body_push = "Recordá regularizar tu cuota dentro del plazo disponible." if tipo_reminder == "PRE_VENCIMIENTO_30" else "Tu cuota aún figura pendiente. Ingresá para regularizarla."
+                
                 push_message = messaging.MulticastMessage(
                     notification=messaging.Notification(
-                        title="💰 Recordatorio de Pago",
-                        body="Tu cuota aún figura pendiente. Ingresá para regularizarla.",
+                        title=title_push,
+                        body=body_push,
                     ),
                     data={
                         "link_url": "/cuotas",
@@ -6247,42 +6293,45 @@ def _procesar_recordatorio_socio(socio: dict) -> dict:
                 if invalidos:
                     supabase.table("push_tokens").delete().in_("token", invalidos).execute()
 
-                _registrar_log_reminder(uid, "push", "enviado")
+                _registrar_log_reminder(uid, "push", "enviado", tipo_reminder=tipo_reminder)
                 resultado["push"] = f"enviado ({resp_fcm.success_count}/{len(push_tokens)})"
             else:
-                _registrar_log_reminder(uid, "push", "omitido", motivo_omision="sin_tokens_fcm")
+                _registrar_log_reminder(uid, "push", "omitido", motivo_omision="sin_tokens_fcm", tipo_reminder=tipo_reminder)
                 resultado["push"] = "sin_tokens"
 
         except ValueError:
             # Firebase no inicializado
-            _registrar_log_reminder(uid, "push", "omitido", motivo_omision="firebase_no_init")
+            _registrar_log_reminder(uid, "push", "omitido", motivo_omision="firebase_no_init", tipo_reminder=tipo_reminder)
             resultado["push"] = "firebase_no_init"
         except Exception as e:
-            _registrar_log_reminder(uid, "push", "fallido", motivo_omision=str(e))
+            _registrar_log_reminder(uid, "push", "fallido", motivo_omision=str(e), tipo_reminder=tipo_reminder)
             resultado["push"] = "fallido"
     else:
         resultado["push"] = "cooldown"
 
     # ── Canal 3: Notificación In-App ────────────────────────────────────
-    if not _reminder_en_cooldown(uid, "inapp"):
+    if not _reminder_en_cooldown(uid, "inapp", tipo_reminder):
         try:
+            msg_inapp = (
+                "Mañana se cumplirán 30 días desde tu registro. Recordá regularizar tu cuota dentro del plazo disponible para evitar restricciones." 
+                if tipo_reminder == "PRE_VENCIMIENTO_30" 
+                else "Tu cuota de socio aún figura pendiente. Regularizá tu pago para mantener todos tus beneficios activos."
+            )
+            
             supabase.table("notificaciones").insert({
                 "usuario_id": uid,
                 "titulo": "💰 Recordatorio de Pago",
-                "mensaje": (
-                    "Tu cuota de socio aún figura pendiente. "
-                    "Regularizá tu pago para mantener todos tus beneficios activos."
-                ),
+                "mensaje": msg_inapp,
                 "link_url": "/cuotas",
                 "leido": False,
                 "tipo": "recordatorio_pago",
                 "fecha": datetime.now(TZ_ARGENTINA).isoformat(),
-                "metadata": {"payment_link": PAYMENT_LINK},
+                "metadata": {"payment_link": PAYMENT_LINK, "tipo_reminder": tipo_reminder},
             }).execute()
-            _registrar_log_reminder(uid, "inapp", "enviado")
+            _registrar_log_reminder(uid, "inapp", "enviado", tipo_reminder=tipo_reminder)
             resultado["inapp"] = "enviado"
         except Exception as e:
-            _registrar_log_reminder(uid, "inapp", "fallido", motivo_omision=str(e))
+            _registrar_log_reminder(uid, "inapp", "fallido", motivo_omision=str(e), tipo_reminder=tipo_reminder)
             resultado["inapp"] = "fallido"
     else:
         resultado["inapp"] = "cooldown"
@@ -6368,6 +6417,7 @@ def admin_listar_recordatorios(
     user_id: Optional[str] = None,
     canal: Optional[str] = None,
     resultado: Optional[str] = None,
+    tipo_reminder: Optional[str] = None,
     limit: int = 100,
     current_user=Depends(get_current_admin),
 ):
@@ -6389,6 +6439,8 @@ def admin_listar_recordatorios(
             query = query.eq("canal", canal)
         if resultado:
             query = query.eq("resultado", resultado)
+        if tipo_reminder:
+            query = query.eq("tipo_reminder", tipo_reminder)
 
         res = query.execute()
         return {"recordatorios": res.data or [], "total": len(res.data or [])}
@@ -6440,6 +6492,7 @@ def admin_metricas_recordatorios(
 def admin_reenviar_recordatorio(
     user_id: str,
     request: Request,
+    tipo_reminder: str = "MORA_40",
     current_user=Depends(get_current_superadmin),
 ):
     """
@@ -6476,31 +6529,34 @@ def admin_reenviar_recordatorio(
         telefono = perfil.get("telefono", "")
         if telefono:
             try:
-                msg = _construir_mensaje_whatsapp(perfil.get("nombre_apellido", "Socio"))
+                msg = _construir_mensaje_whatsapp(perfil.get("nombre_apellido", "Socio"), tipo_reminder)
                 enviar_whatsapp(telefono, msg)
-                _registrar_log_reminder(user_id, "whatsapp", "enviado", msg)
+                _registrar_log_reminder(user_id, "whatsapp", "enviado", msg, tipo_reminder=tipo_reminder)
                 resultado["whatsapp"] = "enviado"
             except Exception as e:
-                _registrar_log_reminder(user_id, "whatsapp", "fallido", motivo_omision=str(e))
+                _registrar_log_reminder(user_id, "whatsapp", "fallido", motivo_omision=str(e), tipo_reminder=tipo_reminder)
                 resultado["whatsapp"] = f"fallido: {str(e)}"
         else:
             resultado["whatsapp"] = "sin_telefono"
 
         # In-App (siempre disponible)
         try:
+            msg_inapp = (
+                "Mañana se cumplirán 30 días desde tu registro. Recordá regularizar tu cuota dentro del plazo disponible para evitar restricciones." 
+                if tipo_reminder == "PRE_VENCIMIENTO_30" 
+                else "La administración te recuerda que tu cuota sigue pendiente. Por favor regularizá tu situación para mantener tus beneficios activos."
+            )
             supabase.table("notificaciones").insert({
                 "usuario_id": user_id,
                 "titulo": "💰 Recordatorio de Pago — Administración",
-                "mensaje": (
-                    "La administración te recuerda que tu cuota sigue pendiente. "
-                    "Por favor regularizá tu situación para mantener tus beneficios activos."
-                ),
+                "mensaje": msg_inapp,
                 "link_url": "/cuotas",
                 "leido": False,
                 "tipo": "recordatorio_pago",
                 "fecha": datetime.now(TZ_ARGENTINA).isoformat(),
+                "metadata": {"tipo_reminder": tipo_reminder},
             }).execute()
-            _registrar_log_reminder(user_id, "inapp", "enviado")
+            _registrar_log_reminder(user_id, "inapp", "enviado", tipo_reminder=tipo_reminder)
             resultado["inapp"] = "enviado"
         except Exception as e:
             resultado["inapp"] = f"fallido: {str(e)}"

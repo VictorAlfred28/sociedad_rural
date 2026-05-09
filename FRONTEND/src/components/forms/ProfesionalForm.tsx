@@ -221,7 +221,7 @@ export function ProfesionalForm({
                         <>
                             <label className="text-[10px] font-bold uppercase tracking-widest pl-1 text-slate-400 mt-2">Contraseña del Profesional</label>
                             <div className="h-12 w-full rounded-xl bg-slate-100 dark:bg-slate-800/50 px-4 text-sm font-medium border border-slate-200 dark:border-slate-700 flex items-center text-slate-500 cursor-not-allowed">
-                                profesional1234
+                                SRNC2026!
                             </div>
                             <p className="text-[10px] text-slate-400 pl-1">Esta es la contraseña provisoria. Se le solicitará cambiarla al ingresar por primera vez.</p>
                         </>

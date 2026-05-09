@@ -305,7 +305,7 @@ export function ComercioForm({
                         <>
                             <label className="text-[10px] font-bold uppercase tracking-widest pl-1 text-slate-400 mt-2">Contraseña del Comercio</label>
                             <div className="h-12 w-full rounded-xl bg-slate-100 dark:bg-slate-800/50 px-4 text-sm font-medium border border-slate-200 dark:border-slate-700 flex items-center text-slate-500 cursor-not-allowed">
-                                comercio1234
+                                SRNC2026!
                             </div>
                             <p className="text-[10px] text-slate-400 pl-1">Esta es la contraseña provisoria. Se le solicitará cambiarla al ingresar por primera vez.</p>
                         </>
@@ -320,7 +320,7 @@ export function ComercioForm({
                                     Tu solicitud será enviada para aprobación administrativa. Una vez aprobada, recibirás un correo y podrás reestablecer tu contraseña en tu primer ingreso.
                                 </p>
                                 <p className="text-indigo-700/80 dark:text-indigo-400/80 text-xs mt-2 font-semibold">
-                                    Contraseña temporal: <span className="text-indigo-900 dark:text-indigo-200">comercio1234</span>
+                                    Contraseña temporal: <span className="text-indigo-900 dark:text-indigo-200">SRNC2026!</span>
                                 </p>
                             </div>
                         </div>

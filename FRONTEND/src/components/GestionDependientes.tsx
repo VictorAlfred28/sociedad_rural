@@ -199,7 +199,7 @@ export default function GestionDependientes() {
                             </label>
                             <input
                                 type="text" readOnly disabled
-                                value="Familia1234"
+                                value="SRNC2026!"
                                 className={`${inputClass} bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-not-allowed`}
                             />
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">

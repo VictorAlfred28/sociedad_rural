@@ -242,7 +242,7 @@ export default function Registro() {
         state: {
           registroData: {
             ...comercioData,
-            password: 'comercio1234',
+            password: 'SRNC2026!',
             rol: 'COMERCIO',
           },
         },

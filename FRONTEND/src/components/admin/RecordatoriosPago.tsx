@@ -12,6 +12,7 @@ interface ReminderLog {
   mensaje: string;
   motivo_omision: string;
   created_at: string;
+  tipo_reminder?: string;
   profiles?: { nombre_apellido: string; email: string; telefono: string };
 }
 
@@ -31,6 +32,11 @@ const RESULTADO_CONFIG: Record<string, { color: string; icon: React.ReactNode; l
   enviado: { color: 'text-emerald-400', icon: <CheckCircle size={13} />, label: 'Enviado' },
   fallido: { color: 'text-red-400', icon: <XCircle size={13} />, label: 'Fallido' },
   omitido: { color: 'text-slate-400', icon: <Clock size={13} />, label: 'Omitido' },
+};
+
+const TIPO_CONFIG: Record<string, { color: string; label: string }> = {
+  PRE_VENCIMIENTO_30: { color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'Preventivo 30d' },
+  MORA_40: { color: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Mora 40d' },
 };
 
 function StatCard({ label, value, sub, color = 'text-admin-accent' }: {
@@ -53,6 +59,7 @@ export default function RecordatoriosPago() {
   const [loadingReenvio, setLoadingReenvio] = useState<string | null>(null);
   const [filtroCanal, setFiltroCanal] = useState('');
   const [filtroResultado, setFiltroResultado] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
   const showToast = (msg: string, ok = true) => {
@@ -66,6 +73,7 @@ export default function RecordatoriosPago() {
       const params = new URLSearchParams({ limit: '200' });
       if (filtroCanal) params.set('canal', filtroCanal);
       if (filtroResultado) params.set('resultado', filtroResultado);
+      if (filtroTipo) params.set('tipo_reminder', filtroTipo);
 
       const [logsRes, metRes] = await Promise.all([
         fetch(`${API}/api/admin/recordatorios?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
@@ -84,15 +92,15 @@ export default function RecordatoriosPago() {
     } finally {
       setLoading(false);
     }
-  }, [token, filtroCanal, filtroResultado]);
+  }, [token, filtroCanal, filtroResultado, filtroTipo]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleReenviar = async (userId: string, nombre: string) => {
+  const handleReenviar = async (userId: string, nombre: string, tipo: string = 'MORA_40') => {
     if (!window.confirm(`¿Forzar recordatorio a ${nombre}? Se enviará WhatsApp + notificación interna ignorando cooldown.`)) return;
     setLoadingReenvio(userId);
     try {
-      const res = await fetch(`${API}/api/admin/recordatorios/reenviar/${userId}`, {
+      const res = await fetch(`${API}/api/admin/recordatorios/reenviar/${userId}?tipo_reminder=${tipo}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -181,7 +189,7 @@ export default function RecordatoriosPago() {
         <div className="flex flex-col gap-0.5">
           <p className="text-xs font-bold text-admin-text">Cron automático</p>
           <p className="text-xs text-slate-400">
-            El sistema evalúa diariamente socios con <strong className="text-slate-300">40+ días</strong> registrados sin pago aprobado ni comprobante en revisión.
+            El sistema evalúa diariamente socios con <strong className="text-slate-300">29 días (preventivo)</strong> y <strong className="text-slate-300">40+ días (mora)</strong> registrados sin pago aprobado ni comprobante en revisión.
             Cooldown de <strong className="text-slate-300">7 días</strong> por canal para evitar spam.
           </p>
           <p className="text-[10px] text-slate-500 font-mono mt-1">
@@ -212,6 +220,15 @@ export default function RecordatoriosPago() {
           <option value="fallido">Fallido</option>
           <option value="omitido">Omitido</option>
         </select>
+        <select
+          value={filtroTipo}
+          onChange={e => setFiltroTipo(e.target.value)}
+          className="h-9 rounded-xl bg-admin-card border border-admin-border text-sm text-admin-text px-3 focus:outline-none focus:border-admin-accent"
+        >
+          <option value="">Todos los tipos</option>
+          <option value="PRE_VENCIMIENTO_30">Preventivo 30d</option>
+          <option value="MORA_40">Mora 40d</option>
+        </select>
         <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
           <Users size={13} />
           {uniqueUsers.length} socios / {logs.length} registros
@@ -237,6 +254,7 @@ export default function RecordatoriosPago() {
               <thead>
                 <tr className="border-b border-admin-border">
                   <th className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Socio</th>
+                  <th className="text-left px-4 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Tipo</th>
                   <th className="text-left px-4 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Canal</th>
                   <th className="text-left px-4 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Resultado</th>
                   <th className="text-left px-4 py-3.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Detalle</th>
@@ -247,6 +265,7 @@ export default function RecordatoriosPago() {
               <tbody className="divide-y divide-admin-border/50">
                 {logs.map(log => {
                   const res = RESULTADO_CONFIG[log.resultado] || RESULTADO_CONFIG.omitido;
+                  const tipoCfg = TIPO_CONFIG[log.tipo_reminder || 'MORA_40'] || { color: 'bg-slate-800 text-slate-300', label: log.tipo_reminder || 'Desconocido' };
                   const nombre = log.profiles?.nombre_apellido || '—';
                   const email = log.profiles?.email || '';
                   const fecha = new Date(log.created_at).toLocaleString('es-AR', {
@@ -259,6 +278,11 @@ export default function RecordatoriosPago() {
                       <td className="px-5 py-3.5">
                         <div className="font-semibold text-admin-text text-sm leading-tight">{nombre}</div>
                         <div className="text-[11px] text-slate-500">{email}</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${tipoCfg.color}`}>
+                          {tipoCfg.label}
+                        </span>
                       </td>
                       <td className="px-4 py-3.5">
                         <span className="flex items-center gap-1.5 text-slate-300 text-xs font-medium">
@@ -287,7 +311,7 @@ export default function RecordatoriosPago() {
                       <td className="px-4 py-3.5 text-right">
                         {log.canal === 'whatsapp' && (
                           <button
-                            onClick={() => handleReenviar(log.user_id, nombre)}
+                            onClick={() => handleReenviar(log.user_id, nombre, log.tipo_reminder || 'MORA_40')}
                             disabled={loadingReenvio === log.user_id}
                             title="Forzar reenvío (ignora cooldown)"
                             className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-admin-accent/10 text-admin-accent text-[11px] font-semibold hover:bg-admin-accent/20 transition-all disabled:opacity-40"
