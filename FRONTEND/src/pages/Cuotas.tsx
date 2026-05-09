@@ -11,7 +11,7 @@ interface Pago {
   socio_id: string;
   monto: number;
   fecha_vencimiento: string;
-  estado_pago: 'PENDIENTE' | 'PENDIENTE_VALIDACION' | 'PAGADO' | 'RECHAZADO';
+  estado_pago: 'PENDIENTE' | 'PENDIENTE_VALIDACION' | 'PAGADO' | 'RECHAZADO' | 'VENCIDO';
   comprobante_url?: string;
   fecha_envio_comprobante?: string;
 }
