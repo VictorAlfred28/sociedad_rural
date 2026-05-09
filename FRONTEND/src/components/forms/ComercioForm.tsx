@@ -1,5 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ComercioDTO, RUBROS_COMERCIO } from '../../types/comercio';
+import { CheckCircle, XCircle, Loader } from 'lucide-react';
+import {
+    validateEmailFormat,
+    validateRequired,
+    checkEmailExists,
+    type FieldState,
+} from '../../utils/validations';
+
+interface FieldMeta { state: FieldState; message: string; }
+const idle: FieldMeta = { state: 'idle', message: '' };
 
 interface ComercioFormProps {
     formData: ComercioDTO;
@@ -21,6 +31,8 @@ export function ComercioForm({
     showPasswordHint = false
 }: ComercioFormProps) {
     const [municipios, setMunicipios] = useState<{ id: string; nombre: string }[]>([]);
+    const [emailMeta, setEmailMeta] = useState<FieldMeta>(idle);
+    const [nombreMeta, setNombreMeta] = useState<FieldMeta>(idle);
 
     useEffect(() => {
         fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/municipios`)
@@ -33,7 +45,32 @@ export function ComercioForm({
             .catch(err => console.error("Error cargando municipios:", err));
     }, []);
 
-    // Determinamos el estilo de input basado en el modo (si es admin es más corporativo, public usa dark mode mas marcado)
+    const onEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        onChange(e);
+        const val = (e.target as HTMLInputElement).value;
+        if (val.length === 0) { setEmailMeta(idle); return; }
+        const r = validateEmailFormat(val);
+        setEmailMeta(r.valid ? idle : { state: 'error', message: r.message! });
+    }, [onChange]);
+
+    const onEmailBlur = useCallback(async (e: React.FocusEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        const fmt = validateEmailFormat(val);
+        if (!fmt.valid) { setEmailMeta({ state: 'error', message: fmt.message! }); return; }
+        setEmailMeta({ state: 'checking', message: '' });
+        const result = await checkEmailExists(val, 'comercio');
+        setEmailMeta(result.valid ? { state: 'valid', message: '' } : { state: 'error', message: result.message! });
+    }, []);
+
+    const onNombreChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        onChange(e);
+        const val = (e.target as HTMLInputElement).value;
+        if (val.length === 0) { setNombreMeta(idle); return; }
+        const r = validateRequired(val, 'el nombre del comercio');
+        setNombreMeta(r.valid ? { state: 'valid', message: '' } : { state: 'error', message: r.message! });
+    }, [onChange]);
+
+    // Determinamos el estilo de input basado en el modo
     const isAdmin = mode === 'ADMIN';
 
     const inputClass = isAdmin
@@ -52,6 +89,13 @@ export function ComercioForm({
             {name}
         </span>
     );
+
+    // Helper for email input border state
+    const emailBorderClass = emailMeta.state === 'error'
+        ? (isAdmin ? '!border-red-500' : '!border-red-500 !shadow-[0_0_0_3px_rgba(239,68,68,0.12)]')
+        : emailMeta.state === 'valid'
+        ? (isAdmin ? '!border-emerald-500' : '!border-emerald-500')
+        : '';
 
     return (
         <form onSubmit={onSubmit} {...containerProps}>
@@ -92,18 +136,49 @@ export function ComercioForm({
             <div {...fieldContainerProps}>
                 <label className={labelClass}>Correo Electrónico Oficial</label>
                 <div className="relative">
-                    <Icon name="mail" />
+                    <Icon
+                        name="mail"
+                        colorClass={
+                            emailMeta.state === 'error'
+                                ? 'text-red-500'
+                                : emailMeta.state === 'valid'
+                                ? 'text-emerald-500'
+                                : isAdmin ? 'text-admin-accent/70' : 'text-primary'
+                        }
+                    />
                     <input
                         type="email"
                         name="email"
                         value={formData.email}
-                        onChange={onChange}
-                        className={inputClass}
+                        onChange={onEmailChange}
+                        onBlur={onEmailBlur}
+                        className={`${inputClass} pr-12 transition-all duration-200 ${emailBorderClass}`}
                         placeholder="contacto@comercio.com"
                         required
                     />
+                    {/* Status icon */}
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                        {emailMeta.state === 'checking' && <Loader size={16} className="text-primary animate-spin" />}
+                        {emailMeta.state === 'valid' && <CheckCircle size={16} className="text-emerald-500" />}
+                        {emailMeta.state === 'error' && <XCircle size={16} className="text-red-500" />}
+                    </div>
                 </div>
-                {!isAdmin && <p className="text-slate-500 dark:text-slate-400 text-xs px-1 pt-1">Te enviaremos notificaciones importantes.</p>}
+                {/* Inline validation message */}
+                {emailMeta.state === 'error' && emailMeta.message && (
+                    <p className="text-red-500 text-xs px-1 pt-1 flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                        <XCircle size={11} />
+                        {emailMeta.message}
+                    </p>
+                )}
+                {emailMeta.state === 'valid' && (
+                    <p className="text-emerald-500 text-xs px-1 pt-1 flex items-center gap-1">
+                        <CheckCircle size={11} />
+                        Correo disponible.
+                    </p>
+                )}
+                {emailMeta.state !== 'error' && emailMeta.state !== 'valid' && !isAdmin && (
+                    <p className="text-slate-500 dark:text-slate-400 text-xs px-1 pt-1">Te enviaremos notificaciones importantes. Verificado en tiempo real.</p>
+                )}
             </div>
 
             {/* Teléfono */}

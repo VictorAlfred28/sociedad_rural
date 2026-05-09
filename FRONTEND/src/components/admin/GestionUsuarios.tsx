@@ -576,40 +576,47 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                                 </button>
                             </div>
                             <div className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[70vh] admin-scroll">
+                                {/* Nombre y Apellido */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Nombre y Apellido</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nombre y Apellido</label>
                                     <input
                                         type="text"
                                         value={editFormData.nombre_apellido}
                                         onChange={e => setEditFormData({ ...editFormData, nombre_apellido: e.target.value })}
-                                        className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        className="w-full h-11 bg-white text-slate-900 border border-slate-300 rounded-xl px-4 text-sm outline-none focus:border-admin-accent focus:ring-1 focus:ring-admin-accent transition-all placeholder:text-slate-400"
+                                        placeholder="Nombre completo"
                                     />
                                 </div>
+                                {/* Email */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Email</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email</label>
                                     <input
                                         type="email"
                                         value={editFormData.email}
                                         onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
-                                        className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        className="w-full h-11 bg-white text-slate-900 border border-slate-300 rounded-xl px-4 text-sm outline-none focus:border-admin-accent focus:ring-1 focus:ring-admin-accent transition-all placeholder:text-slate-400"
+                                        placeholder="correo@ejemplo.com"
                                     />
                                 </div>
+                                {/* Teléfono */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Teléfono</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
                                     <input
                                         type="text"
                                         value={editFormData.telefono}
                                         onChange={e => setEditFormData({ ...editFormData, telefono: e.target.value })}
-                                        className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        className="w-full h-11 bg-white text-slate-900 border border-slate-300 rounded-xl px-4 text-sm outline-none focus:border-admin-accent focus:ring-1 focus:ring-admin-accent transition-all placeholder:text-slate-400"
+                                        placeholder="Ej: 3794123456"
                                     />
                                 </div>
+                                {/* Municipio */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Municipio / Localidad</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Municipio / Localidad</label>
                                     <div className="relative">
                                         <select
                                             value={editFormData.municipio}
                                             onChange={e => setEditFormData({ ...editFormData, municipio: e.target.value })}
-                                            className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all appearance-none"
+                                            className="w-full h-11 bg-white text-slate-900 border border-slate-300 rounded-xl px-4 pr-10 text-sm outline-none focus:border-admin-accent focus:ring-1 focus:ring-admin-accent transition-all appearance-none cursor-pointer"
                                         >
                                             <option value="">Seleccioná un municipio</option>
                                             {municipiosDisponibles.map(m => (
@@ -617,16 +624,17 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
                                             ))}
                                             <option value="No especificado">No especificado</option>
                                         </select>
-                                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+                                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-[18px]">expand_more</span>
                                     </div>
                                 </div>
+                                {/* Barrio */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Barrio</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Barrio</label>
                                     <input
                                         type="text"
                                         value={editFormData.barrio}
                                         onChange={e => setEditFormData({ ...editFormData, barrio: e.target.value })}
-                                        className="w-full h-11 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 text-sm text-admin-text outline-none focus:border-admin-accent transition-all"
+                                        className="w-full h-11 bg-white text-slate-900 border border-slate-300 rounded-xl px-4 text-sm outline-none focus:border-admin-accent focus:ring-1 focus:ring-admin-accent transition-all placeholder:text-slate-400"
                                         placeholder="Ej: Centro, Sudoeste"
                                     />
                                 </div>

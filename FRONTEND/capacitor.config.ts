@@ -5,7 +5,11 @@ const config: CapacitorConfig = {
   appName: 'Sociedad Rural',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    // iOS también usa https para App Transport Security (ATS)
+    iosScheme: 'https',
+    // En producción NO usar livereload — solo para desarrollo local con Mac
+    // url: 'http://192.168.x.x:3000', // solo para desarrollo iOS con Xcode
   },
   plugins: {
     SplashScreen: {
@@ -13,6 +17,7 @@ const config: CapacitorConfig = {
       backgroundColor: '#245b31',
       showSpinner: true,
       androidSpinnerStyle: 'large',
+      iosSpinnerStyle: 'large',
       spinnerColor: '#ffffff',
       splashFullScreen: true,
       splashImmersive: true,
@@ -28,3 +33,4 @@ const config: CapacitorConfig = {
 };
 
 export default config;
+

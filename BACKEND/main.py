@@ -709,6 +709,29 @@ def procesar_imagen_evento(media_url: str, post_id: str) -> Optional[str]:
     return url_publica
 
 
+# 2.5 ENDPOINT CHECK EMAIL — Verificación en tiempo real
+@app.get("/api/check-email")
+@limiter.limit("30/minute")
+def check_email(email: str, type: str = "socio", request: Request = None):
+    """
+    Verifica si un email ya existe en el sistema.
+    Usado por el frontend para validación en tiempo real (onBlur).
+    
+    Query params:
+      - email: dirección de correo a verificar
+      - type: 'socio' | 'comercio' (para mensajes diferenciados, misma tabla)
+    
+    Response: { "exists": bool }
+    """
+    try:
+        result = supabase.table("profiles").select("id").eq("email", email.lower().strip()).execute()
+        return {"exists": bool(result.data)}
+    except Exception as e:
+        logger.error(f"[check-email] Error: {e}")
+        # En caso de error, retornamos exists=False para no bloquear el registro
+        return {"exists": False}
+
+
 # 3. ENDPOINT REGISTER (Integrado con Supabase Auth y Public Profiles)
 @app.post("/api/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")

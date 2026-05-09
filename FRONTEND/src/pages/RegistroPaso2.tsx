@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { parseBackendError } from '../utils/validations';
 
 export default function RegistroPaso2() {
   const navigate = useNavigate();
@@ -144,11 +145,8 @@ export default function RegistroPaso2() {
 
       if (!resp.ok) {
         console.log("BACKEND ERROR:", data);
-        let errorMsgFromBackend = Array.isArray(data.detail) 
-            ? data.detail.map((e: any) => `${e.loc[e.loc.length - 1]}: ${e.msg}`).join(', ') 
-            : data.detail;
-            
-        throw new Error(errorMsgFromBackend || 'Error al completar el registro');
+        const friendlyMsg = parseBackendError(data.detail);
+        throw new Error(friendlyMsg);
       }
 
       // Limpiar cualquier sesión previa (ej: Admin registrando socio) para evitar confusión de roles
@@ -158,7 +156,7 @@ export default function RegistroPaso2() {
       sessionStorage.removeItem('registro_paso2_data');
       navigate('/registro-exitoso');
     } catch (err: any) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || 'No se pudo completar el registro. Intente nuevamente.');
     } finally {
       setLoading(false);
     }
