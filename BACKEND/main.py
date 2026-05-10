@@ -738,16 +738,66 @@ def check_email(email: str, type: str = "socio", request: Request = None):
 # 3. ENDPOINT REGISTER (Integrado con Supabase Auth y Public Profiles)
 @app.post("/api/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-def register(
-    socio: RegisterRequest, request: Request, background_tasks: BackgroundTasks
+async def register(
+    request: Request, background_tasks: BackgroundTasks
 ):
     try:
+        content_type = request.headers.get("content-type", "")
+        socio_dict = {}
+        constancia_file = None
+        
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+            # extract fields
+            socio_dict = {
+                "nombre_apellido": form.get("nombre_apellido"),
+                "dni_cuit": form.get("dni_cuit"),
+                "email": form.get("email"),
+                "telefono": form.get("telefono"),
+                "rol": form.get("rol"),
+                "municipio": form.get("municipio"),
+                "provincia": form.get("provincia"),
+                "direccion": form.get("direccion"),
+                "barrio": form.get("barrio"),
+                "es_profesional": str(form.get("es_profesional", "")).lower() == "true",
+                "password": form.get("password"),
+                "isStudent": str(form.get("isStudent", "")).lower() == "true",
+            }
+            # Remove None values
+            socio_dict = {k: v for k, v in socio_dict.items() if v is not None}
+            
+            # File
+            if "studentCertificate" in form:
+                upload_file = form["studentCertificate"]
+                if hasattr(upload_file, "filename") and upload_file.filename:
+                    # Validar MIME
+                    if upload_file.content_type not in ["image/png", "image/jpeg", "image/jpg", "application/pdf"]:
+                        raise HTTPException(400, "Formato no permitido. Use PNG, JPG o PDF.")
+                    
+                    file_bytes = await upload_file.read()
+                    if len(file_bytes) > 5 * 1024 * 1024:
+                        raise HTTPException(400, "El archivo supera los 5MB permitidos.")
+                    
+                    constancia_file = {
+                        "filename": upload_file.filename,
+                        "content_type": upload_file.content_type,
+                        "bytes": file_bytes
+                    }
+        else:
+            body = await request.json()
+            socio_dict = body
+            
+        try:
+            socio = RegisterRequest(**socio_dict)
+        except Exception as e:
+            raise HTTPException(400, f"Error en los datos enviados: {e}")
+
         rol_asignado = (socio.rol or "SOCIO").upper()
   
         if rol_asignado not in ("SOCIO", "COMERCIO"):
             rol_asignado = "SOCIO"
 
-        if rol_asignado == "SOCIO" and socio.isStudent and not socio.studentCertificate:
+        if rol_asignado == "SOCIO" and socio.isStudent and not socio.studentCertificate and not constancia_file:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Para completar el registro como estudiante, es obligatorio adjuntar la constancia de alumno regular vigente."
@@ -786,38 +836,60 @@ def register(
 
         # ── Subida constancia estudiante ─────────────────────────────
         constancia_url = None
-        if socio.isStudent and socio.studentCertificate:
-            try:
-                import base64
-
-                bucket_name = "constancias-estudiantes"
+        if socio.isStudent:
+            if constancia_file:
                 try:
-                    supabase.storage.create_bucket(bucket_name, public=True)
-                except Exception:
-                    pass
+                    bucket_name = "constancias-estudiantes"
+                    try:
+                        supabase.storage.create_bucket(bucket_name, public=True)
+                    except Exception:
+                        pass
+                    
+                    ext = constancia_file["filename"].split(".")[-1].lower()
+                    if ext not in ["pdf", "png", "jpg", "jpeg"]:
+                        ext = "pdf" if "pdf" in constancia_file["content_type"] else "png"
+                    
+                    filename = f"{user_id}_constancia_{uuid4().hex[:6]}.{ext}"
+                    supabase.storage.from_(bucket_name).upload(
+                        file=constancia_file["bytes"],
+                        path=filename,
+                        file_options={"content-type": constancia_file["content_type"]},
+                    )
+                    constancia_url = supabase.storage.from_(bucket_name).get_public_url(filename)
+                except Exception as e:
+                    logger.error(f"Error uploading student certificate (multipart): {e}")
+            elif socio.studentCertificate:
+                try:
+                    import base64
 
-                header, encoded = socio.studentCertificate.split(",", 1)
-                file_bytes = base64.b64decode(encoded)
+                    bucket_name = "constancias-estudiantes"
+                    try:
+                        supabase.storage.create_bucket(bucket_name, public=True)
+                    except Exception:
+                        pass
 
-                ext = "pdf" if "pdf" in header.lower() else "png"
-                filename = f"{user_id}_constancia_{uuid4().hex[:6]}.{ext}"
+                    header, encoded = socio.studentCertificate.split(",", 1)
+                    file_bytes = base64.b64decode(encoded)
 
-                content_type = (
-                    "application/pdf" if ext == "pdf" else "image/png"
-                )
+                    ext = "pdf" if "pdf" in header.lower() else "png"
+                    filename = f"{user_id}_constancia_{uuid4().hex[:6]}.{ext}"
 
-                supabase.storage.from_(bucket_name).upload(
-                    file=file_bytes,
-                    path=filename,
-                    file_options={"content-type": content_type},
-                )
+                    content_type = (
+                        "application/pdf" if ext == "pdf" else "image/png"
+                    )
 
-                constancia_url = (
-                    supabase.storage.from_(bucket_name).get_public_url(filename)
-                )
+                    supabase.storage.from_(bucket_name).upload(
+                        file=file_bytes,
+                        path=filename,
+                        file_options={"content-type": content_type},
+                    )
 
-            except Exception as e:
-                logger.error(f"Error uploading student certificate: {e}")
+                    constancia_url = (
+                        supabase.storage.from_(bucket_name).get_public_url(filename)
+                    )
+
+                except Exception as e:
+                    logger.error(f"Error uploading student certificate: {e}")
 
         # 3.C: Insertar en profiles
         profile_data = {

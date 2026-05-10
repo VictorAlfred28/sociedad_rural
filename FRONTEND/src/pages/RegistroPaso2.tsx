@@ -91,37 +91,17 @@ export default function RegistroPaso2() {
       payload.barrio = paso1Data.barrio;       // Barrio del socio (nuevo)
       payload.es_profesional = esProfesional;
       payload.isStudent = esEstudiante;
-      if (esEstudiante && studentCertificate) {
-        try {
-          const base64String = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(studentCertificate);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-          });
-          payload.studentCertificate = base64String;
-        } catch (e) {
-          console.error("Error converting file to base64", e);
-        }
-      }
-    }
-    // rubro, municipio y provincia ya vienen de paso1Data cuando es COMERCIO
-    if (userRole === 'COMERCIO' && paso1Data.rubro) {
-      payload.rubro = paso1Data.rubro;
-    }
-    if (userRole === 'COMERCIO' && paso1Data.municipio) {
-      payload.municipio = paso1Data.municipio;
-    }
-    if (userRole === 'COMERCIO' && paso1Data.direccion) {
-      payload.direccion = paso1Data.direccion;
+      // We no longer convert to base64, we will use FormData if esEstudiante && studentCertificate
     }
 
     let fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/register`;
-    let bodyData: any = payload;
+    let bodyData: any = null;
+    let isMultipart = false;
+    const headers: Record<string, string> = {};
 
     if (userRole === 'COMERCIO') {
       fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/register/comercio`;
-      bodyData = {
+      bodyData = JSON.stringify({
         nombre_comercio: paso1Data.nombre_comercio,
         cuit: paso1Data.cuit,
         email: paso1Data.email,
@@ -131,14 +111,30 @@ export default function RegistroPaso2() {
         municipio: paso1Data.municipio,
         barrio: paso1Data.barrio,
         password: paso1Data.password
-      };
+      });
+      headers['Content-Type'] = 'application/json';
+    } else {
+      if (esEstudiante && studentCertificate) {
+        isMultipart = true;
+        const formDataObj = new FormData();
+        Object.entries(payload).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            formDataObj.append(key, String(val));
+          }
+        });
+        formDataObj.append('studentCertificate', studentCertificate);
+        bodyData = formDataObj;
+      } else {
+        bodyData = JSON.stringify(payload);
+        headers['Content-Type'] = 'application/json';
+      }
     }
 
     try {
       const resp = await fetch(fetchUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData),
+        headers,
+        body: bodyData,
       });
 
       const data = await resp.json();

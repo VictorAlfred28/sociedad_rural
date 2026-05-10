@@ -96,7 +96,7 @@ export default function GestionAranceles() {
           <span className="material-symbols-outlined text-admin-accent text-2xl">account_balance_wallet</span>
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-admin-text tracking-tight">Gestión de Aranceles</h2>
+          <h2 className="text-2xl font-bold text-admin-text tracking-tight">Cuotas</h2>
           <p className="text-sm text-slate-400">Configura los valores de las cuotas para cada tipo de perfil</p>
         </div>
       </div>

@@ -662,35 +662,71 @@ export default function MiNegocio() {
                                     {/* Imagen de la oferta */}
                                     <div>
                                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Imagen de la Promoción {!editingOfertaId && '*'}</label>
-                                        <div
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className={`w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative overflow-hidden ${selectedFile || form.imagen_url ? 'border-primary' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
-                                        >
-                                            {selectedFile || form.imagen_url ? (
-                                                <>
-                                                    <img
-                                                        src={selectedFile ? URL.createObjectURL(selectedFile) : form.imagen_url}
-                                                        alt="Preview"
-                                                        className="absolute inset-0 w-full h-full object-cover opacity-50"
-                                                    />
-                                                    <span className="relative z-10 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 px-3 py-1 rounded-full shadow-sm">
-                                                        Cambiar imagen
-                                                    </span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <span className="material-symbols-outlined text-slate-400 text-3xl">add_photo_alternate</span>
-                                                    <span className="text-xs font-semibold text-slate-400">Subir foto de la oferta {editingOfertaId ? '(Opcional)' : '(OBLIGATORIA)'}</span>
-                                                </>
-                                            )}
+                                        
+                                        <div className="flex flex-col gap-3">
+                                            {/* Subida local */}
+                                            <div
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className={`w-full h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative overflow-hidden ${selectedFile || form.imagen_url ? 'border-primary' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                                            >
+                                                {selectedFile || form.imagen_url ? (
+                                                    <>
+                                                        <img
+                                                            src={selectedFile ? URL.createObjectURL(selectedFile) : form.imagen_url}
+                                                            alt="Preview"
+                                                            className="absolute inset-0 w-full h-full object-cover opacity-50"
+                                                            onError={(e) => {
+                                                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x200?text=Imagen+inv%C3%A1lida';
+                                                            }}
+                                                        />
+                                                        <span className="relative z-10 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 px-3 py-1 rounded-full shadow-sm">
+                                                            Cambiar imagen local
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="material-symbols-outlined text-slate-400 text-3xl">add_photo_alternate</span>
+                                                        <span className="text-xs font-semibold text-slate-400">Subir foto desde PC/Móvil {editingOfertaId ? '(Opcional)' : '(OBLIGATORIA)'}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    if (e.target.files && e.target.files[0]) {
+                                                        setSelectedFile(e.target.files[0]);
+                                                        setForm({ ...form, imagen_url: '' }); // Limpiar URL si sube archivo
+                                                    }
+                                                }}
+                                            />
+
+                                            {/* Input URL */}
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">O</span>
+                                                <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                                            </div>
+
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                                    <span className="material-symbols-outlined text-lg">link</span>
+                                                </span>
+                                                <input
+                                                    className={inputClass + ' pl-12'}
+                                                    placeholder="Pegar URL de imagen web..."
+                                                    value={form.imagen_url}
+                                                    onChange={e => {
+                                                        setForm({ ...form, imagen_url: e.target.value });
+                                                        if (e.target.value) {
+                                                            setSelectedFile(null); // Limpiar archivo si usa URL
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            className="hidden"
-                                            accept="image/*"
-                                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                                        />
                                     </div>
 
                                     {/* Links de Redes Sociales */}

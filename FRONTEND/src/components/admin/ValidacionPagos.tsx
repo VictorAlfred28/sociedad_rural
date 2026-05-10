@@ -158,7 +158,7 @@ export default function ValidacionPagos() {
         <div className="flex flex-col gap-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-admin-text tracking-tight">Validación de Comprobantes</h2>
+                    <h2 className="text-2xl font-bold text-admin-text tracking-tight">Comprobantes</h2>
                     <p className="text-slate-400 text-sm">Revisa pagos y sincroniza estados de mora.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">

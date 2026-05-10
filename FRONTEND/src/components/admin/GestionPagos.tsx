@@ -9,8 +9,8 @@ export default function GestionPagos({ isSuperadmin }: { isSuperadmin: boolean }
   const [activeTab, setActiveTab] = useState<TabId>('pendientes');
 
   const tabs = [
-    { id: 'pendientes', label: 'Validación y Comprobantes', icon: 'payments' },
-    { id: 'aranceles', label: 'Gestión de Cuotas', icon: 'account_balance_wallet' },
+    { id: 'pendientes', label: 'Comprobantes', icon: 'payments' },
+    { id: 'aranceles', label: 'Cuotas', icon: 'account_balance_wallet' },
     ...(isSuperadmin ? [{ id: 'recordatorios', label: 'Recordatorios Automáticos', icon: 'notifications_active' }] : [])
   ];
 
