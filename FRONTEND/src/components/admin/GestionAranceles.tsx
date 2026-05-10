@@ -26,7 +26,7 @@ export default function GestionAranceles() {
       });
       const data = await resp.json();
       if (resp.ok && data.cuotas) {
-        let filtered = data.cuotas;
+        let filtered = data.cuotas.filter((c: CuotaConfig) => c.rol.toUpperCase() !== 'CAMARA');
         
         // Asegurar que PROFESIONAL exista en la vista aunque no esté en DB aún
         if (!filtered.some((c: CuotaConfig) => c.rol.toUpperCase() === 'PROFESIONAL')) {

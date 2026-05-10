@@ -11,16 +11,15 @@ import ReportesPanel from '../components/admin/ReportesPanel';
 import GestionAdministradores from '../components/admin/GestionAdministradores';
 import GestionSoporte from '../components/admin/GestionSoporte';
 import ChangePasswordModal from '../components/admin/ChangePasswordModal';
-import GestionAranceles from '../components/admin/GestionAranceles';
-import RecordatoriosPago from '../components/admin/RecordatoriosPago';
+import GestionPagos from '../components/admin/GestionPagos';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles' | 'recordatorios'
-  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'aranceles' | 'recordatorios'>('panel');
+  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'gestion-pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'
+  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'gestion-pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
@@ -65,15 +64,13 @@ export default function AdminDashboard() {
     { id: 'usuarios', icon: 'group', label: 'Gestión Socios' },
     { id: 'nuevo-comercio', icon: 'add_business', label: 'Gestión Integral' },
     { id: 'eventos', icon: 'event_available', label: 'Gestión Eventos' },
-    { id: 'pagos', icon: 'payments', label: 'Módulo de Pagos' },
-    { id: 'aranceles', icon: 'account_balance_wallet', label: 'Gestión de Aranceles' },
+    { id: 'gestion-pagos', icon: 'account_balance', label: 'Gestión de Pagos' },
     { id: 'soporte', icon: 'support_agent', label: 'Centro de Soporte', badge: supportCount > 0 ? supportCount : null },
     { id: 'reportes', icon: 'analytics', label: 'Reportes y Cierres' },
   ];
 
   const adminNavItems = isSuperadmin ? [
     ...baseNavItems,
-    { id: 'recordatorios', icon: 'notifications_active', label: 'Recordatorios de Pago' },
     { id: 'administradores', icon: 'shield_person', label: 'Especial: Administradores' },
     { id: 'auditoria', icon: 'policy', label: 'Especial: Auditoría' },
   ] : baseNavItems;
@@ -266,11 +263,8 @@ export default function AdminDashboard() {
           {activeTab === 'auditoria' && isSuperadmin && <PanelAuditoria />}
           {activeTab === 'administradores' && isSuperadmin && <GestionAdministradores />}
           {activeTab === 'soporte' && <GestionSoporte />}
-          {activeTab === 'aranceles' && <GestionAranceles />}
-
-          {activeTab === 'pagos' && <ValidacionPagos />}
+          {activeTab === 'gestion-pagos' && <GestionPagos isSuperadmin={isSuperadmin} />}
           {activeTab === 'reportes' && <ReportesPanel />}
-          {activeTab === 'recordatorios' && isSuperadmin && <RecordatoriosPago />}
         </div>
       </main>
 

@@ -18,7 +18,7 @@ export default function GestionDependientes() {
     });
     const [formLoading, setFormLoading] = useState(false);
 
-    // Un dependiente no puede tener dependientes, pero un COMERCIO sí (aunque tenga titular si fue creado por una cámara)
+    // Un dependiente no puede tener dependientes, pero un COMERCIO sí
     const isTitular = !user?.titular_id || user?.rol === 'COMERCIO';
     const isComercio = user?.rol === 'COMERCIO';
 
