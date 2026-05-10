@@ -128,23 +128,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     useEffect(() => {
-        const storedToken = localStorage.getItem('token');
-        const storedSocio = localStorage.getItem('socio');
-        const storedRefreshToken = localStorage.getItem('refresh_token');
+        const initAuth = async () => {
+            const storedToken = localStorage.getItem('token');
+            const storedSocio = localStorage.getItem('socio');
+            const storedRefreshToken = localStorage.getItem('refresh_token');
 
-        if (storedToken && storedSocio) {
-            setToken(storedToken);
-            try {
-                setUser(JSON.parse(storedSocio));
-            } catch (e) {
-                console.error("Error parsing stored user data");
-            }
+            if (storedToken && storedSocio) {
+                // Verificar si el token ya está expirado antes de cargarlo
+                const payload = decodeJwtPayload(storedToken);
+                const isExpired = payload?.exp ? payload.exp * 1000 < Date.now() : false;
 
-            if (storedRefreshToken) {
-                scheduleTokenRefresh(storedToken, storedRefreshToken);
+                if (isExpired) {
+                    // Token expirado: intentar renovar si hay refresh token
+                    if (storedRefreshToken) {
+                        setToken(storedToken); // Temporal para que no quede null
+                        try { setUser(JSON.parse(storedSocio)); } catch {}
+                        await performRefresh(storedRefreshToken);
+                    } else {
+                        doLogout();
+                    }
+                    setIsLoading(false);
+                    return;
+                }
+
+                setToken(storedToken);
+                try {
+                    setUser(JSON.parse(storedSocio));
+                } catch (e) {
+                    console.error("Error parsing stored user data");
+                }
+
+                if (storedRefreshToken) {
+                    scheduleTokenRefresh(storedToken, storedRefreshToken);
+                }
             }
-        }
-        setIsLoading(false);
+            setIsLoading(false);
+        };
+
+        initAuth();
 
         // Listener para errores 401 globales (Token expirado o inválido)
         const handleUnauthorized = () => {

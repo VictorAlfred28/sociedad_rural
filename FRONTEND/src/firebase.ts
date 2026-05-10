@@ -31,7 +31,7 @@ export const requestForToken = async () => {
             vapidKey: 'F4oRxGjMVM_lfGVDWMv7_s5qcM77x9fgInBmEEkpvtc'
         });
         if (currentToken) {
-            console.log('FCM Token encontrado:', currentToken);
+            if (import.meta.env.DEV) console.log('FCM Token:', currentToken);
             return currentToken;
         } else {
             console.log('No registration token available. Request permission to generate one.');
