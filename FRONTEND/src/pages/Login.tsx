@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { PasswordInput } from '../components/ui/PasswordInput';
@@ -20,6 +20,14 @@ export default function Login() {
   const [reenvioLoading,    setReenvioLoading]    = useState(false);
   const [reenvioMsg,        setReenvioMsg]        = useState('');
   const [isRecoveryMode,    setIsRecoveryMode]    = useState(false);
+
+  useEffect(() => {
+    const error = localStorage.getItem('auth_error');
+    if (error) {
+      setErrorMsg(error);
+      localStorage.removeItem('auth_error');
+    }
+  }, []);
 
   const handleForgotPassword = async () => {
     if (!identificador) {

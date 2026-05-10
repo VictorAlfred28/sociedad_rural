@@ -150,6 +150,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const handleUnauthorized = () => {
             console.warn("Sesión expirada o no autorizada. Redirigiendo...");
             doLogout();
+            
+            // Redirect safely if not already on login
+            if (window.location.pathname !== '/login') {
+                localStorage.setItem('auth_error', 'Tu sesión expiró o es inválida. Por favor, volvé a ingresar.');
+                window.location.href = '/login';
+            }
         };
         window.addEventListener('auth-unauthorized', handleUnauthorized);
 

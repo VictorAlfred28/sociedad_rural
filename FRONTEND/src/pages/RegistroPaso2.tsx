@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { parseBackendError } from '../utils/validations';
+import toast from 'react-hot-toast';
 
 export default function RegistroPaso2() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, login } = useAuth();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
   const [municipiosDisponibles, setMunicipiosDisponibles] = useState<{ id: string; nombre: string }[]>([]);
 
   // Recupera los datos del Paso 1
@@ -66,8 +66,6 @@ export default function RegistroPaso2() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg('');
-
     // Construye el payload según el rol
     const payload: Record<string, any> = {
       nombre_apellido: paso1Data.nombre_apellido,
@@ -79,7 +77,7 @@ export default function RegistroPaso2() {
     };
 
     if (userRole === 'SOCIO' && esEstudiante && !studentCertificate) {
-      setErrorMsg('Para completar el registro como estudiante, es obligatorio adjuntar la constancia de alumno regular vigente.');
+      toast.error('Para completar el registro como estudiante, es obligatorio adjuntar la constancia de alumno regular vigente.');
       setLoading(false);
       return;
     }
@@ -144,14 +142,25 @@ export default function RegistroPaso2() {
         throw new Error(friendlyMsg);
       }
 
-      // Limpiar cualquier sesión previa (ej: Admin registrando socio) para evitar confusión de roles
-      logout();
       // Limpiar datos de sesión al finalizar exitosamente
       sessionStorage.removeItem('registro_form_data');
       sessionStorage.removeItem('registro_paso2_data');
+
+      // Auto-login si el backend retorna token (para SOCIO)
+      if (data.token && data.socio) {
+        login(data.token, data.socio, data.refresh_token);
+        if (data.socio.rol === 'SOCIO') {
+          navigate('/home');
+          return;
+        }
+      } else {
+        // Limpiar cualquier sesión previa si no auto-logueamos
+        logout();
+      }
+
       navigate('/registro-exitoso');
     } catch (err: any) {
-      setErrorMsg(err.message || 'No se pudo completar el registro. Intente nuevamente.');
+      toast.error(err.message || 'No se pudo completar el registro. Intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -225,15 +234,6 @@ export default function RegistroPaso2() {
             )}
           </div>
         </div>
-
-        {errorMsg && (
-          <div className="mb-5 p-4 bg-red-50/80 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl text-sm font-semibold flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
-            <span className="material-symbols-outlined text-red-500 shrink-0 mt-0.5">error</span>
-            <div className="flex flex-col">
-              <span>{errorMsg}</span>
-            </div>
-          </div>
-        )}
 
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
 
@@ -361,7 +361,7 @@ export default function RegistroPaso2() {
                     </label>
                     <div
                       onClick={() => document.getElementById('studentCertInput')?.click()}
-                      className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer ${studentCertificate ? 'border-primary bg-primary/5' : errorMsg.includes('constancia') ? 'border-red-400 bg-red-50 dark:bg-red-900/10 shadow-[0_0_15px_rgba(248,113,113,0.2)]' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'}`}
+                      className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer ${studentCertificate ? 'border-primary bg-primary/5' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'}`}
                     >
                       {studentCertificate ? (
                         <>

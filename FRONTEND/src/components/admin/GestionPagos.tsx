@@ -10,7 +10,7 @@ export default function GestionPagos({ isSuperadmin }: { isSuperadmin: boolean }
 
   const tabs = [
     { id: 'pendientes', label: 'Comprobantes', icon: 'payments' },
-    { id: 'aranceles', label: 'Cuotas', icon: 'account_balance_wallet' },
+    { id: 'aranceles', label: 'Aranceles', icon: 'account_balance_wallet' },
     ...(isSuperadmin ? [{ id: 'recordatorios', label: 'Recordatorios Automáticos', icon: 'notifications_active' }] : [])
   ];
 
@@ -31,11 +31,10 @@ export default function GestionPagos({ isSuperadmin }: { isSuperadmin: boolean }
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as TabId)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === tab.id
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id
                 ? 'bg-admin-accent text-black shadow-lg shadow-admin-accent/20'
                 : 'bg-admin-card border border-admin-border text-slate-400 hover:text-admin-text hover:border-slate-500'
-            }`}
+              }`}
           >
             <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
             {tab.label}

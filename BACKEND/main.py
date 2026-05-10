@@ -892,6 +892,7 @@ async def register(
                     logger.error(f"Error uploading student certificate: {e}")
 
         # 3.C: Insertar en profiles
+        estado_asignado = "APROBADO" if rol_asignado == "SOCIO" else "PENDIENTE"
         profile_data = {
             "id": user_id,
             "nombre_apellido": socio.nombre_apellido,
@@ -899,7 +900,7 @@ async def register(
             "email": socio.email,
             "telefono": socio.telefono,
             "rol": rol_asignado,
-            "estado": "PENDIENTE",
+            "estado": estado_asignado,
             "municipio": socio.municipio,
             "provincia": socio.provincia,
             "direccion": socio.direccion,
@@ -977,10 +978,25 @@ async def register(
             "rol": profile_data.get("rol"),
             "estado": profile_data.get("estado"),
         }
-        return {
+
+        response_data = {
             "message": f"{rol_asignado.capitalize()} registrado correctamente. Revisá tu correo para verificar tu cuenta.",
             "socio": safe_profile,
         }
+
+        # ── Iniciar sesión automáticamente ──────────────────────────
+        try:
+            # Login con Supabase Auth usando el cliente anon para obtener la sesión JWT
+            login_resp = supabase_anon.auth.sign_in_with_password(
+                {"email": socio.email, "password": user_password}
+            )
+            if login_resp and login_resp.session:
+                response_data["token"] = login_resp.session.access_token
+                response_data["refresh_token"] = login_resp.session.refresh_token
+        except Exception as login_err:
+            logger.warning(f"No se pudo autologuear al nuevo usuario: {login_err}")
+
+        return response_data
 
     except Exception as e:
         err_msg = str(e).lower()

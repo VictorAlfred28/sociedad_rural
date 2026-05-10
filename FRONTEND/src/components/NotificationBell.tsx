@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +24,8 @@ export default function NotificationBell() {
     const [isLoading, setIsLoading] = useState(false);
     const [isPulsing, setIsPulsing] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
     // Cargar notificaciones
     const loadNotifications = async () => {
@@ -126,23 +128,85 @@ export default function NotificationBell() {
         return () => navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
     }, [navigate]);
 
+    // Calcular posición segura del dropdown para evitar overflow en mobile
+    const computeDropdownPosition = useCallback(() => {
+        if (!buttonRef.current) return;
+
+        const btnRect = buttonRef.current.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const isMobile = vw < 640; // sm breakpoint
+
+        // Safe area insets (Capacitor/notch devices)
+        const safeLeft = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0') || 0;
+        const safeRight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sar') || '0') || 0;
+
+        const PANEL_MARGIN = 12; // margen mínimo de los bordes
+        const panelMaxWidth = isMobile
+            ? Math.min(vw - (PANEL_MARGIN * 2) - safeLeft - safeRight, 400)
+            : 384; // 96 * 4 = w-96
+
+        // Intentar alinear a la derecha del botón (right-0 del parent)
+        let rightOffset = vw - btnRect.right;
+
+        // Si el panel se sale por la izquierda, corregirlo
+        const leftEdge = vw - rightOffset - panelMaxWidth;
+        if (leftEdge < PANEL_MARGIN + safeLeft) {
+            rightOffset = vw - panelMaxWidth - PANEL_MARGIN - safeLeft;
+        }
+        // Si se sale por la derecha, también corregirlo
+        if (rightOffset < PANEL_MARGIN + safeRight) {
+            rightOffset = PANEL_MARGIN + safeRight;
+        }
+
+        setDropdownStyle({
+            position: 'fixed',
+            top: btnRect.bottom + 8,
+            right: rightOffset,
+            width: panelMaxWidth,
+            maxWidth: `calc(100vw - ${PANEL_MARGIN * 2}px - env(safe-area-inset-left) - env(safe-area-inset-right))`,
+            maxHeight: isMobile ? 'calc(80vh - env(safe-area-inset-bottom))' : '24rem',
+            zIndex: 9999,
+        });
+    }, []);
+
     // Toggle Dropdown
     const toggleDropdown = () => {
-        setIsOpen(!isOpen);
+        setIsOpen(prev => {
+            if (!prev) {
+                // Calcular posición justo antes de abrir
+                setTimeout(computeDropdownPosition, 0);
+            }
+            return !prev;
+        });
     };
+
+    // Recalcular al cambiar tamaño
+    useEffect(() => {
+        if (!isOpen) return;
+        computeDropdownPosition();
+        window.addEventListener('resize', computeDropdownPosition);
+        window.addEventListener('scroll', computeDropdownPosition, true);
+        return () => {
+            window.removeEventListener('resize', computeDropdownPosition);
+            window.removeEventListener('scroll', computeDropdownPosition, true);
+        };
+    }, [isOpen, computeDropdownPosition]);
 
     // Cerrar al click afuera
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            if (
+                dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+                buttonRef.current && !buttonRef.current.contains(event.target as Node)
+            ) {
                 setIsOpen(false);
             }
         };
-        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener('mousedown', handleClickOutside);
         return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [dropdownRef]);
+    }, []);
 
     // Formato Fecha amigable
     const timeAgo = (dateStr: string) => {
@@ -238,6 +302,7 @@ export default function NotificationBell() {
         <div className="relative" ref={dropdownRef}>
             {/* Botón de la campanita */}
             <button
+                ref={buttonRef}
                 onClick={toggleDropdown}
                 className={`size-12 rounded-full shadow-md flex items-center justify-center relative transition-all duration-300 outline-none
                     ${isOpen ? 'bg-primary/10 text-primary dark:bg-primary/20' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}
@@ -256,9 +321,12 @@ export default function NotificationBell() {
                 )}
             </button>
 
-            {/* Dropdown Lista */}
+            {/* Dropdown Lista — usa posicionamiento FIXED calculado dinámicamente
+                para evitar overflow en cualquier dispositivo mobile o con notch */}
             {isOpen && (
-                <div className="absolute right-0 sm:right-0 -right-20 mt-3 w-[90vw] sm:w-96 max-h-[80vh] sm:max-h-96 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-50 flex flex-col animate-in fade-in slide-in-from-top-4 origin-top-right">
+                <div
+                    style={dropdownStyle}
+                    className="overflow-y-auto overscroll-contain bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-10 flex justify-between items-center shadow-sm">
                         <div className="flex items-center gap-2">
                             <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg tracking-tight">Notificaciones</h3>
