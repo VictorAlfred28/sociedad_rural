@@ -102,7 +102,7 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
         fetchSupportNotifications();
     }, [token]);
 
-    const isSimulationId = (id: string) => id.startsWith('simulacion-');
+
 
     // Cargar municipios para el modal de edición
     useEffect(() => {
@@ -119,10 +119,6 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
     }, []);
 
     const handleStatusChange = async (userId: string, newStatus: Socio['estado']) => {
-        if (isSimulationId(userId)) {
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, estado: newStatus } : u));
-            return;
-        }
         try {
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/users/${userId}/status`, {
                 method: 'PUT',
@@ -144,12 +140,6 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
 
     const handleDeleteUser = async () => {
         if (!actionUser) return;
-        if (isSimulationId(actionUser.id)) {
-            setUsers(prev => prev.filter(u => u.id !== actionUser.id));
-            setSuccessMessage(`El usuario ${actionUser.name} (Simulado) ha sido eliminado de la vista.`);
-            setActionType('SUCCESS_MSG');
-            return;
-        }
         setActionLoading(true);
         try {
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/users/${actionUser.id}`, {
@@ -173,11 +163,6 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
 
     const handleResetPassword = async () => {
         if (!actionUser) return;
-        if (isSimulationId(actionUser.id)) {
-            setSuccessMessage(`Se ha restablecido la contraseña de ${actionUser.name} (SIMULADO).\n\nContraseña temporal: SRNC2026!\n\n(Nota: Esto es una simulación visual).`);
-            setActionType('SUCCESS_MSG');
-            return;
-        }
         setActionLoading(true);
         try {
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/users/${actionUser.id}/reset-password`, {
@@ -225,12 +210,6 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
         if (!editingUser) return;
         setActionLoading(true);
         try {
-            if (isSimulationId(editingUser.id)) {
-                setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...editFormData } : u));
-                setEditingUser(null);
-                return;
-            }
-
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/users/${editingUser.id}`, {
                 method: 'PUT',
                 headers: {
@@ -256,14 +235,6 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
 
     const fetchActivity = async (targetUser: Socio) => {
         setViewingUser(targetUser);
-        if (isSimulationId(targetUser.id)) {
-            setSelectedUserActivity([
-                { id: 1, tipo_evento: 'LOGIN', descripcion: 'Ingreso simulado', created_at: new Date().toISOString() },
-                { id: 2, tipo_evento: 'MORA_DETECTADA', descripcion: 'Sistema detectó deuda', created_at: new Date().toISOString() }
-            ]);
-            setLoadingActivity(false);
-            return;
-        }
         setLoadingActivity(true);
         setSelectedUserActivity([]);
         try {
@@ -309,51 +280,6 @@ export default function GestionUsuarios({ initialRoleFilter = 'TODOS' }: Props =
             </div>
 
             <div className="px-4 flex flex-col gap-3">
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => {
-                            setUsers(prev => [
-                                {
-                                    id: "simulacion-" + Date.now(),
-                                    nombre_apellido: "Carlos Méndez (Simulado)",
-                                    dni: "10123456",
-                                    email: "carlos@mock.com",
-                                    rol: "SOCIO",
-                                    estado: "RESTRINGIDO",
-                                    motivo: "Con Mora"
-                                } as any,
-                                ...prev
-                            ]);
-                        }}
-                        className="flex-1 bg-[#E57373]/10 text-[#E57373] border border-[#E57373]/30 hover:bg-[#E57373] hover:text-white font-bold py-2 rounded-xl text-[10px] sm:text-xs transition-all active:scale-95 flex items-center justify-center gap-1 sm:gap-2"
-                    >
-                        <span className="material-symbols-outlined text-sm">science</span>
-                        <span className="hidden sm:inline">Simular Usuario</span> Restringido
-                    </button>
-                    
-                    <button
-                        onClick={() => {
-                            setUsers(prev => [
-                                {
-                                    id: "simulacion-est-" + Date.now(),
-                                    nombre_apellido: "Ana Estudiante (Simulado)",
-                                    dni: "45123456",
-                                    email: "ana@estudiante.com",
-                                    rol: "SOCIO",
-                                    estado: "PENDIENTE",
-                                    es_estudiante: true,
-                                    constancia_estudiante_url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
-                                } as any,
-                                ...prev
-                            ]);
-                        }}
-                        className="flex-1 bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500 hover:text-white font-bold py-2 rounded-xl text-[10px] sm:text-xs transition-all active:scale-95 flex items-center justify-center gap-1 sm:gap-2"
-                    >
-                        <span className="material-symbols-outlined text-sm">school</span>
-                        <span className="hidden sm:inline">Simular</span> Estudiante
-                    </button>
-                </div>
-
                 <div className="relative group">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-admin-accent admin-transition">search</span>
                     <input
