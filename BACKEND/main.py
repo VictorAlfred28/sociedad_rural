@@ -218,12 +218,60 @@ from apscheduler.triggers.cron import CronTrigger
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
+from schemas.comercio import ComercioDTO
+from schemas.profesional import ProfesionalDTO
+
+# --- CONFIGURACIÓN DE OBSERVABILIDAD SEGURA ---
+ENV = os.getenv("ENV", "production").lower()
+IS_DEV = (ENV == "development")
+# DEBUG_AUTH permite logs detallados de auth incluso en prod si se activa manualmente
+DEBUG_AUTH = os.getenv("DEBUG_AUTH", "false").lower() == "true"
+
+def redact_sensitive_data(data: Any) -> Any:
+    """Oculta información sensible para logs de producción."""
+    if not data:
+        return data
+    if isinstance(data, dict):
+        new_data = data.copy()
+        for k, v in new_data.items():
+            # Redactar claves críticas
+            if k.lower() in ["password", "token", "refresh_token", "access_token", "email_verificacion_token", "secret"]:
+                new_data[k] = "[REDACTED]"
+            # Ofuscar emails
+            elif k.lower() == "email" and isinstance(v, str) and "@" in v:
+                parts = v.split("@")
+                new_data[k] = f"{parts[0][0]}***{parts[0][-1]}@{parts[1]}" if len(parts[0]) > 1 else f"***@{parts[1]}"
+            # Ofuscar DNI/CUIT (dejar solo últimos 4)
+            elif k.lower() in ["dni", "cuit", "dni_cuit"] and isinstance(v, str) and len(v) >= 4:
+                new_data[k] = f"****{v[-4:]}"
+            # Recurrencia
+            elif isinstance(v, (dict, list)):
+                new_data[k] = redact_sensitive_data(v)
+        return new_data
+    elif isinstance(data, list):
+        return [redact_sensitive_data(i) for i in data]
+    return data
+
+def log_debug(message: str, data: Any = None):
+    """Loguea solo si estamos en modo dev o debug_auth activo."""
+    if IS_DEV or DEBUG_AUTH:
+        if data is not None:
+            logger.info(f"{message} | Data: {data}")
+        else:
+            logger.info(message)
+
+def log_secure(message: str, data: Any = None):
+    """Loguea información de forma segura (redactada) en cualquier entorno."""
+    if data is not None:
+        safe_data = redact_sensitive_data(data)
+        logger.info(f"{message} | Data: {safe_data}")
+    else:
+        logger.info(message)
+
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse, StreamingResponse
-from schemas.comercio import ComercioDTO
-from schemas.profesional import ProfesionalDTO
 
 
 """
@@ -746,10 +794,13 @@ def check_email(email: str, type: str = "socio", request: Request = None):
 async def register(
     request: Request, background_tasks: BackgroundTasks
 ):
+    logger.info(">>> INICIO REGISTER")
     try:
         content_type = request.headers.get("content-type", "")
+        logger.info(f"Content-Type: {content_type}")
         socio_dict = {}
         constancia_file = None
+        user_id = None
         
         if "multipart/form-data" in content_type:
             form = await request.form()
@@ -794,8 +845,10 @@ async def register(
             
         try:
             socio = RegisterRequest(**socio_dict)
+            log_secure("Payload validado", socio.dict(exclude={'password', 'studentCertificate'}))
         except Exception as e:
-            raise HTTPException(400, f"Error en los datos enviados: {e}")
+            logger.error(f"Error validando RegisterRequest")
+            raise HTTPException(400, "Error en los datos enviados.")
 
         rol_asignado = (socio.rol or "SOCIO").upper()
   
@@ -815,15 +868,34 @@ async def register(
                     detail="El DNI debe contener exactamente 8 números"
                 )
 
-        # Validar si el email ya existe en la base de datos (profiles)
-        existing_profile = supabase.table("profiles").select("id").eq("email", socio.email).execute()
-        if existing_profile.data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El correo ya se encuentra registrado"
-            )
+        # --- 1. Validaciones previas de duplicados en profiles ---
+        try:
+            log_secure("Verificando duplicados", {"email": socio.email, "dni": socio.dni_cuit})
+            
+            # Verificamos email
+            existing_email = supabase.table("profiles").select("id").eq("email", socio.email).execute()
+            if existing_email.data:
+                logger.warning(f"Email ya registrado en profiles")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El correo ya se encuentra registrado"
+                )
+            
+            # Verificamos DNI
+            existing_dni = supabase.table("profiles").select("id").eq("dni", socio.dni_cuit).execute()
+            if existing_dni.data:
+                logger.warning(f"DNI/CUIT ya registrado en profiles")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El DNI o CUIT ya se encuentra registrado"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error en validación de duplicados")
+            # Continuamos si es un error de red o similar, pero ya advertimos el fallo
 
-        # 3.B: Crear usuario en Supabase Auth
+        # 3.B: Crear usuario en Supabase Auth con manejo de huérfanos
         user_password = socio.password if socio.password else "SRNC2026!"
         default_passwords_list = ["comercio1234", "socio1234", "socio123", "SRNC2026!"]
 
@@ -833,11 +905,67 @@ async def register(
             and (socio.password not in default_passwords_list)
         )
 
-        auth_response = supabase.auth.admin.create_user(
-            {"email": socio.email, "password": user_password, "email_confirm": True}
-        )
+        user_id = None
+        try:
+            log_secure("Intentando create_user en Supabase Auth", {"email": socio.email})
+            auth_response = supabase.auth.admin.create_user({
+                "email": socio.email, 
+                "password": user_password, 
+                "email_confirm": True,
+                "user_metadata": {
+                    "nombre_apellido": socio.nombre_apellido,
+                    "rol": rol_asignado
+                }
+            })
+            user_id = auth_response.user.id
+            logger.info(f"Usuario creado exitosamente en Auth.")
+        except Exception as e:
+            err_msg = str(e).lower()
+            logger.warning(f"Fallo inicial en create_user")
+            
+            # Si el usuario ya existe en Auth (422), verificamos si es un huérfano (sin perfil)
+            if "already registered" in err_msg or "already exists" in err_msg or "422" in err_msg:
+                logger.info("Detectado usuario existente en Auth. Verificando huérfano...")
+                
+                try:
+                    # 1. ¿Tiene perfil ya? (Doble verificación para evitar condiciones de carrera)
+                    check_p = supabase.table("profiles").select("id").eq("email", socio.email).execute()
+                    if check_p.data:
+                        logger.warning(f"Confirmado: El email ya tiene un perfil completo.")
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Ya existe una cuenta con este correo electrónico."
+                        )
 
-        user_id = auth_response.user.id
+                    # 2. Si no tiene perfil, buscamos el ID en Auth para limpiarlo
+                    user_lookup = supabase.rpc("get_user_id_by_email", {"p_email": socio.email}).execute()
+                    existing_uid = user_lookup.data
+                    
+                    if existing_uid:
+                        log_secure("Limpiando huérfano", {"id": existing_uid})
+                        supabase.auth.admin.delete_user(existing_uid)
+                        
+                        # 3. Reintentamos creación
+                        auth_response = supabase.auth.admin.create_user({
+                            "email": socio.email, 
+                            "password": user_password, 
+                            "email_confirm": True,
+                            "user_metadata": {
+                                "nombre_apellido": socio.nombre_apellido,
+                                "rol": rol_asignado
+                            }
+                        })
+                        user_id = auth_response.user.id
+                    else:
+                        logger.error("Auth dice que existe pero no pudimos obtener el ID.")
+                        raise e
+                except HTTPException:
+                    raise
+                except Exception as clean_err:
+                    logger.error(f"Error crítico al procesar usuario existente/huérfano")
+                    raise e
+            else:
+                raise e
 
         # ── Subida constancia estudiante ─────────────────────────────
         constancia_url = None
@@ -862,7 +990,7 @@ async def register(
                     )
                     constancia_url = supabase.storage.from_(bucket_name).get_public_url(filename)
                 except Exception as e:
-                    logger.error(f"Error uploading student certificate (multipart): {e}")
+                    logger.error(f"Error uploading student certificate")
             elif socio.studentCertificate:
                 try:
                     import base64
@@ -894,7 +1022,7 @@ async def register(
                     )
 
                 except Exception as e:
-                    logger.error(f"Error uploading student certificate: {e}")
+                    logger.error(f"Error uploading student certificate")
 
         # 3.C: Insertar en profiles
         estado_asignado = "APROBADO" if rol_asignado == "SOCIO" else "PENDIENTE"
@@ -924,6 +1052,7 @@ async def register(
 
         # ── Insert + rollback ───────────────────────────────────────
         try:
+            log_secure("Insertando en 'profiles'", profile_data)
             supabase.table("profiles").insert(profile_data).execute()
 
             if rol_asignado == "COMERCIO":
@@ -935,14 +1064,16 @@ async def register(
                     "direccion": socio.direccion,
                     "barrio": socio.barrio,
                 }
-
+                log_secure("Insertando en 'comercios'", commerce_data)
                 supabase.table("comercios").insert(commerce_data).execute()
 
         except Exception as profile_err:
+            logger.error(f"FALLA EN INSERT")
             try:
+                log_secure("Rollback: eliminando user_id", {"user_id": user_id})
                 supabase.auth.admin.delete_user(user_id)
             except Exception as e:
-                logger.error(f"Rollback error: {e}")
+                logger.error(f"Error crítico en rollback")
             raise profile_err
 
         # ── Auditoría ───────────────────────────────────────────────
@@ -985,13 +1116,13 @@ async def register(
         }
 
         response_data = {
-            "message": f"{rol_asignado.capitalize()} registrado correctamente. Revisá tu correo para verificar tu cuenta.",
+            "message": f"{rol_asignado.capitalize()} registrado correctamente.",
             "socio": safe_profile,
         }
 
         # ── Iniciar sesión automáticamente ──────────────────────────
         try:
-            # Login con Supabase Auth usando el cliente anon para obtener la sesión JWT
+            log_secure("Login automático", {"email": socio.email})
             login_resp = supabase_anon.auth.sign_in_with_password(
                 {"email": socio.email, "password": user_password}
             )
@@ -999,24 +1130,31 @@ async def register(
                 response_data["token"] = login_resp.session.access_token
                 response_data["refresh_token"] = login_resp.session.refresh_token
         except Exception as login_err:
-            logger.warning(f"No se pudo autologuear al nuevo usuario: {login_err}")
+            logger.warning(f"No se pudo autologuear")
 
         return response_data
 
+    except HTTPException as he:
+        raise he
     except Exception as e:
         err_msg = str(e).lower()
+        logger.error(f"EXCEPCIÓN CRÍTICA EN REGISTER")
 
         if (
             "user already registered" in err_msg
             or ("already exists" in err_msg and "email" in err_msg)
+            or ("duplicate key value" in err_msg and "profiles_email_key" in err_msg)
         ):
-            friendly_detail = "El correo ya se encuentra registrado"
+            friendly_detail = "El correo electrónico ya se encuentra registrado."
 
-        elif "duplicate key value" in err_msg and "dni" in err_msg:
-            friendly_detail = "El documento ingresado ya está asociado a un socio existente."
+        elif "duplicate key value" in err_msg and ("profiles_dni_key" in err_msg or "dni" in err_msg):
+            friendly_detail = "El DNI/Documento ya está asociado a otra cuenta."
 
-        elif "duplicate key value" in err_msg:
-            friendly_detail = "Ya existe una cuenta con estos datos. Si olvidaste tu acceso, podés recuperarlo fácilmente."
+        elif "duplicate key value" in err_msg and ("profiles_cuit_key" in err_msg or "cuit" in err_msg):
+            friendly_detail = "El CUIT ingresado ya está asociado a otra cuenta."
+
+        elif "password" in err_msg and "short" in err_msg:
+            friendly_detail = "La contraseña es demasiado corta."
 
         else:
             friendly_detail = "Error al procesar el registro."
@@ -1036,12 +1174,92 @@ def register_comercio(
         rol_asignado = "COMERCIO"
         default_password = "SRNC2026!"
         user_password = comercio.password if comercio.password else default_password
+        
+        # --- 1. Validaciones previas de duplicados en profiles ---
+        try:
+            log_secure("Verificando duplicados comercio", {"email": comercio.email, "cuit": comercio.cuit})
+            
+            # Verificamos email
+            existing_email = supabase.table("profiles").select("id").eq("email", comercio.email).execute()
+            if existing_email.data:
+                logger.warning(f"Email ya registrado en profiles")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El correo ya se encuentra registrado"
+                )
+            
+            # Verificamos CUIT
+            existing_cuit = supabase.table("profiles").select("id").eq("dni", comercio.cuit).execute()
+            if existing_cuit.data:
+                logger.warning(f"CUIT ya registrado en profiles")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El CUIT ya se encuentra registrado"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error en validación de duplicados comercio")
 
-        auth_response = supabase.auth.admin.create_user(
-            {"email": comercio.email, "password": user_password, "email_confirm": True}
-        )
+        # 3.B: Crear usuario en Supabase Auth con manejo de huérfanos
+        user_id = None
+        try:
+            log_secure("Intentando create_user para comercio", {"email": comercio.email})
+            auth_response = supabase.auth.admin.create_user({
+                "email": comercio.email, 
+                "password": user_password, 
+                "email_confirm": True,
+                "user_metadata": {
+                    "nombre_comercio": comercio.nombre_comercio,
+                    "rol": rol_asignado
+                }
+            })
+            user_id = auth_response.user.id
+        except Exception as e:
+            err_msg = str(e).lower()
+            logger.warning(f"Fallo inicial en create_user comercio")
+            
+            if "already registered" in err_msg or "already exists" in err_msg or "422" in err_msg:
+                logger.info("Detectado usuario comercio existente en Auth. Verificando huérfano...")
+                
+                try:
+                    # 1. ¿Tiene perfil?
+                    check_p = supabase.table("profiles").select("id").eq("email", comercio.email).execute()
+                    if check_p.data:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Ya existe una cuenta de comercio con este correo."
+                        )
 
-        user_id = auth_response.user.id
+                    # 2. Si no tiene perfil, buscamos ID para limpiar
+                    user_lookup = supabase.rpc("get_user_id_by_email", {"p_email": comercio.email}).execute()
+                    existing_uid = user_lookup.data
+                    
+                    if existing_uid:
+                        logger.info(f"Limpiando huérfano comercio ID: {existing_uid}")
+                        supabase.auth.admin.delete_user(existing_uid)
+                        
+                        # 3. Reintentar
+                        auth_response = supabase.auth.admin.create_user({
+                            "email": comercio.email, 
+                            "password": user_password, 
+                            "email_confirm": True,
+                            "user_metadata": {
+                                "nombre_comercio": comercio.nombre_comercio,
+                                "rol": rol_asignado
+                            }
+                        })
+                        user_id = auth_response.user.id
+                        logger.info(f"Usuario comercio recreado ID: {user_id}")
+                    else:
+                        raise e
+                except HTTPException:
+                    raise
+                except Exception as clean_err:
+                    logger.error(f"Error limpiando huérfano comercio: {clean_err}")
+                    raise e
+            else:
+                raise e
 
         profile_data = {
             "id": user_id,
@@ -1058,25 +1276,21 @@ def register_comercio(
         }
 
         try:
+            log_secure("Insertando perfil de comercio", profile_data)
             supabase.table("profiles").insert(profile_data).execute()
 
-            commerce_data = {
-                "id": user_id,
-                "nombre_comercio": comercio.nombre_comercio,
-                "cuit": comercio.cuit,
-                "rubro": comercio.rubro,
-                "direccion": comercio.direccion,
-                "municipio": comercio.municipio,
-                "barrio": comercio.barrio,  # Barrio/localidad (nuevo)
-            }
+            log_secure("Insertando datos de comercio", commerce_data)
             supabase.table("comercios").insert(commerce_data).execute()
+            logger.info("Registro de comercio insertado exitosamente en DB")
 
         except Exception as profile_err:
+            logger.error(f"Falla en insert de comercio: {profile_err}")
             try:
-                supabase.auth.admin.delete_user(user_id)
+                if user_id:
+                    logger.info(f"Ejecutando rollback comercio: eliminando user_id {user_id}")
+                    supabase.auth.admin.delete_user(user_id)
             except Exception as e:
-                logger.error(f"Error: {e}")
-                pass
+                logger.error(f"Error en rollback comercio: {e}")
             raise profile_err
 
         background_tasks.add_task(

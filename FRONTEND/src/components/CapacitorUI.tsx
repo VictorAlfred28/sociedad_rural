@@ -52,11 +52,8 @@ export const CapacitorUI = () => {
                 if (res.ok) {
                     localStorage.setItem('fcm_token_sent', tokenValue);
                     localStorage.removeItem('fcm_token_pending');
-                    console.log('[Push] ✅ Token FCM registrado en backend.');
                     return true;
                 } else {
-                    const body = await res.text();
-                    console.error(`[Push] ❌ Backend rechazó token. Status: ${res.status} — ${body}`);
                     return false;
                 }
             } catch (e) {
@@ -88,7 +85,6 @@ export const CapacitorUI = () => {
 
                 // Token nuevo o refresh de FCM
                 PushNotifications.addListener('registration', async (token) => {
-                    console.log('[Push] FCM Token obtenido:', token.value);
                     await sendTokenToBackend(token.value);
                 });
 

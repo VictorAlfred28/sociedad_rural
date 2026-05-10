@@ -37,7 +37,7 @@ export const initPushNotifications = async () => {
 
         // ── Token registrado: enviar al backend ──────────────────────
         PushNotifications.addListener('registration', async (token) => {
-            console.log('[FCM] Token obtenido:', token.value);
+            // Token registrado exitosamente
 
             try {
                 // Deduplicación: si el token no cambió, no re-enviamos

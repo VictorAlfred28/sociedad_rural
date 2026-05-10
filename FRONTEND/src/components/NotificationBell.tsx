@@ -59,7 +59,6 @@ export default function NotificationBell() {
         
         // Bloqueo crítico: Evitar que Firebase Web pise la lógica nativa
         if (Capacitor.isNativePlatform()) {
-            console.log("Entorno Nativo detectado: Delegando push a CapacitorUI");
             return;
         }
 
