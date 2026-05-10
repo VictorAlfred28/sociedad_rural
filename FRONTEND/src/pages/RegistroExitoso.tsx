@@ -43,8 +43,8 @@ export default function RegistroExitoso() {
           </div>
         </div>
         <div className="p-6 pb-12 flex flex-col gap-3">
-          <Link to="/home" className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 bg-primary text-slate-900 text-base font-bold leading-normal tracking-[0.015em] shadow-lg shadow-primary/20 active:scale-95 transition-transform">
-            <span className="truncate">Ir al Inicio</span>
+          <Link to="/" className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-14 bg-primary text-slate-900 text-base font-bold leading-normal tracking-[0.015em] shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+            <span className="truncate">Volver al Inicio</span>
           </Link>
         </div>
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10"></div>

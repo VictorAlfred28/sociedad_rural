@@ -1025,7 +1025,7 @@ async def register(
                     logger.error(f"Error uploading student certificate")
 
         # 3.C: Insertar en profiles
-        estado_asignado = "APROBADO" if rol_asignado == "SOCIO" else "PENDIENTE"
+        estado_asignado = "PENDIENTE"
         profile_data = {
             "id": user_id,
             "nombre_apellido": socio.nombre_apellido,
@@ -1120,18 +1120,7 @@ async def register(
             "socio": safe_profile,
         }
 
-        # ── Iniciar sesión automáticamente ──────────────────────────
-        try:
-            log_secure("Login automático", {"email": socio.email})
-            login_resp = supabase_anon.auth.sign_in_with_password(
-                {"email": socio.email, "password": user_password}
-            )
-            if login_resp and login_resp.session:
-                response_data["token"] = login_resp.session.access_token
-                response_data["refresh_token"] = login_resp.session.refresh_token
-        except Exception as login_err:
-            logger.warning(f"No se pudo autologuear")
-
+        # NOTA: Eliminado auto-login para forzar verificación de email y aprobación administrativa
         return response_data
 
     except HTTPException as he:
