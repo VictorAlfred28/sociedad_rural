@@ -46,7 +46,12 @@ MSG_TITULAR_RESTRINGIDO = (
 )
 
 # Usuarios excluidos permanentemente de recordatorios y mora
-EMAILS_EXCLUIDOS_MORA: frozenset = frozenset({"victoralfredo2498@gmail.com"})
+# Cargados desde variable de entorno: EMAILS_EXCLUIDOS_MORA="email1@x.com,email2@x.com"
+# Si la variable no está definida, el set queda vacío (nadie excluido).
+_raw_excluidos = os.getenv("EMAILS_EXCLUIDOS_MORA", "")
+EMAILS_EXCLUIDOS_MORA: frozenset = frozenset(
+    e.strip().lower() for e in _raw_excluidos.split(",") if e.strip()
+)
 # =============================================================================
 
 # ─────────────────────────────────────────────────────────────────────────────
