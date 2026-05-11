@@ -1274,10 +1274,25 @@ def register_comercio(
             "telefono": comercio.telefono,
             "rubro": comercio.rubro,
             "municipio": comercio.municipio,
-            "barrio": comercio.barrio,  # Barrio/localidad (nuevo)
+            "barrio": comercio.barrio,
+            "direccion": comercio.direccion,
+            "provincia": comercio.provincia or "Corrientes",
             "rol": rol_asignado,
             "estado": "PENDIENTE",
             "password_changed": False,
+        }
+
+        # ── Construir payload para tabla 'comercios' ─────────────────────────
+        commerce_data = {
+            "id": user_id,
+            "nombre_comercio": comercio.nombre_comercio,
+            "cuit": comercio.cuit,
+            "rubro": comercio.rubro,
+            "direccion": comercio.direccion,
+            "municipio": comercio.municipio,
+            "barrio": comercio.barrio,
+            "telefono": comercio.telefono,
+            "email": comercio.email,
         }
 
         try:
@@ -1286,16 +1301,19 @@ def register_comercio(
 
             log_secure("Insertando datos de comercio", commerce_data)
             supabase.table("comercios").insert(commerce_data).execute()
-            logger.info("Registro de comercio insertado exitosamente en DB")
+            logger.info("[REGISTER_COMERCIO] Registro insertado exitosamente en DB")
 
         except Exception as profile_err:
-            logger.error(f"Falla en insert de comercio: {profile_err}")
+            logger.error(
+                f"[REGISTER_COMERCIO] Falla en insert DB: {type(profile_err).__name__}: {profile_err}\n"
+                + traceback.format_exc()
+            )
             try:
                 if user_id:
-                    logger.info(f"Ejecutando rollback comercio: eliminando user_id {user_id}")
+                    logger.info(f"[REGISTER_COMERCIO] Rollback: eliminando user_id {user_id}")
                     supabase.auth.admin.delete_user(user_id)
             except Exception as e:
-                logger.error(f"Error en rollback comercio: {e}")
+                logger.error(f"[REGISTER_COMERCIO] Error en rollback Auth: {e}")
             raise profile_err
 
         background_tasks.add_task(
@@ -1332,7 +1350,10 @@ def register_comercio(
         }
 
     except Exception as e:
-        logger.error(f"[REGISTER_COMERCIO] Error interno procesando registro")
+        logger.error(
+            f"[REGISTER_COMERCIO] Error interno procesando registro: "
+            f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+        )
         err_msg = str(e).lower()
         if (
             "user already registered" in err_msg
