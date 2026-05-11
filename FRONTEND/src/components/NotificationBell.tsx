@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../context/AuthContext';
@@ -25,7 +25,6 @@ export default function NotificationBell() {
     const [isPulsing, setIsPulsing] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
-    const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
     // Cargar notificaciones
     const loadNotifications = async () => {
@@ -127,73 +126,10 @@ export default function NotificationBell() {
         return () => navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
     }, [navigate]);
 
-    // Calcular posición segura del dropdown para evitar overflow en mobile
-    const computeDropdownPosition = useCallback(() => {
-        if (!buttonRef.current) return;
-
-        const btnRect = buttonRef.current.getBoundingClientRect();
-        const vw = window.innerWidth;
-        const isMobile = vw < 640; // sm breakpoint
-
-        // Safe area insets (Capacitor/notch devices)
-        const safeLeft = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat') || '0') || 0;
-        const safeRight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sar') || '0') || 0;
-
-        const PANEL_MARGIN = 12; // margen mínimo de los bordes
-        const panelMaxWidth = isMobile
-            ? Math.min(vw - (PANEL_MARGIN * 2) - safeLeft - safeRight, 400)
-            : 384; // 96 * 4 = w-96
-
-        // Intentar alinear a la derecha del botón (right-0 del parent)
-        let rightOffset = vw - btnRect.right;
-
-        // Si el panel se sale por la izquierda, corregirlo
-        const leftEdge = vw - rightOffset - panelMaxWidth;
-        if (leftEdge < PANEL_MARGIN + safeLeft) {
-            rightOffset = vw - panelMaxWidth - PANEL_MARGIN - safeLeft;
-        }
-        // Si se sale por la derecha, también corregirlo
-        if (rightOffset < PANEL_MARGIN + safeRight) {
-            rightOffset = PANEL_MARGIN + safeRight;
-        }
-
-        setDropdownStyle({
-            position: 'fixed',
-            top: btnRect.bottom + 8,
-            right: rightOffset,
-            width: panelMaxWidth,
-            maxWidth: `calc(100vw - ${PANEL_MARGIN * 2}px - env(safe-area-inset-left) - env(safe-area-inset-right))`,
-            maxHeight: isMobile ? 'calc(80vh - env(safe-area-inset-bottom))' : '24rem',
-            zIndex: 9999,
-        });
-    }, []);
-
-    // Toggle Dropdown
-    const toggleDropdown = () => {
-        setIsOpen(prev => {
-            if (!prev) {
-                // Calcular posición justo antes de abrir
-                setTimeout(computeDropdownPosition, 0);
-            }
-            return !prev;
-        });
-    };
-
-    // Recalcular al cambiar tamaño
+    // Cerrar al click afuera - Optimizado para mouse y touch
     useEffect(() => {
-        if (!isOpen) return;
-        computeDropdownPosition();
-        window.addEventListener('resize', computeDropdownPosition);
-        window.addEventListener('scroll', computeDropdownPosition, true);
-        return () => {
-            window.removeEventListener('resize', computeDropdownPosition);
-            window.removeEventListener('scroll', computeDropdownPosition, true);
-        };
-    }, [isOpen, computeDropdownPosition]);
-
-    // Cerrar al click afuera
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            if (!isOpen) return;
             if (
                 dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
                 buttonRef.current && !buttonRef.current.contains(event.target as Node)
@@ -202,10 +138,19 @@ export default function NotificationBell() {
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
         };
-    }, []);
+    }, [isOpen]);
+
+    // Toggle Dropdown (inmediato, sin race conditions)
+    const toggleDropdown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsOpen(!isOpen);
+    };
 
     // Formato Fecha amigable
     const timeAgo = (dateStr: string) => {
@@ -222,7 +167,8 @@ export default function NotificationBell() {
         return `Hace ${diffDays} d`;
     };
 
-    const markAllAsRead = async () => {
+    const markAllAsRead = async (e: React.MouseEvent) => {
+        e.stopPropagation();
         if (unreadCount === 0) return;
         const previousCount = unreadCount;
         setUnreadCount(0);
@@ -321,120 +267,122 @@ export default function NotificationBell() {
             </button>
 
             {/* Dropdown Lista */}
-            {isOpen && (
-                <div
-                    style={dropdownStyle}
-                    className="flex flex-col bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 transform origin-top-right">
-                    
-                    {/* Header */}
-                    <div className="px-5 py-4 bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-700/80 z-10 flex justify-between items-center shrink-0">
-                        <div className="flex items-center gap-3">
-                            <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-lg tracking-tight">Notificaciones</h3>
-                            {unreadCount > 0 && (
-                                <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                    {unreadCount} nuevas
-                                </span>
-                            )}
-                        </div>
+            <div
+                className={`absolute top-[calc(100%+12px)] right-0 sm:-right-2 z-[9999] flex flex-col bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden transition-all duration-200 origin-top-right
+                    w-[calc(100vw-32px)] max-w-[380px] sm:w-[380px]
+                    ${isOpen ? 'opacity-100 scale-100 visible translate-y-0' : 'opacity-0 scale-95 invisible -translate-y-2 pointer-events-none'}`}
+                style={{
+                    maxHeight: 'calc(85vh - env(safe-area-inset-bottom))',
+                }}
+            >
+                {/* Header */}
+                <div className="px-5 py-4 bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-700/80 z-10 flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-3">
+                        <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-lg tracking-tight">Notificaciones</h3>
                         {unreadCount > 0 && (
-                            <button 
-                                onClick={markAllAsRead}
-                                className="text-xs font-semibold text-primary/80 hover:text-primary transition-colors flex items-center gap-1 bg-transparent hover:bg-primary/5 px-2 py-1 rounded-md"
-                            >
-                                <span className="material-symbols-outlined text-[14px]">done_all</span>
-                                Marcar leídas
-                            </button>
+                            <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                {unreadCount} nuevas
+                            </span>
                         )}
                     </div>
+                    {unreadCount > 0 && (
+                        <button 
+                            onClick={markAllAsRead}
+                            className="text-xs font-semibold text-primary/80 hover:text-primary transition-colors flex items-center gap-1 bg-transparent hover:bg-primary/5 px-2 py-1 rounded-md"
+                        >
+                            <span className="material-symbols-outlined text-[14px]">done_all</span>
+                            Marcar leídas
+                        </button>
+                    )}
+                </div>
 
-                    {/* Contenido (con scroll suave) */}
-                    <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col relative bg-white dark:bg-slate-900 custom-scrollbar">
-                        {isLoading && notifications.length === 0 ? (
-                            <div className="p-10 text-center flex flex-col items-center justify-center text-slate-400">
-                                <span className="material-symbols-outlined text-4xl mb-3 animate-spin opacity-50">refresh</span>
-                                <p className="text-sm font-medium">Cargando...</p>
+                {/* Contenido (con scroll suave) */}
+                <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col relative bg-white dark:bg-slate-900 custom-scrollbar">
+                    {isLoading && notifications.length === 0 ? (
+                        <div className="p-10 text-center flex flex-col items-center justify-center text-slate-400">
+                            <span className="material-symbols-outlined text-4xl mb-3 animate-spin opacity-50">refresh</span>
+                            <p className="text-sm font-medium">Cargando...</p>
+                        </div>
+                    ) : notifications.length === 0 ? (
+                        <div className="p-12 text-center flex flex-col items-center justify-center">
+                            <div className="size-20 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-4 shadow-inner">
+                                <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">notifications_off</span>
                             </div>
-                        ) : notifications.length === 0 ? (
-                            <div className="p-12 text-center flex flex-col items-center justify-center">
-                                <div className="size-20 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-4 shadow-inner">
-                                    <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">notifications_off</span>
-                                </div>
-                                <p className="text-base font-bold text-slate-700 dark:text-slate-300 mb-1">Bandeja Vacía</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-500">No tenés notificaciones por el momento.</p>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
-                                {notifications.map((notif) => (
-                                    <div
-                                        key={notif.id}
-                                        onClick={() => handleNotificationClick(notif)}
-                                        className={`p-4 transition-all duration-200 relative group cursor-pointer 
+                            <p className="text-base font-bold text-slate-700 dark:text-slate-300 mb-1">Bandeja Vacía</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-500">No tenés notificaciones por el momento.</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+                            {notifications.map((notif) => (
+                                <div
+                                    key={notif.id}
+                                    onClick={() => handleNotificationClick(notif)}
+                                    className={`p-4 transition-all duration-200 relative group cursor-pointer 
+                                        ${!notif.leido 
+                                            ? 'bg-primary/5 hover:bg-primary/10' 
+                                            : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50'} 
+                                    `}
+                                >
+                                    <div className="flex items-start gap-4">
+                                        {/* Icono */}
+                                        <div className={`shrink-0 size-11 rounded-full flex items-center justify-center mt-1 shadow-sm
                                             ${!notif.leido 
-                                                ? 'bg-primary/5 hover:bg-primary/10' 
-                                                : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50'} 
-                                        `}
-                                    >
-                                        <div className="flex items-start gap-4">
-                                            {/* Icono */}
-                                            <div className={`shrink-0 size-11 rounded-full flex items-center justify-center mt-1 shadow-sm
-                                                ${!notif.leido 
-                                                    ? 'bg-primary text-white' 
-                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}
-                                                ${notif.titulo.toLowerCase().includes('soporte') && !notif.leido ? 'bg-amber-500 text-white' : ''}
-                                            `}>
-                                                <span className="material-symbols-outlined text-[20px]">
-                                                    {getIconForType(notif.titulo, notif.tipo)}
+                                                ? 'bg-primary text-white' 
+                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}
+                                            ${notif.titulo.toLowerCase().includes('soporte') && !notif.leido ? 'bg-amber-500 text-white' : ''}
+                                        `}>
+                                            <span className="material-symbols-outlined text-[20px]">
+                                                {getIconForType(notif.titulo, notif.tipo)}
+                                            </span>
+                                        </div>
+                                        
+                                        {/* Texto */}
+                                        <div className="flex-1 pr-8">
+                                            <div className="flex flex-col mb-1.5">
+                                                <p className={`text-[15px] leading-tight ${!notif.leido ? 'font-bold text-slate-900 dark:text-white' : 'font-semibold text-slate-700 dark:text-slate-300'}`}>
+                                                    {notif.titulo}
+                                                </p>
+                                                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1 mt-1">
+                                                    <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                                    {timeAgo(notif.created_at)}
                                                 </span>
                                             </div>
-                                            
-                                            {/* Texto */}
-                                            <div className="flex-1 pr-8">
-                                                <div className="flex flex-col mb-1.5">
-                                                    <p className={`text-[15px] leading-tight ${!notif.leido ? 'font-bold text-slate-900 dark:text-white' : 'font-semibold text-slate-700 dark:text-slate-300'}`}>
-                                                        {notif.titulo}
-                                                    </p>
-                                                    <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1 mt-1">
-                                                        <span className="material-symbols-outlined text-[12px]">schedule</span>
-                                                        {timeAgo(notif.created_at)}
-                                                    </span>
-                                                </div>
-                                                <p className={`text-sm leading-relaxed line-clamp-3 ${!notif.leido ? 'text-slate-700 dark:text-slate-300' : 'text-slate-500 dark:text-slate-500'}`}>
-                                                    {notif.mensaje}
-                                                </p>
-                                            </div>
+                                            <p className={`text-sm leading-relaxed line-clamp-3 ${!notif.leido ? 'text-slate-700 dark:text-slate-300' : 'text-slate-500 dark:text-slate-500'}`}>
+                                                {notif.mensaje}
+                                            </p>
                                         </div>
-                                        
-                                        {/* Acciones flotantes */}
-                                        <div className="absolute top-4 right-3 flex flex-col gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
-                                            {!notif.leido && (
-                                                <button 
-                                                    onClick={(e) => markAsRead(notif.id, e)}
-                                                    className="size-8 rounded-full bg-white dark:bg-slate-700 shadow border border-slate-200 dark:border-slate-600 flex items-center justify-center text-primary hover:bg-primary hover:text-white hover:border-primary transition-colors"
-                                                    title="Marcar como leída"
-                                                >
-                                                    <span className="material-symbols-outlined text-[16px]">done</span>
-                                                </button>
-                                            )}
-                                            <button 
-                                                onClick={(e) => deleteNotification(notif.id, e)}
-                                                className="size-8 rounded-full bg-white dark:bg-slate-700 shadow border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 hover:border-red-500 transition-colors"
-                                                title="Eliminar"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px]">close</span>
-                                            </button>
-                                        </div>
-                                        
-                                        {/* Indicador visual de "no leído" */}
-                                        {!notif.leido && (
-                                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-                                        )}
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    
+                                    {/* Acciones flotantes */}
+                                    <div className="absolute top-4 right-3 flex flex-col gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+                                        {!notif.leido && (
+                                            <button 
+                                                onClick={(e) => markAsRead(notif.id, e)}
+                                                className="size-8 rounded-full bg-white dark:bg-slate-700 shadow border border-slate-200 dark:border-slate-600 flex items-center justify-center text-primary hover:bg-primary hover:text-white hover:border-primary transition-colors"
+                                                title="Marcar como leída"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">done</span>
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={(e) => deleteNotification(notif.id, e)}
+                                            className="size-8 rounded-full bg-white dark:bg-slate-700 shadow border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 hover:border-red-500 transition-colors"
+                                            title="Eliminar"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">close</span>
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Indicador visual de "no leído" */}
+                                    {!notif.leido && (
+                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 }
