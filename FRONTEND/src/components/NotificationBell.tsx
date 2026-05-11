@@ -303,8 +303,8 @@ export default function NotificationBell() {
             <button
                 ref={buttonRef}
                 onClick={toggleDropdown}
-                className={`size-12 rounded-full shadow-md flex items-center justify-center relative transition-all duration-300 outline-none
-                    ${isOpen ? 'bg-primary/10 text-primary dark:bg-primary/20' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}
+                className={`size-12 rounded-full shadow-sm flex items-center justify-center relative transition-all duration-300 outline-none
+                    ${isOpen ? 'bg-primary/10 text-primary dark:bg-primary/20 ring-2 ring-primary/30 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:shadow-md'}
                     ${isPulsing ? 'animate-bounce' : ''}
                 `}
             >
@@ -314,23 +314,24 @@ export default function NotificationBell() {
 
                 {/* Badge bolita roja con número */}
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full shadow border-2 border-white dark:border-slate-800 animate-in zoom-in">
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-sm border-2 border-white dark:border-slate-800 animate-in zoom-in">
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}
             </button>
 
-            {/* Dropdown Lista — usa posicionamiento FIXED calculado dinámicamente
-                para evitar overflow en cualquier dispositivo mobile o con notch */}
+            {/* Dropdown Lista */}
             {isOpen && (
                 <div
                     style={dropdownStyle}
-                    className="overflow-y-auto overscroll-contain bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md z-10 flex justify-between items-center shadow-sm">
-                        <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg tracking-tight">Notificaciones</h3>
+                    className="flex flex-col bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 transform origin-top-right">
+                    
+                    {/* Header */}
+                    <div className="px-5 py-4 bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-700/80 z-10 flex justify-between items-center shrink-0">
+                        <div className="flex items-center gap-3">
+                            <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-lg tracking-tight">Notificaciones</h3>
                             {unreadCount > 0 && (
-                                <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
                                     {unreadCount} nuevas
                                 </span>
                             )}
@@ -338,7 +339,7 @@ export default function NotificationBell() {
                         {unreadCount > 0 && (
                             <button 
                                 onClick={markAllAsRead}
-                                className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                                className="text-xs font-semibold text-primary/80 hover:text-primary transition-colors flex items-center gap-1 bg-transparent hover:bg-primary/5 px-2 py-1 rounded-md"
                             >
                                 <span className="material-symbols-outlined text-[14px]">done_all</span>
                                 Marcar leídas
@@ -346,78 +347,90 @@ export default function NotificationBell() {
                         )}
                     </div>
 
-                    <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/50 relative">
+                    {/* Contenido (con scroll suave) */}
+                    <div className="flex-1 overflow-y-auto overscroll-contain flex flex-col relative bg-white dark:bg-slate-900 custom-scrollbar">
                         {isLoading && notifications.length === 0 ? (
-                            <div className="p-8 text-center flex flex-col items-center justify-center text-slate-400">
-                                <span className="material-symbols-outlined text-4xl mb-2 animate-spin">refresh</span>
-                                <p className="text-sm">Cargando...</p>
+                            <div className="p-10 text-center flex flex-col items-center justify-center text-slate-400">
+                                <span className="material-symbols-outlined text-4xl mb-3 animate-spin opacity-50">refresh</span>
+                                <p className="text-sm font-medium">Cargando...</p>
                             </div>
                         ) : notifications.length === 0 ? (
-                            <div className="p-10 text-center flex flex-col items-center justify-center text-slate-400">
-                                <div className="size-16 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-3">
-                                    <span className="material-symbols-outlined text-3xl opacity-50">notifications_off</span>
+                            <div className="p-12 text-center flex flex-col items-center justify-center">
+                                <div className="size-20 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-4 shadow-inner">
+                                    <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">notifications_off</span>
                                 </div>
-                                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">No tenés notificaciones por el momento.</p>
-                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Te avisaremos cuando haya novedades.</p>
+                                <p className="text-base font-bold text-slate-700 dark:text-slate-300 mb-1">Bandeja Vacía</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-500">No tenés notificaciones por el momento.</p>
                             </div>
                         ) : (
-                            notifications.map((notif) => (
-                                <div
-                                    key={notif.id}
-                                    onClick={() => handleNotificationClick(notif)}
-                                    className={`p-4 transition-colors relative group cursor-pointer border-l-4 
-                                        ${!notif.leido ? 'bg-primary/5 hover:bg-primary/10 border-primary' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent'} 
-                                    `}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className={`shrink-0 size-10 rounded-full flex items-center justify-center mt-0.5
-                                            ${!notif.leido ? 'bg-primary/20 text-primary' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}
-                                            ${notif.titulo.includes('Soporte') ? 'bg-amber-100 text-amber-600' : ''}
-                                        `}>
-                                            <span className="material-symbols-outlined text-xl">
-                                                {getIconForType(notif.titulo, notif.tipo)}
-                                            </span>
+                            <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+                                {notifications.map((notif) => (
+                                    <div
+                                        key={notif.id}
+                                        onClick={() => handleNotificationClick(notif)}
+                                        className={`p-4 transition-all duration-200 relative group cursor-pointer 
+                                            ${!notif.leido 
+                                                ? 'bg-primary/5 hover:bg-primary/10' 
+                                                : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50'} 
+                                        `}
+                                    >
+                                        <div className="flex items-start gap-4">
+                                            {/* Icono */}
+                                            <div className={`shrink-0 size-11 rounded-full flex items-center justify-center mt-1 shadow-sm
+                                                ${!notif.leido 
+                                                    ? 'bg-primary text-white' 
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}
+                                                ${notif.titulo.toLowerCase().includes('soporte') && !notif.leido ? 'bg-amber-500 text-white' : ''}
+                                            `}>
+                                                <span className="material-symbols-outlined text-[20px]">
+                                                    {getIconForType(notif.titulo, notif.tipo)}
+                                                </span>
+                                            </div>
+                                            
+                                            {/* Texto */}
+                                            <div className="flex-1 pr-8">
+                                                <div className="flex flex-col mb-1.5">
+                                                    <p className={`text-[15px] leading-tight ${!notif.leido ? 'font-bold text-slate-900 dark:text-white' : 'font-semibold text-slate-700 dark:text-slate-300'}`}>
+                                                        {notif.titulo}
+                                                    </p>
+                                                    <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1 mt-1">
+                                                        <span className="material-symbols-outlined text-[12px]">schedule</span>
+                                                        {timeAgo(notif.created_at)}
+                                                    </span>
+                                                </div>
+                                                <p className={`text-sm leading-relaxed line-clamp-3 ${!notif.leido ? 'text-slate-700 dark:text-slate-300' : 'text-slate-500 dark:text-slate-500'}`}>
+                                                    {notif.mensaje}
+                                                </p>
+                                            </div>
                                         </div>
                                         
-                                        <div className="flex-1 pr-6">
-                                            <p className={`text-sm mb-0.5 ${!notif.leido ? 'font-bold text-slate-900 dark:text-white' : 'font-semibold text-slate-700 dark:text-slate-200'}`}>
-                                                {notif.titulo}
-                                            </p>
-                                            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-2 line-clamp-2">
-                                                {notif.mensaje}
-                                            </p>
-                                            <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                                                <span className="material-symbols-outlined text-[12px]">schedule</span>
-                                                {timeAgo(notif.created_at)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Botones de acción en hover (Desktop) o siempre visibles (Mobile) */}
-                                    <div className="absolute top-4 right-2 flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                        {!notif.leido && (
+                                        {/* Acciones flotantes */}
+                                        <div className="absolute top-4 right-3 flex flex-col gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+                                            {!notif.leido && (
+                                                <button 
+                                                    onClick={(e) => markAsRead(notif.id, e)}
+                                                    className="size-8 rounded-full bg-white dark:bg-slate-700 shadow border border-slate-200 dark:border-slate-600 flex items-center justify-center text-primary hover:bg-primary hover:text-white hover:border-primary transition-colors"
+                                                    title="Marcar como leída"
+                                                >
+                                                    <span className="material-symbols-outlined text-[16px]">done</span>
+                                                </button>
+                                            )}
                                             <button 
-                                                onClick={(e) => markAsRead(notif.id, e)}
-                                                className="size-8 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
-                                                title="Marcar como leída"
+                                                onClick={(e) => deleteNotification(notif.id, e)}
+                                                className="size-8 rounded-full bg-white dark:bg-slate-700 shadow border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 hover:border-red-500 transition-colors"
+                                                title="Eliminar"
                                             >
-                                                <span className="material-symbols-outlined text-[16px]">done</span>
+                                                <span className="material-symbols-outlined text-[16px]">close</span>
                                             </button>
+                                        </div>
+                                        
+                                        {/* Indicador visual de "no leído" */}
+                                        {!notif.leido && (
+                                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
                                         )}
-                                        <button 
-                                            onClick={(e) => deleteNotification(notif.id, e)}
-                                            className="size-8 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                            title="Eliminar"
-                                        >
-                                            <span className="material-symbols-outlined text-[16px]">close</span>
-                                        </button>
                                     </div>
-                                    
-                                    {!notif.leido && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full"></div>
-                                    )}
-                                </div>
-                            ))
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
