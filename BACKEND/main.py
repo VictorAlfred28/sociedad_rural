@@ -560,6 +560,22 @@ class AddDependienteRequest(BaseModel):
     telefono: Optional[str] = None
     password: Optional[str] = None
 
+    @validator("nombre_apellido", "dni_cuit", "tipo_vinculo", "telefono", "email", pre=True)
+    def trim_strings(cls, v):
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
+    @validator("dni_cuit")
+    def validate_dni_cuit(cls, v):
+        # Eliminar guiones o puntos por las dudas
+        v = v.replace(".", "").replace("-", "")
+        if not v.isdigit():
+            raise ValueError("El DNI/CUIT debe contener solo números")
+        if len(v) < 7 or len(v) > 11:
+            raise ValueError("El DNI/CUIT debe tener entre 7 y 11 dígitos")
+        return v
+
 
 class EventCreate(BaseModel):
     titulo: str
@@ -3418,6 +3434,8 @@ def agregar_dependiente(
 ):
     """Crea un perfil que depende del usuario en sesión."""
     try:
+        log_secure("Inicio agregar_dependiente", {"titular_id": current_user.id, "dni": req.dni_cuit})
+        
         # 1. Obtener perfil titular para heredar Rol y otros datos
         titular_res = (
             supabase.table("profiles")
@@ -3428,9 +3446,10 @@ def agregar_dependiente(
         if not titular_res.data:
             raise HTTPException(status_code=404, detail="Titular no encontrado")
         titular = titular_res.data[0]
+        rol_titular = titular.get("rol")
 
-        # 1.5 Validar límite de familiares
-        if titular.get("rol") == "SOCIO":
+        # 1.5 Validar límite de familiares (solo para SOCIOS)
+        if rol_titular == "SOCIO":
             familiares_res = (
                 supabase.table("profiles")
                 .select("id", count="exact")
@@ -3445,21 +3464,53 @@ def agregar_dependiente(
                     detail="Solo podés registrar hasta 3 familiares por socio."
                 )
 
-        # 2. Email ficticio si no provee (para Supabase Auth)
+        # 2. Validaciones de duplicados en Profiles
+        # Verificamos DNI
+        check_dni = supabase.table("profiles").select("id").eq("dni", req.dni_cuit).execute()
+        if check_dni.data:
+            raise HTTPException(status_code=400, detail="El DNI/Documento ya está registrado en el sistema.")
+
+        # Email final (real o ficticio)
         user_email = (
             req.email
             if req.email
-            else f"dependiente.{req.dni_cuit}@sociedadrural.local"
-        )
-        
-        # Asignar contraseña inicial fija
-        user_password = "SRNC2026!"
+            else f"dep.{req.dni_cuit}@sociedadrural.local"
+        ).lower()
 
-        # 3. Crear usuario en Auth
-        auth_response = supabase.auth.admin.create_user(
-            {"email": user_email, "password": user_password, "email_confirm": True}
-        )
-        user_id = auth_response.user.id
+        # Verificamos Email en profiles
+        check_email = supabase.table("profiles").select("id").eq("email", user_email).execute()
+        if check_email.data:
+            raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado en el sistema.")
+
+        # 3. Crear usuario en Auth (con manejo de huérfanos)
+        user_id = None
+        user_password = "SRNC2026!" # Password inicial estándar
+
+        try:
+            auth_response = supabase.auth.admin.create_user(
+                {"email": user_email, "password": user_password, "email_confirm": True}
+            )
+            user_id = auth_response.user.id
+        except Exception as auth_err:
+            err_msg = str(auth_err).lower()
+            if "already registered" in err_msg or "already exists" in err_msg or "422" in err_msg:
+                # Verificamos si es un huérfano (existe en Auth pero no en Profiles)
+                # Ya verificamos profiles arriba, así que si llega acá es un huérfano en Auth
+                user_lookup = supabase.rpc("get_user_id_by_email", {"p_email": user_email}).execute()
+                existing_uid = user_lookup.data
+                if existing_uid:
+                    logger.info(f"Limpiando huérfano detectado en Auth: {existing_uid}")
+                    supabase.auth.admin.delete_user(existing_uid)
+                    # Reintentar
+                    auth_response = supabase.auth.admin.create_user(
+                        {"email": user_email, "password": user_password, "email_confirm": True}
+                    )
+                    user_id = auth_response.user.id
+                else:
+                    raise HTTPException(status_code=400, detail="Error de consistencia en la cuenta. Contacte soporte.")
+            else:
+                logger.error(f"Error creando usuario en Auth: {auth_err}")
+                raise HTTPException(status_code=400, detail="No se pudo crear la cuenta de usuario.")
 
         # 4. Insertar en Profiles
         profile_data = {
@@ -3468,10 +3519,10 @@ def agregar_dependiente(
             "dni": req.dni_cuit,
             "email": user_email,
             "telefono": req.telefono,
-            "rol": titular["rol"],  # Hereda rol del titular (ej. SOCIO o COMERCIO)
-            "estado": "PENDIENTE",  # Requiere verificación de ADMIN
-            "municipio": titular["municipio"],
-            "rubro": titular["rubro"],
+            "rol": rol_titular,
+            "estado": "PENDIENTE", 
+            "municipio": titular.get("municipio"),
+            "rubro": titular.get("rubro"),
             "titular_id": current_user.id,
             "tipo_vinculo": req.tipo_vinculo,
             "password_changed": False,
@@ -3481,32 +3532,43 @@ def agregar_dependiente(
 
         try:
             supabase.table("profiles").insert(profile_data).execute()
-
-            background_tasks.add_task(
-                registrar_auditoria,
-                usuario_id=current_user.id,
-                email_usuario=current_user.email,
-                rol_usuario=titular["rol"],
-                accion="CREATE",
-                tabla="profiles",
-                registro_id=user_id,
-                datos_anteriores=None,
-                datos_nuevos=profile_data,
-                modulo="Gestión Dependientes",
-                request=request,
-            )
-        except Exception as e:
+        except Exception as insert_err:
+            logger.error(f"Falla en insert de profile dependiente: {insert_err}")
+            # Rollback
             supabase.auth.admin.delete_user(user_id)
-            raise e
+            raise HTTPException(status_code=400, detail="No se pudo vincular el perfil a su cuenta.")
+
+        # 5. Auditoría
+        background_tasks.add_task(
+            registrar_auditoria,
+            usuario_id=current_user.id,
+            email_usuario=current_user.email,
+            rol_usuario=rol_titular,
+            accion="CREATE",
+            tabla="profiles",
+            registro_id=user_id,
+            datos_anteriores=None,
+            datos_nuevos=profile_data,
+            modulo="Gestión Dependientes",
+            request=request,
+        )
 
         return {
-            "message": "Dependiente agregado correctamente",
-            "dependiente": profile_data,
+            "message": "Miembro vinculado correctamente. Pendiente de aprobación por Admin.",
+            "dependiente": {
+                "id": user_id,
+                "nombre_apellido": req.nombre_apellido,
+                "email": user_email,
+                "rol": rol_titular,
+                "estado": "PENDIENTE"
+            }
         }
+
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=400, detail="Error interno del servidor")
+        logger.exception("Error no controlado en agregar_dependiente")
+        raise HTTPException(status_code=400, detail="Ocurrió un error inesperado al agregar el miembro.")
 
 
 class UpdateDependienteRequest(BaseModel):
@@ -3515,6 +3577,22 @@ class UpdateDependienteRequest(BaseModel):
     email: Optional[str] = None
     telefono: Optional[str] = None
     tipo_vinculo: Optional[str] = None
+
+    @validator("nombre_apellido", "dni_cuit", "tipo_vinculo", "telefono", "email", pre=True)
+    def trim_strings(cls, v):
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
+    @validator("dni_cuit")
+    def validate_dni_cuit(cls, v):
+        if v is None: return None
+        v = v.replace(".", "").replace("-", "")
+        if not v.isdigit():
+            raise ValueError("El DNI/CUIT debe contener solo números")
+        if len(v) < 7 or len(v) > 11:
+            raise ValueError("El DNI/CUIT debe tener entre 7 y 11 dígitos")
+        return v
 
 @app.put("/api/dependientes/{dependiente_id}")
 def update_dependiente(
@@ -3526,10 +3604,16 @@ def update_dependiente(
 ):
     """Actualiza los datos de un perfil que depende del usuario en sesión."""
     try:
+        log_secure("Inicio update_dependiente", {"dep_id": dependiente_id, "titular_id": current_user.id})
+        
+        # 1. Verificar que el dependiente existe y pertenece al titular
         dep_res = supabase.table("profiles").select("*").eq("id", dependiente_id).eq("titular_id", current_user.id).execute()
         if not dep_res.data:
             raise HTTPException(status_code=404, detail="Dependiente no encontrado o no autorizado")
+        
+        old_data = dep_res.data[0]
 
+        # 2. Preparar datos
         update_data = {k: v for k, v in req.dict(exclude_unset=True).items() if v is not None}
         if "dni_cuit" in update_data:
             update_data["dni"] = update_data.pop("dni_cuit")
@@ -3537,8 +3621,14 @@ def update_dependiente(
         if not update_data:
             return {"message": "No hay datos para actualizar"}
 
-        supabase.table("profiles").update(update_data).eq("id", dependiente_id).execute()
+        # 3. Ejecutar update
+        try:
+            supabase.table("profiles").update(update_data).eq("id", dependiente_id).execute()
+        except Exception as up_err:
+            logger.error(f"Error en update profile dependiente: {up_err}")
+            raise HTTPException(status_code=400, detail="No se pudieron actualizar los datos.")
 
+        # 4. Auditoría
         background_tasks.add_task(
             registrar_auditoria,
             usuario_id=current_user.id,
@@ -3547,17 +3637,19 @@ def update_dependiente(
             accion="UPDATE",
             tabla="profiles",
             registro_id=dependiente_id,
-            datos_anteriores=dep_res.data[0],
+            datos_anteriores=old_data,
             datos_nuevos=update_data,
             modulo="Gestión Dependientes",
             request=request,
         )
 
-        return {"message": "Dependiente actualizado correctamente", "dependiente": update_data}
+        return {"message": "Datos actualizados correctamente"}
+
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=400, detail="Error interno del servidor")
+        logger.exception("Error no controlado en update_dependiente")
+        raise HTTPException(status_code=400, detail="Error al actualizar el miembro.")
 
 
 @app.delete("/api/dependientes/{dependiente_id}")

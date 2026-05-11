@@ -58,8 +58,23 @@ export default function GestionDependientes() {
         setError('');
 
         try {
-            const bodyData = { ...formData };
-            if (!bodyData.email) delete (bodyData as any).email;
+            // Limpieza y sanitización básica
+            const trimmedDni = formData.dni_cuit.trim().replace(/[.-]/g, '');
+            
+            if (trimmedDni.length < 7 || trimmedDni.length > 11) {
+                throw new Error("El DNI/CUIT debe tener entre 7 y 11 dígitos numéricos.");
+            }
+
+            const bodyData: any = {
+                nombre_apellido: formData.nombre_apellido.trim(),
+                dni_cuit: trimmedDni,
+                tipo_vinculo: formData.tipo_vinculo.trim(),
+                telefono: formData.telefono.trim(),
+            };
+            
+            if (formData.email?.trim()) {
+                bodyData.email = formData.email.trim().toLowerCase();
+            }
 
             const isEditing = !!editingId;
             const url = isEditing 
@@ -74,13 +89,26 @@ export default function GestionDependientes() {
                 },
                 body: JSON.stringify(bodyData)
             });
+            
             if (res.status === 401) {
                 window.dispatchEvent(new Event('auth-unauthorized'));
                 return;
             }
+            
             const data = await res.json();
+            
             if (!res.ok) {
-                const errMsg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+                // Manejar errores de validación de Pydantic o errores del servidor
+                let errMsg = "Ocurrió un error al procesar la solicitud.";
+                if (data.detail) {
+                    if (Array.isArray(data.detail)) {
+                        errMsg = data.detail.map((d: any) => d.msg).join(", ");
+                    } else if (typeof data.detail === 'string') {
+                        errMsg = data.detail;
+                    } else {
+                        errMsg = JSON.stringify(data.detail);
+                    }
+                }
                 throw new Error(errMsg);
             }
 
