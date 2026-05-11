@@ -627,9 +627,9 @@ class EventUpdate(BaseModel):
 class WebhookEventoPayload(BaseModel):
     external_id: str
     titulo: str
-    fecha: str
-    hora: str
-    lugar: str
+    fecha: Optional[str] = None
+    hora: Optional[str] = None
+    lugar: Optional[str] = "A confirmar"
     municipio: Optional[str] = None
     imagen_url: str
 
@@ -4425,13 +4425,21 @@ async def importar_evento(payload: WebhookEventoPayload, request: Request, backg
         url_final_imagen = procesar_imagen_evento(payload.imagen_url, payload.external_id)
 
         # 4. Preparar datos
+        hoy = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
+        fecha_str = payload.fecha if payload.fecha else hoy.strftime("%Y-%m-%d")
+        hora_str = payload.hora if payload.hora else hoy.strftime("%H:%M")
+        
+        titulo_corto = payload.titulo
+        if len(titulo_corto) > 100:
+            titulo_corto = titulo_corto[:97] + "..."
+
         remate_data = {
             "external_id": payload.external_id,
-            "titulo": payload.titulo,
+            "titulo": titulo_corto,
             "descripcion": payload.titulo, 
             "lugar": payload.lugar,
-            "fecha": payload.fecha,
-            "hora": payload.hora,
+            "fecha": fecha_str,
+            "hora": hora_str,
             "imagen_url": url_final_imagen,
             "metadata": payload.model_dump(),
             "estado": "publicado",
