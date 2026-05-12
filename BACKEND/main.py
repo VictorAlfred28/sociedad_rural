@@ -213,6 +213,9 @@ import firebase_admin
 from firebase_admin import credentials, messaging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from services.cron_manager import acquire_cron_lock, release_cron_lock
+from urllib.parse import quote
+
 
 # Cargar variables de entorno
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -316,14 +319,36 @@ logger = logging.getLogger(__name__)
 # Zona horaria Argentina
 TZ_ARGENTINA = pytz.timezone("America/Argentina/Buenos_Aires")
 
+import requests
+import os
+
+def trigger_local_cron(endpoint: str, method="GET"):
+    """
+    Scheduler Redundante: Llama a los endpoints cron locales.
+    Si Make.com ya lo ejecutó, el endpoint retornará skipped gracias al cron_manager lock.
+    """
+    secret = os.getenv("CRON_SECRET")
+    url = f"http://127.0.0.1:8000{endpoint}"
+    headers = {"X-Cron-Secret": secret}
+    try:
+        if method == "GET":
+            res = requests.get(url, headers=headers, timeout=60)
+        else:
+            # detectar-mora usa X-API-Secret en vez de X-Cron-Secret
+            headers = {"X-API-Secret": os.getenv("API_SECRET_TOKEN")}
+            res = requests.post(url, headers=headers, timeout=60)
+        logger.info(f"[REDUNDANT SCHEDULER] Llamada a {endpoint}: {res.status_code} - {res.text}")
+    except Exception as e:
+        logger.error(f"[REDUNDANT SCHEDULER] Error llamando a {endpoint}: {e}")
+
 scheduler = BackgroundScheduler(timezone=TZ_ARGENTINA)
-# scheduler.add_job(
-#     tarea_automatica_mora,
-#     trigger=CronTrigger(day=11, hour=8, minute=0, timezone=TZ_ARGENTINA),
-#     id="mora_mensual",
-#     name="Detección automática de mora - día 11 a las 8:00 AM",
-#     replace_existing=True,
-# )
+
+# Make.com corre a las 08:00 AM. Nosotros corremos a las 08:15 AM como respaldo.
+scheduler.add_job(trigger_local_cron, CronTrigger(hour=8, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/verificar-bloqueos"], id="backup_bloqueos")
+scheduler.add_job(trigger_local_cron, CronTrigger(hour=9, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/recordatorios-pago"], id="backup_recordatorios")
+# Los del día 11 (Mora)
+scheduler.add_job(trigger_local_cron, CronTrigger(day=11, hour=8, minute=15, timezone=TZ_ARGENTINA), args=["/api/cron/detectar-mora", "POST"], id="backup_detectar_mora")
+scheduler.add_job(trigger_local_cron, CronTrigger(day=11, hour=9, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/notificar-mora"], id="backup_notificar_mora")
 
 app = FastAPI(title="Sociedad Rural Del Norte De Corrientes API")
 app.state.limiter = limiter
@@ -1998,7 +2023,7 @@ def validar_qr_dinamico(data: QRTokenValidarRequest):
         res = (
             supabase.table("profiles")
             .select(
-                "id, nombre_apellido, dni, rol, estado, municipio, numero_socio, titular_id, tipo_vinculo, perfiles_titulares:profiles!titular_id(nombre_apellido, estado)"
+                "id, nombre_apellido, dni, rol, estado, estado_financiero, municipio, numero_socio, titular_id, tipo_vinculo, perfiles_titulares:profiles!titular_id(nombre_apellido, estado)"
             )
             .eq("id", socio_id)
             .execute()
@@ -2021,6 +2046,19 @@ def validar_qr_dinamico(data: QRTokenValidarRequest):
             if es_activo
             else f"❌ Usuario inactivo o estado pendiente ({perfil['estado']})."
         )
+        
+        # FASE 6: Autoridad Parcial de estado_financiero en QR (controlada por Feature Flag)
+        ENABLE_NEW_QR_BLOCKING = os.environ.get("ENABLE_NEW_QR_BLOCKING", "false").lower() == "true"
+        
+        if ENABLE_NEW_QR_BLOCKING and perfil.get("estado_financiero"):
+            if perfil["estado_financiero"] == "EN_MORA":
+                es_activo = False
+                mensaje = "❌ Carnet Suspendido por Mora (>40 días)."
+            elif perfil["estado_financiero"] == "VENCIDO":
+                mensaje = "✅ Socio Activo (Periodo de gracia - Cuota Vencida)."
+            elif perfil["estado_financiero"] == "ACTIVO" and perfil["estado"] == "APROBADO":
+                es_activo = True
+                mensaje = "✅ Socio Activo. Apto para recibir beneficios."
 
         titular = perfil.get("perfiles_titulares")
         if titular:
@@ -2747,6 +2785,62 @@ def update_user_status(
         raise HTTPException(
             status_code=500, detail="Error interno del servidor"
         )
+
+class UpdateGraciaRequest(BaseModel):
+    dias_gracia: int
+    motivo: str = "Extensión manual administrativa"
+
+@app.put("/api/v1/admin/users/{user_id}/gracia")
+def extender_gracia_usuario(
+    user_id: str,
+    req: UpdateGraciaRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    admin_user=Depends(get_current_admin),
+):
+    """
+    FASE 6: Endpoint para extender manualmente la gracia de un usuario en mora
+    o rehabilitarlo temporalmente (Buffer Administrativo).
+    """
+    try:
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="ID inválido")
+
+        from datetime import datetime, timedelta
+        nueva_fecha = datetime.now() + timedelta(days=req.dias_gracia)
+        
+        perfil_ant = supabase.table("profiles").select("gracia_extendida_hasta").eq("id", user_id).execute()
+        datos_anteriores = perfil_ant.data[0] if perfil_ant.data else None
+
+        res = supabase.table("profiles").update({
+            "gracia_extendida_hasta": nueva_fecha.isoformat()
+        }).eq("id", user_id).execute()
+
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        background_tasks.add_task(
+            registrar_auditoria,
+            usuario_id=admin_user.id,
+            email_usuario=admin_user.email,
+            rol_usuario="ADMIN",
+            accion="UPDATE",
+            tabla="profiles",
+            registro_id=user_id,
+            datos_anteriores=datos_anteriores,
+            datos_nuevos={"gracia_extendida_hasta": nueva_fecha.isoformat(), "motivo": req.motivo},
+            modulo="Extensión Gracia",
+            request=request,
+        )
+
+        return {"mensaje": f"Gracia extendida por {req.dias_gracia} días", "hasta": nueva_fecha.isoformat()}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 class UpdateUserRequest(BaseModel):
@@ -5105,16 +5199,29 @@ def enviar_whatsapp(telefono: str, mensaje: str):
             "linkPreview": True,
         }
 
-        try:
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
-            if response.status_code not in [200, 201]:
-                logger.error(f"Error Evolution API: {response.status_code} - {response.text}")
-        except requests.exceptions.Timeout:
-            logger.warning(f"Timeout (10s) en Evolution API para {numero_limpio}. Mensaje abortado.")
-        except requests.exceptions.ConnectionError:
-            logger.error(f"Error de conexión con Evolution API para {numero_limpio}.")
-        except requests.exceptions.RequestException as req_err:
-            logger.error(f"Error HTTP en Evolution API para {numero_limpio}: {req_err}")
+        max_retries = 3
+        timeout_sec = 5
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.post(url, json=payload, headers=headers, timeout=timeout_sec)
+                if response.status_code in [200, 201]:
+                    logger.info(f"[WHATSAPP] Mensaje enviado exitosamente a {numero_limpio} (Intento {attempt})")
+                    return True
+                else:
+                    logger.error(f"[WHATSAPP] Error API (Intento {attempt}/{max_retries}): {response.status_code} - {response.text}")
+            except requests.exceptions.Timeout:
+                logger.warning(f"[WHATSAPP] Timeout ({timeout_sec}s) para {numero_limpio}. (Intento {attempt}/{max_retries})")
+            except requests.exceptions.ConnectionError:
+                logger.error(f"[WHATSAPP] Error conexión a Evolution API. (Intento {attempt}/{max_retries})")
+            except requests.exceptions.RequestException as req_err:
+                logger.error(f"[WHATSAPP] Error request: {req_err}. (Intento {attempt}/{max_retries})")
+                
+            if attempt < max_retries:
+                import time
+                time.sleep(1) # Backoff simple de 1s
+                
+        logger.error(f"[WHATSAPP] ❌ Falló el envío a {numero_limpio} de forma definitiva tras {max_retries} intentos.")
+        return False
 
     except Exception as e:
         logger.error(f"Error crítico enviando WhatsApp: {str(e)}")
@@ -5141,6 +5248,55 @@ class RechazarPagoRequest(BaseModel):
 
 
 
+@app.get("/api/v1/perfil/estado-financiero")
+def get_estado_financiero_perfil(current_user=Depends(get_current_user)):
+    """
+    Endpoint de solo lectura para la Fase 5 (Shadow Mode / Gradual Rollout).
+    Retorna el estado financiero paralelo y los días de mora sin alterar la auth.
+    """
+    from services.financial_engine import calcular_dias_mora, calcular_estado_financiero
+    from datetime import datetime, date
+    
+    socio_id = current_user.get("id")
+    if not socio_id:
+        raise HTTPException(status_code=401, detail="Usuario no identificado")
+        
+    # Obtener perfil y estado DB
+    perfil_res = supabase.table("profiles").select("estado, estado_financiero, gracia_extendida_hasta").eq("id", socio_id).execute()
+    if not perfil_res.data:
+        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+        
+    perfil = perfil_res.data[0]
+    
+    # Calcular mora real en vivo
+    hoy = date.today()
+    pagos_res = supabase.table("pagos_cuotas").select("fecha_vencimiento, estado_pago").eq("socio_id", socio_id).in_("estado_pago", ["PENDIENTE", "VENCIDO", "PENDIENTE_VALIDACION"]).execute()
+    pagos = pagos_res.data or []
+    
+    tiene_pago_revision = any(pago["estado_pago"] == "PENDIENTE_VALIDACION" for pago in pagos)
+    deudas_activas = [pago for pago in pagos if pago["estado_pago"] in ["PENDIENTE", "VENCIDO"]]
+    
+    max_dias_mora = 0
+    if deudas_activas:
+        deudas_activas.sort(key=lambda x: x["fecha_vencimiento"])
+        vto_mas_antiguo = datetime.strptime(deudas_activas[0]["fecha_vencimiento"], "%Y-%m-%d").date()
+        max_dias_mora = calcular_dias_mora(vto_mas_antiguo, hoy, solo_habiles=False)
+        
+    gracia_extendida = perfil.get("gracia_extendida_hasta")
+    gracia_date = datetime.fromisoformat(gracia_extendida).date() if gracia_extendida else None
+    
+    estado_fin_calculado = calcular_estado_financiero(max_dias_mora, tiene_pago_revision, gracia_date)
+    
+    return {
+        "estado_autoridad": perfil.get("estado"),
+        "estado_financiero_db": perfil.get("estado_financiero"),
+        "estado_financiero_calculado": estado_fin_calculado,
+        "dias_mora": max_dias_mora,
+        "dias_restantes_gracia": max(0, 40 - max_dias_mora) if max_dias_mora > 0 and max_dias_mora <= 40 else 0,
+        "en_riesgo": estado_fin_calculado == "VENCIDO" and max_dias_mora >= 30,
+        "tiene_pago_revision": tiene_pago_revision
+    }
+
 # 12.5 AUTOMACIÓN: Detección de Mora (Cron)
 @app.post("/api/cron/detectar-mora")
 def detectar_mora(
@@ -5166,6 +5322,11 @@ def detectar_mora(
     # Si NO es admin, validar que sea después del día 10 (regla automática)
     if not admin_user and hoy.day < 10:
         return {"message": "Aún no es fecha de mora automática (esperar al día 11)"}
+    cron_id = None
+    if not admin_user:
+        cron_id = acquire_cron_lock(supabase, "detectar_mora", "make.com")
+        if not cron_id:
+            return {"message": "Ejecución omitida. Ya se procesó hoy o hay un proceso en curso."}
 
     try:
         # 1. Buscar socios que NO tengan pago para el mes actual
@@ -5226,14 +5387,28 @@ def detectar_mora(
                     ).in_("id", chunk_ids).execute()
 
                     # B. Upsert Deudas (Bulk). UNIQUE(socio_id, fecha_vencimiento) confirmado en DB (Ajuste 2)
-                    deudas_bulk = [
-                        {
-                            "socio_id": m["id"],
-                            "monto": 5000,
+                    deudas_bulk = []
+                    for m in chunk:
+                        socio_id = m["id"]
+                        monto_cuota = 5000
+                        try:
+                            calculo = calcular_cuota_dinamica_internal(socio_id)
+                            monto_cuota = calculo.get("monto_total", 5000)
+                            logger.info(f"[MORA] Socio {socio_id} ({m.get('nombre_apellido', 'Sin Nombre')}) -> cuota dinámica calculada: ${monto_cuota}")
+                        except Exception as e:
+                            logger.error(
+                                f"[MORA][CRITICAL_FALLBACK] ⚠️ Error calculando cuota para socio_id={socio_id} ({m.get('nombre_apellido', 'Sin Nombre')}). "
+                                f"Aplicando fallback TEMPORAL de 5000 para evitar interrupción del cron masivo. Error: {str(e)}", 
+                                exc_info=True
+                            )
+                            
+                        deudas_bulk.append({
+                            "socio_id": socio_id,
+                            "monto": monto_cuota,
                             "fecha_vencimiento": fecha_venci,
                             "estado_pago": "PENDIENTE",
-                        } for m in chunk
-                    ]
+                        })
+
                     supabase.table("pagos_cuotas").upsert(
                         deudas_bulk, on_conflict="socio_id,fecha_vencimiento"
                     ).execute()
@@ -5263,11 +5438,16 @@ def detectar_mora(
                     )
                     enviar_whatsapp(socio["telefono"], mensaje_wa)
 
+        if cron_id:
+            release_cron_lock(supabase, cron_id, "SUCCESS")
+
         return {
             "message": f"Proceso completado. Socios detectados en mora: {detectados}"
         }
 
     except Exception as e:
+        if cron_id:
+            release_cron_lock(supabase, cron_id, "FAILED", str(e))
         logger.error(f"Error en detectar_mora: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
@@ -6197,6 +6377,10 @@ def cron_verificar_bloqueos(request: Request):
         logger.warning(f"[CRON] Acceso no autorizado desde {client_ip} a /api/v1/cron/verificar-bloqueos")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    cron_id = acquire_cron_lock(supabase, "verificar_bloqueos", "make.com")
+    if not cron_id:
+        return {"status": "skipped", "reason": "Already processed today or running"}
+
     try:
         hoy = datetime.now(TZ_ARGENTINA).date()
         
@@ -6257,8 +6441,10 @@ def cron_verificar_bloqueos(request: Request):
                             
                             bloqueos += 1
                             
+        release_cron_lock(supabase, cron_id, "SUCCESS")
         return {"status": "success", "cuotas_vencidas_marcadas": marcados, "socios_suspendidos": bloqueos}
     except Exception as e:
+        release_cron_lock(supabase, cron_id, "FAILED", str(e))
         logger.error(f"[CRON] Error verificar_bloqueos: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
@@ -6281,6 +6467,10 @@ def cron_notificar_mora(request: Request):
         client_ip = request.client.host if request.client else "unknown"
         logger.warning(f"[CRON] Acceso no autorizado desde {client_ip} a /api/v1/cron/notificar-mora")
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    cron_id = acquire_cron_lock(supabase, "notificar_mora", "make.com")
+    if not cron_id:
+        return {"status": "skipped", "reason": "Already processed today or running"}
 
     try:
         hoy = datetime.now(TZ_ARGENTINA).date()
@@ -6335,9 +6525,11 @@ def cron_notificar_mora(request: Request):
             except Exception as w_err:
                 logger.error(f"[CRON] Error WhatsApp a {telefono}: {str(w_err)}")
                 errores += 1
-                
+        
+        release_cron_lock(supabase, cron_id, "SUCCESS")
         return {"status": "success", "whatsapp_enviados": enviados, "errores": errores}
     except Exception as e:
+        release_cron_lock(supabase, cron_id, "FAILED", str(e))
         logger.error(f"[CRON] Error notificar_mora: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
@@ -6684,6 +6876,10 @@ def cron_recordatorios_pago(request: Request):
         logger.warning(f"[REMINDER-CRON] Acceso no autorizado desde {client_ip}")
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    cron_id = acquire_cron_lock(supabase, "recordatorios_pago", "make.com")
+    if not cron_id:
+        return {"status": "skipped", "reason": "Already processed today or running"}
+
     logger.info("[REMINDER-CRON] Iniciando proceso de recordatorios de pago...")
     inicio = datetime.now(TZ_ARGENTINA)
 
@@ -6710,6 +6906,7 @@ def cron_recordatorios_pago(request: Request):
             f"WA:{wa_enviados} Push:{push_enviados} InApp:{inapp_enviados}"
         )
 
+        release_cron_lock(supabase, cron_id, "SUCCESS")
         return {
             "status": "success",
             "socios_evaluados": len(socios),
@@ -6721,6 +6918,7 @@ def cron_recordatorios_pago(request: Request):
         }
 
     except Exception as e:
+        release_cron_lock(supabase, cron_id, "FAILED", str(e))
         logger.error(f"[REMINDER-CRON] Error crítico: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 

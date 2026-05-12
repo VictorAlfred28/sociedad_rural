@@ -9,6 +9,7 @@ export interface Socio {
     telefono: string;
     rol: 'SOCIO' | 'ADMIN' | 'COMERCIO';
     estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'SUSPENDIDO' | 'RESTRINGIDO';
+    estado_financiero?: 'ACTIVO' | 'PROXIMO_A_VENCER' | 'VENCIDO' | 'EN_MORA' | null;
     motivo?: string;
     password_changed?: boolean;
     municipio?: string;
