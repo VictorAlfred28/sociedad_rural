@@ -6,6 +6,7 @@ import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 
 // ── Code Splitting: cargar páginas bajo demanda ──────────────────────────
+const Privacy = React.lazy(() => import('./pages/Privacy'));
 const Registro = React.lazy(() => import('./pages/Registro'));
 const RegistroPaso2 = React.lazy(() => import('./pages/RegistroPaso2'));
 const RegistroExitoso = React.lazy(() => import('./pages/RegistroExitoso'));
@@ -74,7 +75,7 @@ import { Toaster } from 'react-hot-toast';
 const ConditionalChatbot = () => {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
-  const publicRoutes = ['/login', '/registro', '/registro-paso-2', '/registro-exitoso'];
+  const publicRoutes = ['/login', '/registro', '/registro-paso-2', '/registro-exitoso', '/privacidad'];
 
   if (!isAuthenticated || publicRoutes.includes(location.pathname)) return null;
   if (user?.rol === 'ADMIN') return null;
@@ -101,6 +102,7 @@ export default function App() {
           <Route path="/valida-socio/:id" element={<ValidaSocioPublico />} />
           <Route path="/qr-valida/:token" element={<ValidaQRDinamico />} />
           <Route path="/verificar-email" element={<VerificarEmail />} />
+          <Route path="/privacidad" element={<Privacy />} />
 
           {/* Rutas Protegidas para cualquier Socio/Comercio Aprobado */}
           <Route path="/home" element={<ProtectedRoute><HomeSocio /></ProtectedRoute>} />
