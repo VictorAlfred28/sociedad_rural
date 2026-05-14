@@ -43,10 +43,11 @@ async function fetchPromotionDetail(id: string, token?: string | null): Promise<
 }
 
 export function usePromotionDetail(id: string | undefined, token?: string | null) {
+  const isValidId = !!id && id !== 'undefined';
   return useQuery({
     queryKey: ['promocion', id],
     queryFn: () => fetchPromotionDetail(id!, token),
-    enabled: !!id,
+    enabled: isValidId,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     retry: 1,

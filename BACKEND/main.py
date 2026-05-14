@@ -3463,6 +3463,8 @@ def get_ofertas_publicas(municipio: Optional[str] = None):
 
 @app.get("/api/ofertas/publicas/{oferta_id}")
 def get_oferta_publica(oferta_id: str):
+    if oferta_id == "undefined" or not oferta_id:
+        raise HTTPException(status_code=400, detail="ID de oferta inválido.")
     try:
         query = (
             supabase.table("promociones")

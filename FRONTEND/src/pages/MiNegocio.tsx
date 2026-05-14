@@ -260,7 +260,7 @@ export default function MiNegocio() {
                     ubicacion: form.ubicacion || null,
                     categoria: form.categoria || null,
                     destacada: form.destacada,
-                    imagenes_secundarias: form.imagenes_secundarias.length > 0 ? form.imagenes_secundarias : null,
+                    imagenes_secundarias: (form.imagenes_secundarias && form.imagenes_secundarias.length > 0) ? form.imagenes_secundarias : null,
                     fecha_fin: form.fecha_fin || null,
                     imagen_url: imagen_url || null,
                     instagram_url: normalizeSocialUrl(form.instagram_url) || null,
