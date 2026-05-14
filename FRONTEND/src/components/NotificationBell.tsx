@@ -266,10 +266,18 @@ export default function NotificationBell() {
                 )}
             </button>
 
+            {/* Backdrop para móviles */}
+            {isOpen && (
+                <div 
+                    className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-[9998] sm:hidden transition-opacity" 
+                    onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+                />
+            )}
+
             {/* Dropdown Lista */}
             <div
-                className={`absolute top-[calc(100%+12px)] right-0 sm:-right-2 z-[9999] flex flex-col bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden transition-all duration-200 origin-top-right
-                    w-[calc(100vw-32px)] max-w-[380px] sm:w-[380px]
+                className={`fixed inset-x-4 top-20 sm:absolute sm:inset-x-auto sm:top-[calc(100%+12px)] sm:-right-2 z-[9999] flex flex-col bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden transition-all duration-200 origin-top sm:origin-top-right
+                    max-w-[380px] mx-auto sm:w-[380px] sm:mx-0
                     ${isOpen ? 'opacity-100 scale-100 visible translate-y-0' : 'opacity-0 scale-95 invisible -translate-y-2 pointer-events-none'}`}
                 style={{
                     maxHeight: 'calc(85vh - env(safe-area-inset-bottom))',
