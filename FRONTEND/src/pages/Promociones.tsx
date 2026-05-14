@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import BottomNav from '../components/BottomNav';
 import { Link, useLocation } from 'react-router-dom';
 import FeaturedCarousel from '../components/FeaturedCarousel';
+import BlurImage from '../components/BlurImage';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import paisaje from '../assets/paisaje.png';
 import { RUBROS_COMERCIO, RUBRO_ICON, RUBRO_COLOR, RUBRO_LABEL } from '../types/comercio';
 
@@ -110,6 +112,7 @@ export default function Promociones() {
   const [showSearch, setShowSearch] = useState(false);
   const [showMunDropdown, setShowMunDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -255,7 +258,7 @@ export default function Promociones() {
 
   /* ─── Render ─────────────────────────────────────────────────────────────── */
   return (
-    <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-md mx-auto shadow-2xl overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-[1400px] mx-auto shadow-2xl overflow-x-hidden">
       {/* Fondo con imagen sutil de ganadería/campo */}
       <div 
         className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
@@ -448,7 +451,7 @@ export default function Promociones() {
               </span>
             )}
           </div>
-          <FeaturedCarousel promociones={ofertasDestacadas} onViewPromotion={handleOpenMap} />
+          <FeaturedCarousel promociones={ofertasDestacadas} onViewPromotion={(oferta) => navigate(`/promociones/${oferta.id}`)} />
         </div>
 
         {/* ── Filtro rubro ── */}
@@ -517,7 +520,7 @@ export default function Promociones() {
                   <p className="text-stone-400 font-bold mt-4 italic uppercase text-xs tracking-widest">Sin registros</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {profesionalesFiltrados
                     .map((prof, idx) => (
                       <motion.div
@@ -621,7 +624,7 @@ export default function Promociones() {
                           {/* Contenedor de Imagen o Icono */}
                           <div className={`size-16 shrink-0 rounded-2xl bg-white p-1 shadow-sm border border-[#e5dfce] overflow-hidden flex items-center justify-center`}>
                             {oferta.imagen_url ? (
-                              <img src={oferta.imagen_url} alt={oferta.titulo} className="w-full h-full object-cover rounded-xl" />
+                              <BlurImage src={oferta.imagen_url} alt={oferta.titulo} className="w-full h-full rounded-xl" />
                             ) : (
                               <div className={`w-full h-full rounded-xl flex flex-col items-center justify-center text-white ${tab === 'ofertas' ? 'bg-[#995c27]' : 'bg-[#245b31]'}`}>
                                 {/* F3: Campo canónico — solo valor_descuento */}
@@ -667,13 +670,31 @@ export default function Promociones() {
                             </div>
                           </div>
 
-                          <button
-                            onClick={() => handleOpenMap(oferta.comercio)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 dark:bg-stone-800 text-white hover:bg-stone-800 transition-all shrink-0 text-[10px] font-black uppercase tracking-widest shadow-sm"
-                          >
-                            <span className="material-symbols-outlined text-lg">explore</span>
-                            Ver
-                          </button>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const url = `${window.location.origin}/promociones/${oferta.id}`;
+                                const txt = `🎉 ${oferta.titulo} — ${oferta.comercio?.nombre_apellido}\n🔗 ${url}`;
+                                if (navigator.share) {
+                                  navigator.share({ title: oferta.titulo, text: txt, url }).catch(() => {});
+                                } else {
+                                  navigator.clipboard.writeText(url);
+                                }
+                              }}
+                              className="size-9 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 flex items-center justify-center text-stone-400 hover:text-[#245b31] transition-colors active:scale-95"
+                              title="Compartir"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">share</span>
+                            </button>
+                            <button
+                              onClick={() => navigate(`/promociones/${oferta.id}`)}
+                              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 dark:bg-stone-800 text-white hover:bg-stone-800 transition-all shrink-0 text-[10px] font-black uppercase tracking-widest shadow-sm"
+                            >
+                              <span className="material-symbols-outlined text-lg">explore</span>
+                              Ver
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -710,7 +731,7 @@ export default function Promociones() {
                   <p className="text-stone-400 font-bold mt-4 italic uppercase text-[10px] tracking-widest">Sin comercios adheridos</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {comerciosFiltrados.map((comercio, idx) => {
                     const icon = RUBRO_ICON[comercio.rubro] || 'storefront';
                     const color = RUBRO_COLOR[comercio.rubro] || 'bg-stone-500';
@@ -779,3 +800,4 @@ export default function Promociones() {
     </div>
   );
 }
+

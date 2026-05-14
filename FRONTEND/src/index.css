@@ -95,3 +95,9 @@ body {
 .admin-transition {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* BlurImage shimmer */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

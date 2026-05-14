@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import BlurImage from './BlurImage';
 
 interface Oferta {
     id: string;
@@ -81,8 +82,7 @@ export default function FeaturedCarousel({ promociones, onViewPromotion }: Featu
                     {/* Background Layer */}
                     {current.imagen_url ? (
                         <div className="absolute inset-0 -z-10 bg-slate-800">
-                            <img src={current.imagen_url} alt="" className="w-full h-full object-cover opacity-90" />
-                            {/* Gradient overlay para asegurar contraste en textos pero más claro */}
+                            <BlurImage src={current.imagen_url} alt={current.titulo} className="w-full h-full opacity-90" placeholderColor="#1e293b" />
                             <div className="absolute inset-0 bg-gradient-to-r from-slate-900/70 via-slate-900/10 to-transparent flex" />
                         </div>
                     ) : (

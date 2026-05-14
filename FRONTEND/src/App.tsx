@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // ── Login estático (punto de entrada más frecuente) ──────────────────────
 import Login from './pages/Login';
@@ -17,6 +18,7 @@ const Cuotas = React.lazy(() => import('./pages/Cuotas'));
 const Eventos = React.lazy(() => import('./pages/Eventos'));
 const EventoDetail = React.lazy(() => import('./pages/EventoDetail'));
 const Promociones = React.lazy(() => import('./pages/Promociones'));
+const PromocionDetalle = React.lazy(() => import('./pages/PromocionDetalle'));
 const Perfil = React.lazy(() => import('./pages/Perfil'));
 const Buscador = React.lazy(() => import('./pages/Buscador'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
@@ -91,8 +93,9 @@ export default function App() {
     <Router>
       <Toaster position="top-center" toastOptions={{ className: 'font-display text-sm font-bold', duration: 4000 }} />
       <CapacitorUI />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
+      <ErrorBoundary context="App">
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           {/* Rutas Públicas */}
           <Route path="/" element={isAuthenticated ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
@@ -113,6 +116,7 @@ export default function App() {
           <Route path="/eventos" element={<ProtectedRoute><Eventos /></ProtectedRoute>} />
           <Route path="/eventos/:slug" element={<ProtectedRoute><EventoDetail /></ProtectedRoute>} />
           <Route path="/promociones" element={<ProtectedRoute><Promociones /></ProtectedRoute>} />
+          <Route path="/promociones/:id" element={<ProtectedRoute><PromocionDetalle /></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
           <Route path="/buscar" element={<ProtectedRoute><Buscador /></ProtectedRoute>} />
           <Route path="/preferencias" element={<ProtectedRoute><Preferencias /></ProtectedRoute>} />
@@ -126,7 +130,8 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Suspense>
+        </Suspense>
+      </ErrorBoundary>
       <ConditionalChatbot />
     </Router>
   );

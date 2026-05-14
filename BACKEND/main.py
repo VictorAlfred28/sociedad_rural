@@ -203,6 +203,30 @@ def normalize_whatsapp_url(v):
 
     return v
 
+def normalize_whatsapp_number(v):
+    """Limpia el número de WhatsApp guardando solo dígitos."""
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        return v
+    v = v.strip()
+    if not v:
+        return None
+    # Remover todo menos dígitos
+    numero_raw = re.sub(r'\D', '', v)
+    if not numero_raw:
+        return None
+    # Si ingresó 10 dígitos (AR sin codigo pais), agregar 549
+    if len(numero_raw) == 10:
+        return '549' + numero_raw
+    # Si ingresó 11 dígitos con 0 (011...), reemplazar por 54911...
+    if len(numero_raw) == 11 and numero_raw.startswith('0'):
+        return '549' + numero_raw[1:]
+    # Si ingresó 12 dígitos (54 sin 9), asume que es AR pero le falta el 9 para móviles (caso común)
+    if len(numero_raw) == 12 and numero_raw.startswith('54') and not numero_raw.startswith('549'):
+        return '549' + numero_raw[2:]
+    return numero_raw
+
 # ─────────────────────────────────────────────────────────────────────────────
 
 from dotenv import load_dotenv
@@ -3319,10 +3343,23 @@ def get_profesionales_publicos(municipio: Optional[str] = None):
 # ── MODELOS PARA OFERTAS ──────────────────────────────────────────────────────
 class OfertaRequest(BaseModel):
     titulo: str
+    subtitulo: Optional[str] = None
+    descripcion_corta: Optional[str] = None
     descripcion: Optional[str] = None
     tipo: str  # 'promocion' | 'descuento' | 'beneficio'
+    precio_lista: Optional[float] = None
+    precio_final: Optional[float] = None
+    porcentaje_descuento: Optional[float] = None
+    monto_descuento: Optional[float] = None
     valor_descuento: Optional[float] = None
     tipo_descuento: Optional[str] = None
+    whatsapp: Optional[str] = None
+    direccion: Optional[str] = None
+    localidad: Optional[str] = None
+    ubicacion: Optional[str] = None
+    categoria: Optional[str] = None
+    destacada: Optional[bool] = False
+    imagenes_secundarias: Optional[list] = None
     imagen_url: Optional[str] = None
     fecha_fin: Optional[str] = None
     instagram_url: Optional[str] = None
@@ -3335,13 +3372,30 @@ class OfertaRequest(BaseModel):
 class OfertaUpdateRequest(BaseModel):
     activo: Optional[bool] = None
     titulo: Optional[str] = None
+    subtitulo: Optional[str] = None
+    descripcion_corta: Optional[str] = None
     descripcion: Optional[str] = None
+    precio_lista: Optional[float] = None
+    precio_final: Optional[float] = None
+    porcentaje_descuento: Optional[float] = None
+    monto_descuento: Optional[float] = None
+    valor_descuento: Optional[float] = None
+    tipo_descuento: Optional[str] = None
+    whatsapp: Optional[str] = None
+    direccion: Optional[str] = None
+    localidad: Optional[str] = None
+    ubicacion: Optional[str] = None
+    categoria: Optional[str] = None
+    destacada: Optional[bool] = None
+    imagenes_secundarias: Optional[list] = None
     imagen_url: Optional[str] = None
+    fecha_fin: Optional[str] = None
     instagram_url: Optional[str] = None
     facebook_url: Optional[str] = None
 
     _normalize_instagram = validator("instagram_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
     _normalize_facebook = validator("facebook_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_whatsapp = validator("whatsapp", pre=True, always=True, allow_reuse=True)(normalize_whatsapp_number)
 
 
 
@@ -3406,6 +3460,55 @@ def get_ofertas_publicas(municipio: Optional[str] = None):
     except Exception as e:
         logger.exception(f"[/api/ofertas/publicas] Error inesperado:")
         raise HTTPException(status_code=500, detail="Error al obtener ofertas.")
+
+@app.get("/api/ofertas/publicas/{oferta_id}")
+def get_oferta_publica(oferta_id: str):
+    try:
+        query = (
+            supabase.table("promociones")
+            .select(
+                "id, titulo, subtitulo, descripcion_corta, descripcion, tipo, "
+                "precio_lista, precio_final, porcentaje_descuento, monto_descuento, "
+                "whatsapp, direccion, localidad, ubicacion, categoria, destacada, imagenes_secundarias, "
+                "valor_descuento, tipo_descuento, imagen_url, "
+                "instagram_url, facebook_url, fecha_inicio, fecha_fin, "
+                "activo, es_exclusiva_profesionales, created_at, "
+                "comercio:comercios(id, nombre_apellido:profiles(nombre_apellido), "
+                "municipio:profiles(municipio), rubro:profiles(rubro))"
+            )
+            .eq("id", oferta_id)
+            .eq("activo", True)
+        )
+
+        res = query.execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Oferta no encontrada.")
+
+        oferta = res.data[0]
+
+        comercio_data = oferta.pop("comercio", {}) or {}
+        nombre = comercio_data.get("nombre_apellido") or {}
+        if isinstance(nombre, dict):
+            nombre = nombre.get("nombre_apellido", "")
+        mun = comercio_data.get("municipio") or {}
+        if isinstance(mun, dict):
+            mun = mun.get("municipio", "")
+        rub = comercio_data.get("rubro") or {}
+        if isinstance(rub, dict):
+            rub = rub.get("rubro", "")
+
+        oferta["comercio"] = {
+            "nombre_apellido": nombre,
+            "municipio":       mun,
+            "rubro":           rub,
+        }
+
+        return {"oferta": oferta}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[/api/ofertas/publicas/{oferta_id}] Error inesperado:")
+        raise HTTPException(status_code=500, detail="Error al obtener la oferta.")
 @app.put("/api/perfil")
 def update_profile(
     req: UpdateProfileRequest,
@@ -7274,26 +7377,53 @@ def unregister_push_token(
 
 class OfertaCreate(BaseModel):
     titulo: str
+    subtitulo: Optional[str] = None
+    descripcion_corta: Optional[str] = None
     descripcion: Optional[str] = None
     tipo: str
+    precio_lista: Optional[float] = None
+    precio_final: Optional[float] = None
+    porcentaje_descuento: Optional[float] = None
+    monto_descuento: Optional[float] = None
     valor_descuento: Optional[float] = None  # campo canónico
     tipo_descuento: Optional[str] = None     # 'porcentaje' | 'fijo'
+    whatsapp: Optional[str] = None
+    direccion: Optional[str] = None
+    localidad: Optional[str] = None
+    ubicacion: Optional[str] = None
+    categoria: Optional[str] = None
+    destacada: Optional[bool] = False
+    imagenes_secundarias: Optional[list] = None
     fecha_fin: Optional[str] = None
     imagen_url: Optional[str] = None
     instagram_url: Optional[str] = None
     facebook_url: Optional[str] = None
 
     _normalize_urls = validator("instagram_url", "facebook_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_whatsapp = validator("whatsapp", pre=True, always=True, allow_reuse=True)(normalize_whatsapp_number)
 
 class OfertaUpdateActivo(BaseModel):
     activo: bool
 
 class OfertaUpdate(BaseModel):
     titulo: Optional[str] = None
+    subtitulo: Optional[str] = None
+    descripcion_corta: Optional[str] = None
     descripcion: Optional[str] = None
     tipo: Optional[str] = None
+    precio_lista: Optional[float] = None
+    precio_final: Optional[float] = None
+    porcentaje_descuento: Optional[float] = None
+    monto_descuento: Optional[float] = None
     valor_descuento: Optional[float] = None
     tipo_descuento: Optional[str] = None
+    whatsapp: Optional[str] = None
+    direccion: Optional[str] = None
+    localidad: Optional[str] = None
+    ubicacion: Optional[str] = None
+    categoria: Optional[str] = None
+    destacada: Optional[bool] = None
+    imagenes_secundarias: Optional[list] = None
     fecha_fin: Optional[str] = None
     imagen_url: Optional[str] = None
     instagram_url: Optional[str] = None
@@ -7301,6 +7431,7 @@ class OfertaUpdate(BaseModel):
     activo: Optional[bool] = None
 
     _normalize_urls = validator("instagram_url", "facebook_url", pre=True, always=True, allow_reuse=True)(normalize_social_url)
+    _normalize_whatsapp = validator("whatsapp", pre=True, always=True, allow_reuse=True)(normalize_whatsapp_number)
 
 @app.get("/api/ofertas")
 def get_ofertas(request: Request):
@@ -7333,10 +7464,23 @@ def create_oferta(oferta: OfertaCreate, request: Request, background_tasks: Back
         data_insert = {
             "comercio_id": user_id,
             "titulo": oferta.titulo,
+            "subtitulo": oferta.subtitulo,
+            "descripcion_corta": oferta.descripcion_corta,
             "descripcion": oferta.descripcion,
             "tipo": oferta.tipo,
+            "precio_lista": oferta.precio_lista,
+            "precio_final": oferta.precio_final,
+            "porcentaje_descuento": oferta.porcentaje_descuento,
+            "monto_descuento": oferta.monto_descuento,
             "valor_descuento": oferta.valor_descuento or 0.0,
             "tipo_descuento": oferta.tipo_descuento or "porcentaje",
+            "whatsapp": oferta.whatsapp,
+            "direccion": oferta.direccion,
+            "localidad": oferta.localidad,
+            "ubicacion": oferta.ubicacion,
+            "categoria": oferta.categoria,
+            "destacada": oferta.destacada or False,
+            "imagenes_secundarias": oferta.imagenes_secundarias,
             "fecha_fin": oferta.fecha_fin,
             "imagen_url": oferta.imagen_url,
             "instagram_url": oferta.instagram_url,
@@ -7460,6 +7604,53 @@ def upload_oferta_foto(file: UploadFile = File(...), request: Request = None):
         logger.error(f"[OFERTAS] Error al subir foto: {e}")
         raise HTTPException(status_code=500, detail="Error al subir la imagen.")
 
+
+class AnalyticsEvent(BaseModel):
+    tipo_evento: str
+    comercio_id: str
+
+@app.post("/api/ofertas/{oferta_id}/analytics")
+def registrar_oferta_analytics(oferta_id: str, payload: AnalyticsEvent, request: Request):
+    user_id = _get_user_from_bearer(request.headers.get("Authorization"))
+    try:
+        supabase.table("promociones_analytics").insert({
+            "promocion_id": oferta_id,
+            "comercio_id": payload.comercio_id,
+            "tipo_evento": payload.tipo_evento,
+            "usuario_id": user_id
+        }).execute()
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"[ANALYTICS] Error: {e}")
+        return {"ok": False}
+
+@app.post("/api/ofertas/{oferta_id}/favoritos")
+def toggle_favorito(oferta_id: str, request: Request):
+    user_id = _get_user_from_bearer(request.headers.get("Authorization"))
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Debes iniciar sesión para agregar a favoritos.")
+    try:
+        check = supabase.table("favoritos").select("id").eq("usuario_id", user_id).eq("promocion_id", oferta_id).execute()
+        if check.data:
+            supabase.table("favoritos").delete().eq("id", check.data[0]["id"]).execute()
+            return {"es_favorito": False}
+        else:
+            supabase.table("favoritos").insert({"usuario_id": user_id, "promocion_id": oferta_id}).execute()
+            return {"es_favorito": True}
+    except Exception as e:
+        logger.error(f"[FAVORITOS] Error: {e}")
+        raise HTTPException(status_code=500, detail="Error al gestionar favorito")
+
+@app.get("/api/ofertas/favoritos/lista")
+def mis_favoritos(request: Request):
+    user_id = _get_user_from_bearer(request.headers.get("Authorization"))
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado")
+    try:
+        res = supabase.table("favoritos").select("promocion_id").eq("usuario_id", user_id).execute()
+        return {"favoritos": [f["promocion_id"] for f in res.data or []]}
+    except Exception:
+        return {"favoritos": []}
 
 # ─────────────────────────────────────────────────────────────────────────────
 

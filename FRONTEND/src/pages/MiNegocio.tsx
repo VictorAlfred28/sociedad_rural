@@ -37,10 +37,23 @@ interface Oferta {
 
 interface OfertaForm {
     titulo: string;
+    subtitulo: string;
+    descripcion_corta: string;
     descripcion: string;
     tipo: TipoOferta;
+    precio_lista: string;
+    precio_final: string;
+    porcentaje_descuento: string;
+    monto_descuento: string;
     valor_descuento: string;  // input del usuario — campo canónico
     tipo_descuento: string;   // 'porcentaje' | 'fijo'
+    whatsapp: string;
+    direccion: string;
+    localidad: string;
+    ubicacion: string;
+    categoria: string;
+    destacada: boolean;
+    imagenes_secundarias: string[];
     fecha_fin: string;
     imagen_url: string;
     instagram_url: string;
@@ -102,10 +115,23 @@ export default function MiNegocio() {
     const [filtro, setFiltro] = useState<TipoOferta | 'todas'>('todas');
     const [form, setForm] = useState<OfertaForm>({
         titulo: '',
+        subtitulo: '',
+        descripcion_corta: '',
         descripcion: '',
         tipo: 'promocion',
+        precio_lista: '',
+        precio_final: '',
+        porcentaje_descuento: '',
+        monto_descuento: '',
         valor_descuento: '',
         tipo_descuento: 'porcentaje',
+        whatsapp: '',
+        direccion: '',
+        localidad: '',
+        ubicacion: '',
+        categoria: '',
+        destacada: false,
+        imagenes_secundarias: [],
         fecha_fin: '',
         imagen_url: '',
         instagram_url: '',
@@ -206,10 +232,23 @@ export default function MiNegocio() {
                 },
                 body: JSON.stringify({
                     titulo: form.titulo,
+                    subtitulo: form.subtitulo || null,
+                    descripcion_corta: form.descripcion_corta || null,
                     descripcion: form.descripcion,
                     tipo: form.tipo,
+                    precio_lista: form.precio_lista ? parseFloat(form.precio_lista) : null,
+                    precio_final: form.precio_final ? parseFloat(form.precio_final) : null,
+                    porcentaje_descuento: form.porcentaje_descuento ? parseFloat(form.porcentaje_descuento) : null,
+                    monto_descuento: form.monto_descuento ? parseFloat(form.monto_descuento) : null,
                     valor_descuento: form.valor_descuento ? parseFloat(form.valor_descuento) : null,
                     tipo_descuento: form.tipo_descuento || 'porcentaje',
+                    whatsapp: form.whatsapp || null,
+                    direccion: form.direccion || null,
+                    localidad: form.localidad || null,
+                    ubicacion: form.ubicacion || null,
+                    categoria: form.categoria || null,
+                    destacada: form.destacada,
+                    imagenes_secundarias: form.imagenes_secundarias.length > 0 ? form.imagenes_secundarias : null,
                     fecha_fin: form.fecha_fin || null,
                     imagen_url: imagen_url || null,
                     instagram_url: normalizeSocialUrl(form.instagram_url) || null,
@@ -238,10 +277,23 @@ export default function MiNegocio() {
     const handleEditOferta = (oferta: any) => {
         setForm({
             titulo: oferta.titulo,
+            subtitulo: oferta.subtitulo || '',
+            descripcion_corta: oferta.descripcion_corta || '',
             descripcion: oferta.descripcion || '',
             tipo: oferta.tipo,
+            precio_lista: oferta.precio_lista ? oferta.precio_lista.toString() : '',
+            precio_final: oferta.precio_final ? oferta.precio_final.toString() : '',
+            porcentaje_descuento: oferta.porcentaje_descuento ? oferta.porcentaje_descuento.toString() : '',
+            monto_descuento: oferta.monto_descuento ? oferta.monto_descuento.toString() : '',
             valor_descuento: oferta.valor_descuento ? oferta.valor_descuento.toString() : '',
             tipo_descuento: oferta.tipo_descuento || 'porcentaje',
+            whatsapp: oferta.whatsapp || '',
+            direccion: oferta.direccion || '',
+            localidad: oferta.localidad || '',
+            ubicacion: oferta.ubicacion || '',
+            categoria: oferta.categoria || '',
+            destacada: oferta.destacada || false,
+            imagenes_secundarias: oferta.imagenes_secundarias || [],
             fecha_fin: oferta.fecha_fin || '',
             imagen_url: oferta.imagen_url || '',
             instagram_url: oferta.instagram_url || '',
@@ -255,7 +307,13 @@ export default function MiNegocio() {
     const closeForm = () => {
         setShowForm(false);
         setEditingOfertaId(null);
-        setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
+        setForm({
+            titulo: '', subtitulo: '', descripcion_corta: '', descripcion: '', tipo: 'promocion',
+            precio_lista: '', precio_final: '', porcentaje_descuento: '', monto_descuento: '',
+            valor_descuento: '', tipo_descuento: 'porcentaje', whatsapp: '', direccion: '', localidad: '',
+            ubicacion: '', categoria: '', destacada: false, imagenes_secundarias: [],
+            fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: ''
+        });
         setSelectedFile(null);
     };
 
@@ -613,14 +671,37 @@ export default function MiNegocio() {
                                             required
                                         />
                                     </div>
+                                    
+                                    {/* Subtítulo */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Subtítulo (Opcional)</label>
+                                        <input
+                                            className={inputClass}
+                                            placeholder="Ej: Especial por el mes de mayo"
+                                            value={form.subtitulo}
+                                            onChange={e => setForm({ ...form, subtitulo: e.target.value })}
+                                        />
+                                    </div>
+
+                                    {/* Descripción corta */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Descripción corta (Opcional)</label>
+                                        <textarea
+                                            className="w-full rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm resize-none"
+                                            rows={2}
+                                            placeholder="Resumen rápido de la oferta..."
+                                            value={form.descripcion_corta}
+                                            onChange={e => setForm({ ...form, descripcion_corta: e.target.value })}
+                                        />
+                                    </div>
 
                                     {/* Descripción */}
                                     <div>
-                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Descripción</label>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Descripción detallada</label>
                                         <textarea
                                             className="w-full rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm resize-none"
                                             rows={3}
-                                            placeholder="Describí tu oferta o beneficio..."
+                                            placeholder="Describí tu oferta o beneficio en detalle..."
                                             value={form.descripcion}
                                             onChange={e => setForm({ ...form, descripcion: e.target.value })}
                                         />
@@ -658,6 +739,30 @@ export default function MiNegocio() {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Precios (Lista y Final) */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Precio Lista (Opcional)</label>
+                                            <input
+                                                className={inputClass}
+                                                type="number" step="0.01"
+                                                placeholder="Ej: 1500"
+                                                value={form.precio_lista}
+                                                onChange={e => setForm({ ...form, precio_lista: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Precio Final (Opcional)</label>
+                                            <input
+                                                className={inputClass}
+                                                type="number" step="0.01"
+                                                placeholder="Ej: 1200"
+                                                value={form.precio_final}
+                                                onChange={e => setForm({ ...form, precio_final: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
 
                                     {/* Imagen de la oferta */}
                                     <div>
@@ -729,6 +834,38 @@ export default function MiNegocio() {
                                         </div>
                                     </div>
 
+                                    {/* Información Local y Contacto */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Dirección (Opcional)</label>
+                                            <input
+                                                className={inputClass}
+                                                placeholder="Ej: Av. Principal 123"
+                                                value={form.direccion}
+                                                onChange={e => setForm({ ...form, direccion: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Localidad (Opcional)</label>
+                                            <input
+                                                className={inputClass}
+                                                placeholder="Ej: Rauch"
+                                                value={form.localidad}
+                                                onChange={e => setForm({ ...form, localidad: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">WhatsApp (Opcional)</label>
+                                        <input
+                                            className={inputClass}
+                                            placeholder="Ej: 5492215555555"
+                                            value={form.whatsapp}
+                                            onChange={e => setForm({ ...form, whatsapp: e.target.value })}
+                                        />
+                                    </div>
+
                                     {/* Links de Redes Sociales */}
                                     <div className="grid grid-cols-1 gap-4">
                                         <div>
@@ -773,6 +910,16 @@ export default function MiNegocio() {
                                             onChange={e => setForm({ ...form, fecha_fin: e.target.value })}
                                         />
                                     </div>
+                                    
+                                    <label className="flex items-center gap-2 mt-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={form.destacada}
+                                            onChange={(e) => setForm({ ...form, destacada: e.target.checked })}
+                                            className="w-5 h-5 rounded text-primary focus:ring-primary border-slate-300"
+                                        />
+                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Marcar como Promoción Destacada</span>
+                                    </label>
 
                                     {error && <p className="text-red-500 text-sm">{error}</p>}
 
