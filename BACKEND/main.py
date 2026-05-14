@@ -7609,9 +7609,44 @@ class AnalyticsEvent(BaseModel):
     tipo_evento: str
     comercio_id: str
 
+# ── Rate limiting suave para analytics (in-memory, anti-spam) ──────────────────
+# Estructura: { "ip:promo_id:tipo_evento": last_timestamp }
+_analytics_rate_limit: dict = {}
+_ANALYTICS_COOLDOWN_SECONDS = 30  # Mismo evento del mismo IP por la misma promo: 30s cooldown
+
+def _analytics_allowed(ip: str, promo_id: str, tipo_evento: str) -> bool:
+    import time
+    # Clicks (whatsapp, instagram, maps, share) tienen cooldown corto
+    # Views tienen cooldown largo (5 min) para evitar spam de recargas
+    cooldown = 300 if tipo_evento == "view" else _ANALYTICS_COOLDOWN_SECONDS
+    key = f"{ip}:{promo_id}:{tipo_evento}"
+    now = time.time()
+    last = _analytics_rate_limit.get(key, 0)
+    if now - last < cooldown:
+        return False
+    _analytics_rate_limit[key] = now
+    # Limpieza periódica para no crecer indefinidamente (cada 1000 keys)
+    if len(_analytics_rate_limit) > 1000:
+        cutoff = now - 600
+        keys_to_delete = [k for k, v in _analytics_rate_limit.items() if v < cutoff]
+        for k in keys_to_delete:
+            del _analytics_rate_limit[k]
+    return True
+
 @app.post("/api/ofertas/{oferta_id}/analytics")
 def registrar_oferta_analytics(oferta_id: str, payload: AnalyticsEvent, request: Request):
     user_id = _get_user_from_bearer(request.headers.get("Authorization"))
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Rate limiting anti-spam
+    if not _analytics_allowed(client_ip, oferta_id, payload.tipo_evento):
+        return {"ok": True, "rate_limited": True}
+
+    # Validar tipo_evento permitido
+    ALLOWED_EVENTS = {"view", "whatsapp_click", "instagram_click", "maps_click", "share", "share_whatsapp", "share_facebook", "favorito"}
+    if payload.tipo_evento not in ALLOWED_EVENTS:
+        return {"ok": False, "error": "invalid_event"}
+
     try:
         supabase.table("promociones_analytics").insert({
             "promocion_id": oferta_id,
@@ -7621,8 +7656,100 @@ def registrar_oferta_analytics(oferta_id: str, payload: AnalyticsEvent, request:
         }).execute()
         return {"ok": True}
     except Exception as e:
-        logger.error(f"[ANALYTICS] Error: {e}")
+        logger.warning(f"[ANALYTICS] Error registrando evento (non-critical): {e}")
         return {"ok": False}
+
+
+@app.get("/api/ofertas/analytics/mis-metricas")
+def mis_metricas_comercio(request: Request):
+    """
+    Panel simple de analytics para el comercio autenticado.
+    Devuelve métricas agregadas por promoción (últimos 30 días).
+    """
+    user_id = _get_user_from_bearer(request.headers.get("Authorization"))
+    if not user_id:
+        raise HTTPException(status_code=401, detail="No autorizado")
+
+    try:
+        # Buscar comercio_id del usuario
+        comercio_res = supabase.table("comercios").select("id").eq("id", user_id).execute()
+        if not comercio_res.data:
+            # Intentar también por user_id (algunos comercios usan ese campo)
+            comercio_res = supabase.table("comercios").select("id").eq("user_id", user_id).execute()
+        if not comercio_res.data:
+            return {"metricas": [], "totales": {}}
+
+        comercio_id = comercio_res.data[0]["id"]
+
+        # Obtener analytics de los últimos 30 días
+        from datetime import datetime, timedelta
+        desde = (datetime.utcnow() - timedelta(days=30)).isoformat()
+
+        analytics_res = supabase.table("promociones_analytics")\
+            .select("promocion_id, tipo_evento")\
+            .eq("comercio_id", comercio_id)\
+            .gte("created_at", desde)\
+            .execute()
+
+        # Obtener nombres de promociones del comercio
+        promos_res = supabase.table("promociones")\
+            .select("id, titulo, imagen_url, activo")\
+            .eq("comercio_id", comercio_id)\
+            .execute()
+
+        promos_map = {p["id"]: p for p in (promos_res.data or [])}
+
+        # Agregar métricas por promoción
+        from collections import defaultdict
+        metricas_por_promo: dict = defaultdict(lambda: {
+            "vistas": 0, "whatsapp_clicks": 0, "instagram_clicks": 0,
+            "maps_clicks": 0, "shares": 0, "favoritos": 0
+        })
+
+        totales = {"vistas": 0, "whatsapp_clicks": 0, "instagram_clicks": 0,
+                   "maps_clicks": 0, "shares": 0, "favoritos": 0}
+
+        event_map = {
+            "view": "vistas",
+            "whatsapp_click": "whatsapp_clicks",
+            "instagram_click": "instagram_clicks",
+            "maps_click": "maps_clicks",
+            "share": "shares",
+            "share_whatsapp": "shares",
+            "share_facebook": "shares",
+            "favorito": "favoritos"
+        }
+
+        for row in (analytics_res.data or []):
+            promo_id = row["promocion_id"]
+            key = event_map.get(row["tipo_evento"])
+            if key:
+                metricas_por_promo[promo_id][key] += 1
+                totales[key] += 1
+
+        # Construir respuesta con info de promoción
+        metricas_list = []
+        for promo_id, stats in metricas_por_promo.items():
+            promo = promos_map.get(promo_id, {})
+            total_interacciones = sum(stats.values())
+            metricas_list.append({
+                "promocion_id": promo_id,
+                "titulo": promo.get("titulo", "Promoción"),
+                "imagen_url": promo.get("imagen_url"),
+                "activo": promo.get("activo", True),
+                "total_interacciones": total_interacciones,
+                **stats
+            })
+
+        # Ordenar por total de interacciones desc
+        metricas_list.sort(key=lambda x: x["total_interacciones"], reverse=True)
+
+        return {"metricas": metricas_list, "totales": totales, "dias": 30}
+
+    except Exception as e:
+        logger.error(f"[ANALYTICS] Error en mis-metricas: {e}")
+        return {"metricas": [], "totales": {}}
+
 
 @app.post("/api/ofertas/{oferta_id}/favoritos")
 def toggle_favorito(oferta_id: str, request: Request):

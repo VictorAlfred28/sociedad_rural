@@ -6,6 +6,8 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { Capacitor } from '@capacitor/core';
 import GestionDependientes from '../components/GestionDependientes';
 import NotificationBell from '../components/NotificationBell';
+import ComercioAnalytics from '../components/ComercioAnalytics';
+import { compressImage, validateImageFile } from '../utils/compressImage';
 import paisaje from '../assets/paisaje.png';
 
 // Normalización visual de URLs en el frontend.
@@ -156,6 +158,9 @@ export default function MiNegocio() {
     const [isScanning, setIsScanning] = useState(false);
     const scannerRef = useRef<Html5Qrcode | null>(null);
 
+    // ── Panel tab: 'publicaciones' | 'estadisticas' ─────────────
+    const [activeTab, setActiveTab] = useState<'publicaciones' | 'estadisticas'>('publicaciones');
+
 
     const fetchOfertas = async () => {
         setLoading(true);
@@ -198,10 +203,17 @@ export default function MiNegocio() {
         try {
             let imagen_url = form.imagen_url;
 
-            // 1. Si hay un archivo seleccionado para la oferta, subirlo primero
+            // 1. Si hay un archivo seleccionado para la oferta, subirlo (con compresión)
             if (selectedFile) {
+                // Validar antes de comprimir
+                const validationError = validateImageFile(selectedFile, 20);
+                if (validationError) throw new Error(validationError);
+
+                // Comprimir si es grande (>800KB)
+                const fileToUpload = await compressImage(selectedFile, 1200, 1200, 0.82, 800);
+
                 const formData = new FormData();
-                formData.append('file', selectedFile);
+                formData.append('file', fileToUpload);
 
                 const uploadResp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas/foto`, {
                     method: 'POST',
@@ -596,14 +608,34 @@ export default function MiNegocio() {
                         VALIDAR PASAPORTE SOCIO
                     </button>
 
-
-
-                    <div className="flex items-center gap-3 my-6">
-                        <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mis Publicaciones</span>
-                        <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
+                    {/* ── TABS: Publicaciones | Estadísticas ──────────────── */}
+                    <div className="flex gap-2 mb-5 p-1 bg-stone-100 dark:bg-stone-800 rounded-2xl">
+                        {(['publicaciones', 'estadisticas'] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    activeTab === tab
+                                        ? 'bg-white dark:bg-stone-700 text-stone-800 dark:text-stone-100 shadow-sm'
+                                        : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+                                }`}
+                            >
+                                <span className="material-symbols-outlined text-[16px]">
+                                    {tab === 'publicaciones' ? 'storefront' : 'bar_chart'}
+                                </span>
+                                {tab === 'publicaciones' ? 'Publicaciones' : 'Estadísticas'}
+                            </button>
+                        ))}
                     </div>
 
+                    {/* ── PANEL ESTADÍSTICAS ────────────────────────────────── */}
+                    {activeTab === 'estadisticas' && token && (
+                        <ComercioAnalytics token={token} />
+                    )}
+
+                    {/* ── PANEL PUBLICACIONES ───────────────────────────────── */}
+                    {activeTab === 'publicaciones' && (
+                    <>
                     {/* Botón nueva oferta */}
                     <button
                         onClick={() => {
@@ -1055,6 +1087,9 @@ export default function MiNegocio() {
                     <div className="mt-8 mb-8">
                         <GestionDependientes />
                     </div>
+                    </>
+                    )}
+
                 </main>
 
                 {/* FULL SCREEN SCANNER MODAL */}

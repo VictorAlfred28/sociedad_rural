@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import paisaje from '../assets/paisaje.png';
 import { RUBROS_COMERCIO, RUBRO_ICON, RUBRO_COLOR, RUBRO_LABEL } from '../types/comercio';
+import { useOfertas, useComercios, useMunicipios, useProfesionales } from '../hooks/usePromotions';
 
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -99,20 +100,35 @@ export default function Promociones() {
   const { user } = useAuth();
   const location = useLocation();
   const [tab, setTab] = useState<Tab>('profesionales');
-  const [ofertas, setOfertas] = useState<Oferta[]>([]);
-  const [comercios, setComercios] = useState<Comercio[]>([]);
-  const [profesionales, setProfesionales] = useState<Profesional[]>([]);
-  const [loadingProf, setLoadingProf] = useState(false);
-  const [profCargados, setProfCargados] = useState(false);
-  const [municipios, setMunicipios] = useState<Municipio[]>([]);
+  
+  const { data: ofertasRaw = [], isLoading: loadingOfertas } = useOfertas();
+  const { data: comerciosRaw = [], isLoading: loadingComercios } = useComercios();
+  const { data: municipiosRaw = [], isLoading: loadingMunicipios } = useMunicipios();
+  const { data: profesionalesRaw = [], isLoading: loadingProf } = useProfesionales(tab === 'profesionales');
+
   const [filtroRubro, setFiltroRubro] = useState('todos');
   const [filtroMunicipio, setFiltroMunicipio] = useState('todos');
-  const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showMunDropdown, setShowMunDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  const loading = loadingOfertas || loadingComercios || loadingMunicipios;
+
+  const ofertas = ofertasRaw;
+  const profesionales = profesionalesRaw;
+
+  const comercios = useMemo(() => {
+    return comerciosRaw.map((c: any) => ({
+      ...c,
+      rubro: normalizeRubro(c.rubro)
+    }));
+  }, [comerciosRaw]);
+
+  const municipios = useMemo(() => {
+    return [...municipiosRaw].sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
+  }, [municipiosRaw]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -122,54 +138,6 @@ export default function Promociones() {
       setFiltroMunicipio(params.get('ubicacion') || params.get('municipio')!);
     }
   }, [location.search]);
-
-  useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      try {
-        const [ofRes, comRes, munRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/ofertas/publicas`),
-          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/comercios`),
-          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/municipios`),
-        ]);
-        const [ofData, comData, munData] = await Promise.all([
-          ofRes.json(), comRes.json(), munRes.json()
-        ]);
-
-        setOfertas(ofData.ofertas || []);
-        
-        const rawComercios = comData.comercios || [];
-        setComercios(rawComercios.map((c: any) => ({
-          ...c,
-          rubro: normalizeRubro(c.rubro)
-        })));
-
-        const list = munData.municipios || [];
-        const sorted = [...list].sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
-        setMunicipios(sorted);
-      } catch (err) {
-        console.error("Error cargando datos de promociones:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAll();
-  }, []);
-
-  // Carga lazy de profesionales al activar el tab (se cachea en profCargados)
-  useEffect(() => {
-    if (tab === 'profesionales' && !profCargados) {
-      setLoadingProf(true);
-      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/profesionales`)
-        .then(res => res.json())
-        .then(data => {
-          setProfesionales(data.profesionales || []);
-          setProfCargados(true);
-        })
-        .catch(err => console.error('Error cargando profesionales:', err))
-        .finally(() => setLoadingProf(false));
-    }
-  }, [tab, profCargados]);
 
   // Click outside detector para el dropdown
   useEffect(() => {

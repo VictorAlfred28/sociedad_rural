@@ -35,7 +35,7 @@ export default function PromocionDetalle() {
   const { track } = useAnalytics(id, token);
 
   // ── Share (native API + ShareSheet fallback) ──────────────────────────────
-  const { showSheet, setShowSheet, share, shareToWhatsApp, shareToFacebook, copyLink } = useShare(track);
+  const { showSheet, setShowSheet, share } = useShare(track);
 
   // ── OG meta + view tracking ───────────────────────────────────────────────
   useEffect(() => {
