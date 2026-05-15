@@ -193,10 +193,7 @@ export default function MiNegocio() {
     const handleSubmitOferta = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!selectedFile && !editingOfertaId) {
-            setError('La imagen de la promoción es obligatoria.');
-            return;
-        }
+
 
         setSubmitting(true);
         setError('');
@@ -798,7 +795,7 @@ export default function MiNegocio() {
 
                                     {/* Imagen de la oferta */}
                                     <div>
-                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Imagen de la Promoción {!editingOfertaId && '*'}</label>
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Imagen de la Promoción (Opcional)</label>
                                         
                                         <div className="flex flex-col gap-3">
                                             {/* Subida local */}
@@ -823,7 +820,7 @@ export default function MiNegocio() {
                                                 ) : (
                                                     <>
                                                         <span className="material-symbols-outlined text-slate-400 text-3xl">add_photo_alternate</span>
-                                                        <span className="text-xs font-semibold text-slate-400">Subir foto desde PC/Móvil {editingOfertaId ? '(Opcional)' : '(OBLIGATORIA)'}</span>
+                                                        <span className="text-xs font-semibold text-slate-400">Subir foto desde PC/Móvil (Opcional)</span>
                                                     </>
                                                 )}
                                             </div>

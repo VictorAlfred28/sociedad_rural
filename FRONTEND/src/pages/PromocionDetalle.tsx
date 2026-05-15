@@ -26,7 +26,7 @@ export default function PromocionDetalle() {
   const { token } = useAuth();
 
   // ── Data via TanStack Query (cached, auto-retry, deduped) ─────────────────
-  const { data: promocion, isLoading, isError } = usePromotionDetail(id, token);
+  const { data: promocion, isPending, isError } = usePromotionDetail(id, token);
 
   // ── Favoritos with optimistic updates + localStorage offline fallback ─────
   const { isFavorito, toggle: toggleFavorito, isToggling } = useFavorites(token);
@@ -90,8 +90,23 @@ export default function PromocionDetalle() {
     ? `${promocion.valor_descuento}${promocion.tipo_descuento === 'fijo' ? '$' : '%'}`
     : null;
 
+  // ─── ERROR / NOT FOUND ────────────────────────────────────────────────────────
+  const isValidId = !!id && id !== 'undefined';
+  if (!isValidId || isError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200 max-w-[1400px] mx-auto p-8 text-center">
+        <span className="material-symbols-outlined text-7xl text-stone-300 mb-4">sentiment_dissatisfied</span>
+        <h2 className="text-xl font-black uppercase tracking-tight font-display mb-2">Promoción no encontrada</h2>
+        <p className="text-stone-400 text-sm mb-6">Es posible que haya sido removida o ya no esté disponible.</p>
+        <button onClick={() => navigate(-1)} className="px-8 py-3 bg-[#245b31] text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all">
+          Volver
+        </button>
+      </div>
+    );
+  }
+
   // ─── SKELETON ────────────────────────────────────────────────────────────────
-  if (isLoading) {
+  if (isPending || !promocion) {
     return (
       <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-stone-900 max-w-[1400px] mx-auto animate-pulse">
         <div className="h-72 shrink-0 bg-stone-200 dark:bg-stone-800 rounded-b-[2.5rem] w-full" />
@@ -113,20 +128,6 @@ export default function PromocionDetalle() {
           <div className="h-20 bg-stone-200 dark:bg-stone-800 rounded-2xl w-full" />
           <div className="h-12 bg-stone-200 dark:bg-stone-800 rounded-xl w-full" />
         </div>
-      </div>
-    );
-  }
-
-  // ─── ERROR / NOT FOUND ────────────────────────────────────────────────────────
-  if (isError || !promocion) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 dark:bg-stone-900 text-stone-800 dark:text-stone-200 max-w-[1400px] mx-auto p-8 text-center">
-        <span className="material-symbols-outlined text-7xl text-stone-300 mb-4">sentiment_dissatisfied</span>
-        <h2 className="text-xl font-black uppercase tracking-tight font-display mb-2">Promoción no encontrada</h2>
-        <p className="text-stone-400 text-sm mb-6">Es posible que haya sido removida o ya no esté disponible.</p>
-        <button onClick={() => navigate(-1)} className="px-8 py-3 bg-[#245b31] text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all">
-          Volver
-        </button>
       </div>
     );
   }
@@ -170,17 +171,19 @@ export default function PromocionDetalle() {
         transition={{ duration: 0.3, ease: 'easeOut' }}
         className="relative min-h-screen flex flex-col font-display bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 max-w-[1400px] mx-auto shadow-2xl overflow-x-hidden"
       >
-        {/* ── HERO ──────────────────────────────────────────────────────────── */}
+        {/* ── HEADER & HERO IMAGE ── */}
         <div className={`relative h-72 shrink-0 rounded-b-[2.5rem] overflow-hidden shadow-sm ${isVencida ? 'grayscale opacity-80' : ''}`}>
           {promocion.imagen_url ? (
-            <BlurImage src={promocion.imagen_url} alt={promocion.titulo} className="w-full h-full" />
+            <BlurImage 
+              src={promocion.imagen_url} 
+              alt={promocion.titulo} 
+              className="w-full h-full object-cover opacity-90 mix-blend-overlay" 
+            />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 text-stone-200 relative overflow-hidden">
-              <div className="absolute inset-0 bg-black/20" />
-              <div className={`absolute top-0 right-0 w-64 h-64 blur-[80px] rounded-full opacity-40 ${cfg.bg}`} />
-              <div className={`absolute bottom-0 left-0 w-48 h-48 blur-[60px] rounded-full opacity-30 ${cfg.bg}`} />
-              <span className="material-symbols-outlined text-8xl opacity-80 z-10" style={{ fontVariationSettings: "'FILL' 1" }}>{cfg.icon}</span>
-              <span className="mt-4 text-xs font-black uppercase tracking-widest opacity-60 z-10">{cfg.label} Institucional</span>
+            <div className="w-full h-full bg-gradient-to-br from-[#245b31]/80 to-stone-900 flex items-center justify-center opacity-90">
+              <span className="material-symbols-outlined text-white/20 text-[120px] mix-blend-overlay" style={{ fontVariationSettings: "'FILL' 1" }}>
+                {cfg.icon}
+              </span>
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent pointer-events-none" />
