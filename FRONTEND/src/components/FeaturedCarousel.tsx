@@ -16,7 +16,7 @@ interface Oferta {
 
 interface FeaturedCarouselProps {
     promociones: Oferta[];
-    onViewPromotion: (comercio: any) => void;
+    onViewPromotion: (oferta: Oferta) => void;
 }
 
 const TIPO_CFG = {
@@ -125,7 +125,7 @@ export default function FeaturedCarousel({ promociones, onViewPromotion }: Featu
                     {/* Action Button */}
                     <div className="absolute top-5 right-5 z-20">
                         <button
-                            onClick={() => onViewPromotion(current.comercio)}
+                            onClick={() => onViewPromotion(current)}
                             className="bg-primary hover:bg-primary/90 text-slate-900 pl-4 pr-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-primary/30 flex items-center justify-center gap-1 border border-primary/20 backdrop-blur-sm"
                         >
                             Ver
