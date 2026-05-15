@@ -58,13 +58,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isRefreshingRef = useRef(false);
 
-    const performRefresh = async (refreshToken: string) => {
+    const performRefresh = async (refreshToken: string): Promise<boolean> => {
+        if (isRefreshingRef.current) return false;
+        isRefreshingRef.current = true;
         try {
             const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
             const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-            if (!SUPABASE_URL || !SUPABASE_KEY) return;
+            if (!SUPABASE_URL || !SUPABASE_KEY) return false;
 
             const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
                 method: 'POST',
@@ -78,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (!resp.ok) {
                 // Refresh falló (sesión revocada), hacer logout
                 doLogout();
-                return;
+                return false;
             }
 
             const data = await resp.json();
@@ -89,10 +92,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     localStorage.setItem('refresh_token', data.refresh_token);
                     scheduleTokenRefresh(data.access_token, data.refresh_token);
                 }
+                return true;
             }
         } catch (err) {
             console.error('Error renovando token:', err);
+        } finally {
+            isRefreshingRef.current = false;
         }
+        return false;
     };
 
     const scheduleTokenRefresh = (accessToken: string, refreshToken: string) => {
@@ -169,7 +176,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         initAuth();
 
         // Listener para errores 401 globales (Token expirado o inválido)
-        const handleUnauthorized = () => {
+        const handleUnauthorized = async () => {
+            if (isRefreshingRef.current) return;
+            
+            const currentRefreshToken = localStorage.getItem('refresh_token');
+            if (currentRefreshToken) {
+                console.warn("Recibido 401. Intentando renovar sesión...");
+                const success = await performRefresh(currentRefreshToken);
+                if (success) {
+                    console.log("Sesión recuperada exitosamente tras 401.");
+                    return;
+                }
+            }
+            
             console.warn("Sesión expirada o no autorizada. Redirigiendo...");
             doLogout();
             
