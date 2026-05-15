@@ -10,6 +10,15 @@ const config: CapacitorConfig = {
     iosScheme: 'https',
     // En producción NO usar livereload — solo para desarrollo local con Mac
     // url: 'http://192.168.x.x:3000', // solo para desarrollo iOS con Xcode
+    cleartext: false,
+  },
+  android: {
+    // Hardware acceleration: mejora el renderizado de imágenes en Android WebView
+    // Evita imágenes lavadas, parpadeos y renders incompletos
+    allowMixedContent: false,
+    captureInput: false,
+    webContentsDebuggingEnabled: false,
+    loggingBehavior: 'none',
   },
   plugins: {
     SplashScreen: {

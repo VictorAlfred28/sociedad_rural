@@ -101,3 +101,28 @@ body {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ─── Android WebView / Capacitor: Image Rendering Fixes ───────────────────
+ * Prevents blank, washed-out or partially-rendered images in Android WebView.
+ * translateZ(0) promotes each img to its own GPU compositing layer.
+ * This is the canonical fix for Android Chrome/WebView image glitches.
+ * ─────────────────────────────────────────────────────────────────────────── */
+img {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Prevent invisible images when opacity transitions complete */
+  will-change: opacity;
+}
+
+/* Ensure object-fit works correctly inside Capacitor WebView on older Android */
+img.object-cover {
+  object-fit: cover;
+  -o-object-fit: cover;
+}
+
+img.object-contain {
+  object-fit: contain;
+  -o-object-fit: contain;
+}

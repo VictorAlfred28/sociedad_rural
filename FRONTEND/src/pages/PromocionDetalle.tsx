@@ -174,14 +174,16 @@ export default function PromocionDetalle() {
         {/* ── HEADER & HERO IMAGE ── */}
         <div className={`relative h-72 shrink-0 rounded-b-[2.5rem] overflow-hidden shadow-sm ${isVencida ? 'grayscale opacity-80' : ''}`}>
           {promocion.imagen_url ? (
-            <BlurImage 
-              src={promocion.imagen_url} 
-              alt={promocion.titulo} 
-              className="w-full h-full object-cover opacity-90 mix-blend-overlay" 
+            /* eager=true: disables lazy loading for the hero — critical for Android WebView */
+            <BlurImage
+              src={promocion.imagen_url}
+              alt={promocion.titulo}
+              eager
+              className="absolute inset-0 w-full h-full"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#245b31]/80 to-stone-900 flex items-center justify-center opacity-90">
-              <span className="material-symbols-outlined text-white/20 text-[120px] mix-blend-overlay" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-[#245b31]/80 to-stone-900 flex items-center justify-center">
+              <span className="material-symbols-outlined text-white/20 text-[120px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                 {cfg.icon}
               </span>
             </div>
@@ -315,6 +317,7 @@ export default function PromocionDetalle() {
               <div className="flex overflow-x-auto gap-3 pb-2 snap-x scrollbar-hide">
                 {promocion.imagenes_secundarias.map((img, idx) => (
                   <div key={idx} className="shrink-0 w-40 h-28 rounded-xl overflow-hidden snap-center shadow-sm">
+                    {/* Gallery thumbnails use lazy loading (below the fold) */}
                     <BlurImage src={img} alt={`Imagen ${idx + 1}`} className="w-full h-full" />
                   </div>
                 ))}
