@@ -125,12 +125,6 @@ export default function GestionAranceles() {
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Cuota Mensual</p>
                 </div>
               </div>
-              {/* Badge arancel especial para Empleado Comercial */}
-              {isEmpleadoComercial && (
-                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-admin-accent/15 text-admin-accent border border-admin-accent/30">
-                  Arancel especial
-                </span>
-              )}
             </div>
 
             <div className="relative z-10">
@@ -144,11 +138,6 @@ export default function GestionAranceles() {
                   className="w-full bg-admin-bg border border-admin-border text-admin-text rounded-xl py-3 pl-8 pr-4 font-mono font-bold text-lg focus:outline-none focus:border-admin-accent focus:ring-1 focus:ring-admin-accent transition-all"
                 />
               </div>
-              {isEmpleadoComercial && (
-                <p className="text-[10px] text-slate-500 italic mt-2 pl-1">
-                  Se calcula automáticamente: Cuota SOCIO * (1 - {cuota.monto}%)
-                </p>
-              )}
             </div>
 
             <div className="mt-4 pt-4 border-t border-admin-border/50 relative z-10 flex items-center gap-2">

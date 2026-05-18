@@ -1902,7 +1902,7 @@ def get_profile_with_titular(user_id: str) -> dict:
     res = (
         supabase.table("profiles")
         .select(
-            "id, nombre_apellido, estado, rol, user_type, titular_id, "
+            "id, nombre_apellido, estado, rol, user_type, titular_id, tipo_vinculo, es_empleado_comercial, "
             "perfiles_titulares:profiles!titular_id(id, nombre_apellido, estado)"
         )
         .eq("id", user_id)
@@ -1921,11 +1921,13 @@ def require_titular(current_user=Depends(get_current_user)):
     """
     perfil = get_profile_with_titular(current_user.id)
     if perfil.get("user_type") == "FAMILIAR":
-        raise HTTPException(
-            status_code=403,
-            detail="Los integrantes de grupo familiar no pueden realizar pagos. "
-                   "El socio titular es el único habilitado para gestionar cuotas."
-        )
+        is_empleado = perfil.get("tipo_vinculo") in ["Empleado", "Encargado"] or perfil.get("es_empleado_comercial")
+        if not is_empleado:
+            raise HTTPException(
+                status_code=403,
+                detail="Los integrantes de grupo familiar no pueden realizar pagos. "
+                       "El socio titular es el único habilitado para gestionar cuotas."
+            )
     return current_user
 
 

@@ -231,9 +231,9 @@ export default function HomeSocio() {
             4. Socio titular normal: ninguno de los anteriores
           */}
           <SocioHomeContent
-            isEmpleado={['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')}
-            isComercio={user?.rol === 'COMERCIO' && !['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')}
-            isFamiliar={user?.user_type === 'FAMILIAR' && !['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')}
+            isEmpleado={['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '') || user?.es_empleado_comercial}
+            isComercio={user?.rol === 'COMERCIO' && !['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '') && !user?.es_empleado_comercial}
+            isFamiliar={user?.user_type === 'FAMILIAR' && !['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '') && !user?.es_empleado_comercial}
           />
         </div>
       </div>

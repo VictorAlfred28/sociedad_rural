@@ -151,7 +151,9 @@ export default function Cuotas() {
     }
   };
 
-  if (user?.user_type === 'FAMILIAR') {
+  const isEmpleadoVinculo = ['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '') || user?.es_empleado_comercial;
+  
+  if (user?.user_type === 'FAMILIAR' && !isEmpleadoVinculo) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stone-50 dark:bg-stone-900 text-center font-display">
         <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">block</span>
