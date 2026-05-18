@@ -14,7 +14,7 @@ if not OPENAI_API_KEY:
     )
 
 # Inicializar cliente solo si hay key
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+client = OpenAI(api_key=OPENAI_API_KEY, timeout=15.0) if OPENAI_API_KEY else None
 
 SYSTEM_PROMPT = """
 Eres SapucAI, el asistente virtual de la plataforma "Sociedad Rural", un orientador inteligente agropecuario, comercial y rural.

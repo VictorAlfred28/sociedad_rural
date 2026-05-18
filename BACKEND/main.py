@@ -362,18 +362,24 @@ def trigger_local_cron(endpoint: str, method="GET"):
             headers = {"X-API-Secret": os.getenv("API_SECRET_TOKEN")}
             res = requests.post(url, headers=headers, timeout=60)
         logger.info(f"[REDUNDANT SCHEDULER] Llamada a {endpoint}: {res.status_code} - {res.text}")
+    except requests.exceptions.Timeout:
+        logger.error(f"[REDUNDANT SCHEDULER] Timeout llamando a {endpoint}")
+    except requests.exceptions.ConnectionError:
+        logger.error(f"[REDUNDANT SCHEDULER] Error de conexión llamando a {endpoint}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[REDUNDANT SCHEDULER] Error HTTP llamando a {endpoint}: {e}")
     except Exception as e:
-        logger.error(f"[REDUNDANT SCHEDULER] Error llamando a {endpoint}: {e}")
+        logger.error(f"[REDUNDANT SCHEDULER] Error inesperado llamando a {endpoint}: {e}")
 
 scheduler = BackgroundScheduler(timezone=TZ_ARGENTINA)
 
 # Make.com corre a las 08:00 AM. Nosotros corremos a las 08:15 AM como respaldo.
-scheduler.add_job(trigger_local_cron, CronTrigger(hour=8, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/verificar-bloqueos"], id="backup_bloqueos")
-scheduler.add_job(trigger_local_cron, CronTrigger(hour=9, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/recordatorios-pago"], id="backup_recordatorios")
+scheduler.add_job(trigger_local_cron, CronTrigger(hour=8, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/verificar-bloqueos"], id="backup_bloqueos", max_instances=1, replace_existing=True, misfire_grace_time=3600)
+scheduler.add_job(trigger_local_cron, CronTrigger(hour=9, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/recordatorios-pago"], id="backup_recordatorios", max_instances=1, replace_existing=True, misfire_grace_time=3600)
 # Los del día 11 (Mora)
-scheduler.add_job(trigger_local_cron, CronTrigger(day=11, hour=8, minute=15, timezone=TZ_ARGENTINA), args=["/api/cron/detectar-mora", "POST"], id="backup_detectar_mora")
-scheduler.add_job(trigger_local_cron, CronTrigger(day=11, hour=9, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/notificar-mora"], id="backup_notificar_mora")
-scheduler.add_job(trigger_local_cron, CronTrigger(hour=0, minute=0, timezone=TZ_ARGENTINA), args=["/api/cron/limpiar-notificaciones", "POST"], id="cleanup_notificaciones")
+scheduler.add_job(trigger_local_cron, CronTrigger(day=11, hour=8, minute=15, timezone=TZ_ARGENTINA), args=["/api/cron/detectar-mora", "POST"], id="backup_detectar_mora", max_instances=1, replace_existing=True, misfire_grace_time=3600)
+scheduler.add_job(trigger_local_cron, CronTrigger(day=11, hour=9, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/notificar-mora"], id="backup_notificar_mora", max_instances=1, replace_existing=True, misfire_grace_time=3600)
+scheduler.add_job(trigger_local_cron, CronTrigger(hour=0, minute=0, timezone=TZ_ARGENTINA), args=["/api/cron/limpiar-notificaciones", "POST"], id="cleanup_notificaciones", max_instances=1, replace_existing=True, misfire_grace_time=3600)
 
 app = FastAPI(title="Sociedad Rural Del Norte De Corrientes API")
 app.state.limiter = limiter
@@ -733,6 +739,15 @@ def _enviar_via_resend(destinatario: str, asunto: str, html_body: str, api_key: 
             return True
         logger.warning(f"[RESEND] Error {r.status_code}: {r.text[:200]}")
         # Fallback a SMTP si Resend falla
+        return _enviar_via_smtp(destinatario, asunto, html_body)
+    except requests.exceptions.Timeout:
+        logger.warning(f"[RESEND] Timeout enviando a {destinatario}. Usando fallback SMTP.")
+        return _enviar_via_smtp(destinatario, asunto, html_body)
+    except requests.exceptions.ConnectionError:
+        logger.warning(f"[RESEND] Error de conexión enviando a {destinatario}. Usando fallback SMTP.")
+        return _enviar_via_smtp(destinatario, asunto, html_body)
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"[RESEND] Error HTTP enviando a {destinatario}: {e}. Usando fallback SMTP.")
         return _enviar_via_smtp(destinatario, asunto, html_body)
     except Exception as e:
         logger.error(f"[RESEND] Excepción: {e}")
@@ -1917,7 +1932,8 @@ def require_titular(current_user=Depends(get_current_user)):
 
 # 4.4 LISTADO DE MUNICIPIOS (DINÁMICO DESDE DB)
 @app.get("/api/municipios")
-def get_municipios():
+@limiter.limit("60/minute")
+def get_municipios(request: Request):
     """Retorna la lista de localidades/municipios activos desde la base de datos."""
     try:
         # Consultamos la tabla municipios filtrando por activo = true
@@ -1936,7 +1952,8 @@ def get_municipios():
 
 # ── ENDPOINT PÚBLICO: listar comercios adheridos ─────────────────────────────
 @app.get("/api/comercios")
-def listar_comercios(rubro: Optional[str] = None, municipio: Optional[str] = None):
+@limiter.limit("60/minute")
+def listar_comercios(request: Request, rubro: Optional[str] = None, municipio: Optional[str] = None):
     """Retorna la lista de comercios aprobados, filtrable por rubro o municipio."""
     try:
         query = (
@@ -2252,7 +2269,8 @@ async def create_chatbot_soporte_ticket(
 
 # ── ENDPOINT PARA VALIDAR CARNET DE SOCIO DESDE QR ────────────────────────────
 @app.get("/api/valida-socio/{socio_id}")
-def valida_socio(socio_id: str):
+@limiter.limit("60/minute")
+def valida_socio(socio_id: str, request: Request):
     if ENABLE_DYNAMIC_QR:
         raise HTTPException(
             status_code=400,
@@ -5415,8 +5433,8 @@ def enviar_whatsapp(telefono: str, mensaje: str):
             "linkPreview": True,
         }
 
-        max_retries = 3
-        timeout_sec = 5
+        max_retries = 2
+        timeout_sec = 3
         for attempt in range(1, max_retries + 1):
             try:
                 response = requests.post(url, json=payload, headers=headers, timeout=timeout_sec)
