@@ -1,4 +1,4 @@
-package com.agentech.sociedadrural;
+package ar.agentech.sociedadrural;
 
 import com.getcapacitor.BridgeActivity;
 

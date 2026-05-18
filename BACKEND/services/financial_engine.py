@@ -135,7 +135,8 @@ def obtener_cuota_real(
     es_estudiante: bool, 
     es_profesional: bool, 
     cantidad_familiares: int, 
-    valores_base: Dict[str, float]
+    valores_base: Dict[str, float],
+    registration_source: str = "public",
 ) -> Dict[str, Any]:
     """
     Calcula el monto real de la cuota a pagar de forma dinámica.
@@ -147,18 +148,29 @@ def obtener_cuota_real(
         es_profesional (bool): Flag del perfil.
         cantidad_familiares (int): Cantidad de dependientes vinculados.
         valores_base (Dict[str, float]): Mapa de costos por tipo obtenido de BD 
-            (ej: {"GRUPO FAMILIAR": 20000, "PROFESIONAL": 7000, "ESTUDIANTE": 5000, "SOCIO": 10000})
+            (ej: {{"GRUPO FAMILIAR": 20000, "PROFESIONAL": 7000, "ESTUDIANTE": 5000, "SOCIO": 10000}})
+        registration_source (str): Origen del alta. Solo 'admin' habilita el
+            arancel diferencial profesional. Default 'public' (valor seguro).
             
     Returns:
         Dict: Detalle de la cuota con 'monto_total', 'tipo_plan', etc.
+
+    REGLA DE NEGOCIO (TEMPORAL):
+        El descuento profesional ($7000) SOLO aplica cuando registration_source == 'admin'.
+        Los registros públicos abonan siempre como socio común, aunque es_profesional == True.
+        Esta restricción se removerá cuando se active oficialmente el beneficio profesional público.
     """
     rol_upper = rol.upper()
     membership_type = "FAMILIAR" if cantidad_familiares > 0 else "INDIVIDUAL"
+
+    # SEGURIDAD: descuento profesional solo válido para altas administrativas.
+    descuento_profesional_habilitado = (registration_source == "admin")
     
     if membership_type == "FAMILIAR":
         rol_efectivo = "GRUPO FAMILIAR"
         tipo_plan = "Grupo Familiar"
-    elif es_profesional:
+    elif es_profesional and descuento_profesional_habilitado:
+        # Arancel diferencial SOLO para profesionales dados de alta por admin/superadmin
         rol_efectivo = "PROFESIONAL"
         tipo_plan = "Socio Profesional"
     elif es_estudiante:

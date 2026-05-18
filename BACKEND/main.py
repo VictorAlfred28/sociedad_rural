@@ -1113,6 +1113,10 @@ async def register(
             "email_verificacion_expira": (
                 datetime.now() + timedelta(hours=48)
             ).isoformat(),
+            # SEGURIDAD: El registro público NUNCA aplica descuento profesional.
+            # El campo es_profesional se guarda para uso futuro, pero el arancel
+            # se calcula siempre como socio común hasta activación oficial.
+            "registration_source": "public",
         }
 
         # ── Insert + rollback ───────────────────────────────────────
@@ -3266,6 +3270,8 @@ def create_profesional(
             "provincia": prof.provincia,
             "direccion": prof.domicilio,
             "password_changed": False,
+            # SEGURIDAD: Alta desde panel admin → aplica arancel profesional diferencial.
+            "registration_source": "admin",
         }
 
         supabase.table("profiles").insert(profile_data).execute()
@@ -6366,8 +6372,8 @@ def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_cu
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 def calcular_cuota_dinamica_internal(user_id: str):
-    # fetch user profile
-    profile_res = supabase.table("profiles").select("rol, es_estudiante, es_profesional").eq("id", user_id).execute()
+    # fetch user profile — incluye registration_source para validar arancel profesional
+    profile_res = supabase.table("profiles").select("rol, es_estudiante, es_profesional, registration_source").eq("id", user_id).execute()
     if not profile_res.data:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
     profile = profile_res.data[0]
@@ -6378,6 +6384,12 @@ def calcular_cuota_dinamica_internal(user_id: str):
     
     membership_type = "FAMILIAR" if familiares_count > 0 else "INDIVIDUAL"
 
+    # SEGURIDAD: El descuento profesional SOLO aplica si el alta fue desde panel admin.
+    # Registros públicos (registration_source='public' o None) abonan como socio común.
+    # Esto evita manipulación via DevTools o requests manuales.
+    registration_source = profile.get("registration_source", "public")
+    descuento_profesional_habilitado = (registration_source == "admin")
+
     # Traer valores base
     cuotas_res = supabase.table("configuracion_cuotas").select("*").execute()
     cuotas_map = {str(c["rol"]).upper(): float(c["monto"]) for c in cuotas_res.data}
@@ -6386,7 +6398,8 @@ def calcular_cuota_dinamica_internal(user_id: str):
     if membership_type == "FAMILIAR":
         rol_efectivo = "GRUPO FAMILIAR"
         tipo_plan = "Grupo Familiar"
-    elif profile.get("es_profesional"):
+    elif profile.get("es_profesional") and descuento_profesional_habilitado:
+        # Solo aplica precio profesional si fue dado de alta desde el panel admin
         rol_efectivo = "PROFESIONAL"
         tipo_plan = "Socio Profesional"
     elif profile.get("es_estudiante"):
