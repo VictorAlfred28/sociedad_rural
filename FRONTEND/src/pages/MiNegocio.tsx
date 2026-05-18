@@ -747,7 +747,7 @@ export default function MiNegocio() {
                                     <div>
                                         <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mb-1">Beneficio Automático</p>
                                         <p className="text-[11px] text-emerald-700 dark:text-emerald-400 leading-relaxed">
-                                            Los empleados vinculados obtienen un <strong>30% de descuento</strong> sobre la cuota SOCIO mientras tu comercio esté activo.
+                                            Los empleados vinculados acceden al <strong>arancel especial para empleados comerciales</strong> mientras tu comercio esté activo.
                                         </p>
                                     </div>
                                 </div>

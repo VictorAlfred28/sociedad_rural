@@ -110,14 +110,7 @@ export default function GestionAranceles() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">
         {cuotas.map((cuota) => {
-          // Para EMPLEADO COMERCIAL: calcular monto dinámico a partir del SOCIO
           const isEmpleadoComercial = cuota.rol.toUpperCase() === 'EMPLEADO COMERCIAL';
-          const cuotaSocio = cuotas.find(c => c.rol.toUpperCase() === 'SOCIO')?.monto ?? 10000;
-          // descuento_empleado_pct viene del backend; si monto=0, inferir 30% como default visual
-          const descuentoPct = (cuota as any).descuento_empleado_pct ?? 30;
-          const montoEmpleadoCalculado = isEmpleadoComercial
-            ? Math.round(cuotaSocio * (1 - descuentoPct / 100))
-            : null;
 
           return (
           <div key={cuota.rol} className="bg-admin-card border border-admin-border rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-admin-accent/50 transition-all">
@@ -133,10 +126,10 @@ export default function GestionAranceles() {
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Cuota Mensual</p>
                 </div>
               </div>
-              {/* Badge especial para Empleado Comercial */}
+              {/* Badge arancel especial para Empleado Comercial */}
               {isEmpleadoComercial && (
                 <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-admin-accent/15 text-admin-accent border border-admin-accent/30">
-                  -{descuentoPct}% sobre SOCIO
+                  Arancel especial
                 </span>
               )}
             </div>
@@ -145,29 +138,18 @@ export default function GestionAranceles() {
               <label className="text-xs font-semibold text-slate-400 mb-2 block">Monto Vigente ($)</label>
               <div className="relative flex items-center">
                 <span className="absolute left-4 text-admin-text font-bold">$</span>
-                {isEmpleadoComercial ? (
-                  // Empleado Comercial: input de descuento_pct, monto calculado (readonly)
-                  <div className="flex flex-col gap-2 w-full">
-                    <input
-                      type="number"
-                      value={montoEmpleadoCalculado ?? 0}
-                      readOnly
-                      className="w-full bg-admin-bg/60 border border-admin-border/50 text-admin-text/60 rounded-xl py-3 pl-8 pr-4 font-mono font-bold text-lg cursor-not-allowed"
-                      title="Calculado automáticamente: SOCIO × (1 - %descuento)"
-                    />
-                    <p className="text-[10px] text-slate-400 italic pl-1">
-                      = ${cuotaSocio.toLocaleString('es-AR')} SOCIO × {(1 - descuentoPct / 100).toFixed(2)} = ${(montoEmpleadoCalculado ?? 0).toLocaleString('es-AR')}
-                    </p>
-                  </div>
-                ) : (
-                  <input
-                    type="number"
-                    value={cuota.monto}
-                    onChange={(e) => handleMontoChange(cuota.rol, e.target.value)}
-                    className="w-full bg-admin-bg border border-admin-border text-admin-text rounded-xl py-3 pl-8 pr-4 font-mono font-bold text-lg focus:outline-none focus:border-admin-accent focus:ring-1 focus:ring-admin-accent transition-all"
-                  />
-                )}
+                <input
+                  type="number"
+                  value={cuota.monto}
+                  onChange={(e) => handleMontoChange(cuota.rol, e.target.value)}
+                  className="w-full bg-admin-bg border border-admin-border text-admin-text rounded-xl py-3 pl-8 pr-4 font-mono font-bold text-lg focus:outline-none focus:border-admin-accent focus:ring-1 focus:ring-admin-accent transition-all"
+                />
               </div>
+              {isEmpleadoComercial && (
+                <p className="text-[10px] text-slate-500 italic mt-2 pl-1">
+                  Configurable libremente. No depende del valor SOCIO.
+                </p>
+              )}
             </div>
 
             <div className="mt-4 pt-4 border-t border-admin-border/50 relative z-10 flex items-center gap-2">

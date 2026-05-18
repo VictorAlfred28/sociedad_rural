@@ -224,7 +224,7 @@ export default function Cuotas() {
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Beneficio Comercial Aplicado</p>
               </div>
               <p className="text-base font-bold">
-                {calculoCuota.detalle.descuento_pct ?? 30}% menos sobre cuota socio común
+                Arancel especial para empleados comerciales
               </p>
               {calculoCuota.detalle.comercio_nombre && (
                 <p className="text-[11px] text-emerald-200 mt-1 font-medium">

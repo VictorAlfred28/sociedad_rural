@@ -6478,7 +6478,10 @@ def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_cu
 
 def calcular_cuota_dinamica_internal(user_id: str):
     # fetch user profile — incluye registration_source para validar arancel profesional
-    profile_res = supabase.table("profiles").select("rol, es_estudiante, es_profesional, registration_source").eq("id", user_id).execute()
+    profile_res = supabase.table("profiles").select(
+        "rol, es_estudiante, es_profesional, registration_source, "
+        "es_empleado_comercial, activo_empleado, empleado_comercio_id"
+    ).eq("id", user_id).execute()
     if not profile_res.data:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
     profile = profile_res.data[0]
@@ -6507,6 +6510,25 @@ def calcular_cuota_dinamica_internal(user_id: str):
         # Solo aplica precio profesional si fue dado de alta desde el panel admin
         rol_efectivo = "PROFESIONAL"
         tipo_plan = "Socio Profesional"
+    elif profile.get("es_empleado_comercial") and profile.get("activo_empleado", True):
+        # EMPLEADO COMERCIAL: arancel directo configurable desde panel admin.
+        # SEGURIDAD: validamos el vínculo comercio en el backend, nunca confiamos en el frontend.
+        comercio_id = profile.get("empleado_comercio_id")
+        comercio_activo = False
+        if comercio_id:
+            try:
+                comercio_res = supabase.table("profiles").select("estado").eq("id", comercio_id).execute()
+                if comercio_res.data and comercio_res.data[0].get("estado") == "APROBADO":
+                    comercio_activo = True
+            except Exception:
+                pass
+        if comercio_activo:
+            rol_efectivo = "EMPLEADO COMERCIAL"
+            tipo_plan = "Empleado Comercial"
+        else:
+            # Comercio inactivo, desvinculado o no encontrado → cuota socio normal
+            rol_efectivo = str(profile.get("rol", "SOCIO")).upper()
+            tipo_plan = "Individual"
     elif profile.get("es_estudiante"):
         rol_efectivo = "ESTUDIANTE"
         tipo_plan = "Estudiante"
@@ -6522,6 +6544,9 @@ def calcular_cuota_dinamica_internal(user_id: str):
             monto_base = 20000
         elif rol_efectivo == "PROFESIONAL":
             monto_base = 7000
+        elif rol_efectivo == "EMPLEADO COMERCIAL":
+            # Fallback: usar cuota SOCIO como piso lógico si aún no fue configurado
+            monto_base = cuotas_map.get("SOCIO", 10000)
         elif rol_efectivo == "ESTUDIANTE":
             monto_base = 5000
         elif rol_efectivo == "SOCIO":
