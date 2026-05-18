@@ -151,7 +151,7 @@ export default function Cuotas() {
     }
   };
 
-  if (user?.user_type === 'FAMILIAR' || ['Empleado', 'Encargado'].includes(user?.tipo_vinculo || '')) {
+  if (user?.user_type === 'FAMILIAR') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stone-50 dark:bg-stone-900 text-center font-display">
         <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">block</span>
@@ -224,7 +224,7 @@ export default function Cuotas() {
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Beneficio Comercial Aplicado</p>
               </div>
               <p className="text-base font-bold">
-                Arancel especial para empleados comerciales
+                {calculoCuota.detalle.descuento_aplicado}% menos sobre cuota socio
               </p>
               {calculoCuota.detalle.comercio_nombre && (
                 <p className="text-[11px] text-emerald-200 mt-1 font-medium">

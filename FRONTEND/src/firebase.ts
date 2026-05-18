@@ -40,20 +40,35 @@ if (missingKeys.length > 0) {
 
 // Inicializar app de forma segura
 let app: ReturnType<typeof initializeApp> | undefined;
-let messaging: ReturnType<typeof getMessaging> | null = null;
+let _messagingInstance: ReturnType<typeof getMessaging> | null = null;
 
 try {
     if (missingKeys.length === 0) {
         app = initializeApp(firebaseConfig);
-        messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
     }
 } catch (error) {
     console.error('[Firebase] Error de inicialización:', error);
 }
 
+// Inicialización perezosa de FCM
+const getMessagingLazy = async () => {
+    // Si estamos en entorno nativo, NUNCA inicializamos FCM Web.
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+        return null;
+    }
+    if (_messagingInstance) return _messagingInstance;
+    if (app && typeof window !== 'undefined') {
+        _messagingInstance = getMessaging(app);
+        return _messagingInstance;
+    }
+    return null;
+};
+
 // ─── requestForToken ────────────────────────────────────────────────────────
 export const requestForToken = async (): Promise<string | null> => {
     try {
+        const messaging = await getMessagingLazy();
         if (!messaging || !VAPID_KEY) return null;
 
         const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY });
@@ -80,7 +95,8 @@ export const requestForToken = async (): Promise<string | null> => {
 
 // ─── onMessageListener ──────────────────────────────────────────────────────
 // Escucha continua en foreground. Retorna una función de cleanup (unsubscribe).
-export const onMessageListener = (callback: (payload: any) => void): (() => void) => {
+export const onMessageListener = async (callback: (payload: any) => void): Promise<(() => void)> => {
+    const messaging = await getMessagingLazy();
     if (!messaging) return () => {};
 
     return onMessage(messaging, (payload) => {
@@ -99,5 +115,3 @@ export const onMessageListener = (callback: (payload: any) => void): (() => void
         callback(payload);
     });
 };
-
-export { messaging };

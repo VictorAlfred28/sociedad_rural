@@ -34,9 +34,8 @@ export default function GestionAranceles() {
         }
 
         // Asegurar que EMPLEADO COMERCIAL exista en la vista aunque no esté en DB aún
-        // El monto=0 indica "calculado dinámicamente", el badge lo muestra en tiempo real
         if (!filtered.some((c: CuotaConfig) => c.rol.toUpperCase() === 'EMPLEADO COMERCIAL')) {
-            filtered.push({ rol: 'EMPLEADO COMERCIAL', monto: 0 });
+            filtered.push({ rol: 'EMPLEADO COMERCIAL', monto: 30 }); // 30% de descuento por defecto
         }
 
         setCuotas(filtered);
@@ -135,9 +134,9 @@ export default function GestionAranceles() {
             </div>
 
             <div className="relative z-10">
-              <label className="text-xs font-semibold text-slate-400 mb-2 block">Monto Vigente ($)</label>
+              <label className="text-xs font-semibold text-slate-400 mb-2 block">{isEmpleadoComercial ? '% Descuento (sobre cuota SOCIO)' : 'Monto Vigente ($)'}</label>
               <div className="relative flex items-center">
-                <span className="absolute left-4 text-admin-text font-bold">$</span>
+                <span className="absolute left-4 text-admin-text font-bold">{isEmpleadoComercial ? '%' : '$'}</span>
                 <input
                   type="number"
                   value={cuota.monto}
@@ -147,7 +146,7 @@ export default function GestionAranceles() {
               </div>
               {isEmpleadoComercial && (
                 <p className="text-[10px] text-slate-500 italic mt-2 pl-1">
-                  Configurable libremente. No depende del valor SOCIO.
+                  Se calcula automáticamente: Cuota SOCIO * (1 - {cuota.monto}%)
                 </p>
               )}
             </div>

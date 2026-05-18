@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import paisaje from '../assets/paisaje.png';
 import { Capacitor } from '@capacitor/core';
 import { AnimatePresence, motion } from 'framer-motion';
+import { usePlatform } from '../hooks/usePlatform';
 
 const STORAGE_KEY = 'eventos_filtro_municipio';
 let cachedEventos: Evento[] | null = null;
@@ -32,7 +33,7 @@ export default function Eventos() {
   const firstLoadRef = useRef(true);
   const navigatingRef = useRef(false);
 
-  const isNative = Capacitor.isNativePlatform();
+  const { isNative } = usePlatform();
 
   const initializedRef = useRef(false);
 

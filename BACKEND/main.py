@@ -6520,6 +6520,9 @@ def calcular_cuota_dinamica_internal(user_id: str):
     cuotas_res = supabase.table("configuracion_cuotas").select("*").execute()
     cuotas_map = {str(c["rol"]).upper(): float(c["monto"]) for c in cuotas_res.data}
     
+    comercio_nombre = None
+    descuento_pct_aplicado = 0
+    
     # Priority logic
     if membership_type == "FAMILIAR":
         rol_efectivo = "GRUPO FAMILIAR"
@@ -6535,9 +6538,10 @@ def calcular_cuota_dinamica_internal(user_id: str):
         comercio_activo = False
         if comercio_id:
             try:
-                comercio_res = supabase.table("profiles").select("estado").eq("id", comercio_id).execute()
+                comercio_res = supabase.table("profiles").select("estado, nombre_apellido").eq("id", comercio_id).execute()
                 if comercio_res.data and comercio_res.data[0].get("estado") == "APROBADO":
                     comercio_activo = True
+                    comercio_nombre = comercio_res.data[0].get("nombre_apellido")
             except Exception:
                 pass
         if comercio_activo:
@@ -6563,13 +6567,18 @@ def calcular_cuota_dinamica_internal(user_id: str):
         elif rol_efectivo == "PROFESIONAL":
             monto_base = 7000
         elif rol_efectivo == "EMPLEADO COMERCIAL":
-            # Fallback: usar cuota SOCIO como piso lógico si aún no fue configurado
-            monto_base = cuotas_map.get("SOCIO", 10000)
+            monto_base = 30 # Default 30% discount
         elif rol_efectivo == "ESTUDIANTE":
             monto_base = 5000
         elif rol_efectivo == "SOCIO":
             monto_base = 10000
-            
+
+    # Calculate actual price
+    if rol_efectivo == "EMPLEADO COMERCIAL":
+        cuota_socio = cuotas_map.get("SOCIO", 10000)
+        descuento_pct_aplicado = min(100, max(0, monto_base))
+        monto_base = round(cuota_socio * (1 - (descuento_pct_aplicado / 100)))
+
     # Estado de cuota
     estado_cuota = "Al Día"
     try:
@@ -6585,17 +6594,24 @@ def calcular_cuota_dinamica_internal(user_id: str):
     monto_total = monto_base
     monto_base_usado = monto_base
 
+    detalle_res = {
+        "base": monto_base_usado,
+        "familiares": familiares_count,
+        "cantidad": familiares_count + 1 if membership_type == "FAMILIAR" else 1,
+        "tipo_plan": tipo_plan
+    }
+    
+    if rol_efectivo == "EMPLEADO COMERCIAL":
+        detalle_res["comercio_nombre"] = comercio_nombre
+        detalle_res["descuento_aplicado"] = descuento_pct_aplicado
+        detalle_res["origen"] = "EMPLEADO_COMERCIAL"
+
     return {
         "monto": monto_total,
         "monto_total": monto_total, # For backward compatibility
         "tipo": rol_efectivo,
         "estado_cuota": estado_cuota,
-        "detalle": {
-            "base": monto_base_usado,
-            "familiares": familiares_count,
-            "cantidad": familiares_count + 1 if membership_type == "FAMILIAR" else 1,
-            "tipo_plan": tipo_plan
-        }
+        "detalle": detalle_res
     }
 
 @app.get("/api/cuota/calcular")

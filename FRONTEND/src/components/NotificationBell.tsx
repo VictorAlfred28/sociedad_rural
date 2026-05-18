@@ -91,7 +91,9 @@ export default function NotificationBell() {
 
     // Listener Foreground FCM (Firebase) - escucha continua con cleanup
     useEffect(() => {
-        const unsubscribe = onMessageListener(async (payload: any) => {
+        let unsubscribeFunc: (() => void) | undefined;
+
+        onMessageListener(async (payload: any) => {
             // Cuando llega algo mientras la app está abierta, recargamos notificaciones
             loadNotifications();
             
@@ -103,11 +105,13 @@ export default function NotificationBell() {
             if (user?.sonido_notificaciones_habilitado ?? true) {
                 await playNotificationSound(true, 'notification');
             }
+        }).then((unsubscribe) => {
+            unsubscribeFunc = unsubscribe;
         });
 
         // Cleanup: desregistrar listener al desmontar componente
         return () => {
-            if (typeof unsubscribe === 'function') unsubscribe();
+            if (typeof unsubscribeFunc === 'function') unsubscribeFunc();
         };
     }, [user?.sonido_notificaciones_habilitado]);
 
