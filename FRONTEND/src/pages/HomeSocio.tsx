@@ -3,6 +3,7 @@ import BottomNav from '../components/BottomNav';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from '../components/NotificationBell';
 import SocioHomeContent from '../components/SocioHomeContent';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { motion } from 'framer-motion';
 import { useRef, useState, useEffect } from 'react';
 import paisaje from '../assets/paisaje.png';
@@ -159,7 +160,9 @@ export default function HomeSocio() {
                 </motion.p>
               </div>
             </div>
-            <NotificationBell />
+            <ErrorBoundary context="NotificationBell" fallback={null}>
+              <NotificationBell />
+            </ErrorBoundary>
           </div>
         </header>
       </div>

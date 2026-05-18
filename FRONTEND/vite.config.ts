@@ -12,7 +12,11 @@ export default defineConfig(({mode}) => {
       },
     },
     esbuild: {
-      drop: mode === 'production' ? ['console', 'debugger'] : [],
+      // Solo eliminar logs de desarrollo (console.log, console.debug).
+      // console.error y console.warn se PRESERVAN en producción para
+      // que el ErrorBoundary pueda emitir stacktraces diagnósticos.
+      pure: mode === 'production' ? ['console.log', 'console.debug'] : [],
+      drop: mode === 'production' ? ['debugger'] : [],
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

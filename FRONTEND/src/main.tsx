@@ -42,10 +42,24 @@ createRoot(document.getElementById('root')!).render(
 // Cuando hay un nuevo deploy, los hashes de los chunks cambian.
 // El browser puede tener el index.html viejo que referencia chunks que ya no
 // existen (404). Vite emite este evento cuando falla la precarga de un módulo.
-// La solución es recargar la página una sola vez para obtener el HTML nuevo.
+// Usamos un CONTADOR en sessionStorage (máx 3 intentos) en lugar de un
+// booleano para evitar que el guard quede activo de forma permanente.
 window.addEventListener('vite:preloadError', () => {
-  if (!sessionStorage.getItem('vite_chunk_reload')) {
-    sessionStorage.setItem('vite_chunk_reload', '1');
+  const attempts = parseInt(sessionStorage.getItem('vite_chunk_reloads') ?? '0', 10);
+  if (attempts < 3) {
+    sessionStorage.setItem('vite_chunk_reloads', String(attempts + 1));
     window.location.reload();
   }
+  // Si ya superó 3 intentos, el ErrorBoundary tomará el control y mostrará
+  // el botón "Reintentar" que limpiará los guards manualmente.
 });
+
+// ── Limpieza de guards en carga exitosa ──────────────────────────────────────
+// Si la app carga correctamente durante 3 segundos sin crashes,
+// limpiamos todos los guards para que futuros errors puedan triggear
+// el auto-reload nuevamente (crucial en sesiones largas con múltiples deploys).
+setTimeout(() => {
+  sessionStorage.removeItem('vite_chunk_reloads');
+  sessionStorage.removeItem('chunk_error_reload');
+}, 3000);
+

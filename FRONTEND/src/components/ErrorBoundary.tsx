@@ -39,20 +39,23 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error(`[ErrorBoundary${this.props.context ? ':' + this.props.context : ''}]`, error.message, info.componentStack);
+    // Logging estructurado — persiste en producción porque preservamos console.error en vite.config.ts
+    const context = this.props.context ? `:${this.props.context}` : '';
+    console.error(`[ErrorBoundary${context}] ${error.message}`, info.componentStack);
 
-    // Si es un error de chunk stale (deploy nuevo), recargar la página una sola vez
+    // Si es un error de chunk stale (deploy nuevo), recargar automáticamente hasta 3 veces
     if (ErrorBoundary.isChunkError(error)) {
       const reloadKey = 'chunk_error_reload';
-      if (!sessionStorage.getItem(reloadKey)) {
-        sessionStorage.setItem(reloadKey, '1');
+      const attempts = parseInt(sessionStorage.getItem(reloadKey) ?? '0', 10);
+      if (attempts < 3) {
+        sessionStorage.setItem(reloadKey, String(attempts + 1));
         window.location.reload();
       }
+      // Si ya supera 3 intentos, muestra el fallback con botón "Reintentar"
     }
   }
 
   handleRetry = () => {
-    // Si el error fue por chunk stale, un simple reset no alcanza: necesitamos recargar
     const errorMsg = this.state.errorMessage;
     const isChunk =
       errorMsg.includes('Failed to fetch') ||
@@ -61,7 +64,9 @@ export default class ErrorBoundary extends Component<Props, State> {
       errorMsg.includes('error loading dynamically imported module');
 
     if (isChunk) {
-      sessionStorage.removeItem('chunk_error_reload'); // Limpiar guard para permitir un nuevo intento
+      // Limpiar AMBOS guards para permitir un ciclo de auto-reload limpio
+      sessionStorage.removeItem('chunk_error_reload');
+      sessionStorage.removeItem('vite_chunk_reloads'); // guard de main.tsx
       window.location.reload();
     } else {
       this.setState({ hasError: false, errorMessage: '' });
