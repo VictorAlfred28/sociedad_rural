@@ -10,6 +10,7 @@ interface Message {
     sender: 'bot' | 'user';
     timestamp: Date;
     image?: string;
+    actions?: { type: 'whatsapp'; url: string; label: string }[];
 }
 
 const PREDEFINED_OPTIONS = [
@@ -18,7 +19,7 @@ const PREDEFINED_OPTIONS = [
     { id: 'rosgan', label: 'Rosgan', icon: <Info size={14} />, url: 'https://www.rosgan.com.ar/', response: 'Redirigiendo a Rosgan...' },
     { id: 'eventos', label: 'Agenda Rural', icon: <Calendar size={14} />, response: 'Podés consultar todos los eventos en la sección "Agenda Rural" desde el inicio.' },
     { id: 'beneficios', label: 'Beneficios', icon: <Gift size={14} />, response: 'Como socio tenés descuentos exclusivos. Miralos en "Beneficios del Socio".' },
-    { id: 'ayuda', label: 'Soporte', icon: <Info size={14} />, response: 'Si necesitás ayuda técnica, escribinos por WhatsApp al +54 9 11 1234-5678.' },
+    { id: 'ayuda', label: 'Soporte', icon: <Info size={14} />, isSoporte: true },
 ];
 
 export const Chatbot: React.FC = () => {
@@ -49,9 +50,67 @@ export const Chatbot: React.FC = () => {
         }
     }, [messages, isOpen]);
 
-    const handleOptionClick = (option: any) => {
+    const handleOptionClick = async (option: any) => {
         if (option.url) {
             window.open(option.url, '_blank');
+            return;
+        }
+        
+        if (option.isSoporte) {
+            const userMsg: Message = {
+                id: Date.now().toString(),
+                text: option.label,
+                sender: 'user',
+                timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, userMsg]);
+            setIsLoading(true);
+            
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                const resp = await fetch(`${apiUrl}/api/chatbot/soporte`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        dispositivo: navigator.userAgent,
+                        version_app: '1.0.0'
+                    })
+                });
+                
+                if (!resp.ok) {
+                    const data = await resp.json();
+                    if (resp.status === 429) {
+                         throw new Error('Demasiadas solicitudes. Intenta en un minuto');
+                    }
+                    throw new Error(data.detail || 'Error al enviar consulta');
+                }
+                
+                const botMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    text: 'Tu consulta fue enviada al soporte.',
+                    sender: 'bot',
+                    timestamp: new Date(),
+                    actions: [{
+                        type: 'whatsapp',
+                        url: 'https://wa.me/5493794806651?text=' + encodeURIComponent('Hola, necesito soporte técnico en Sociedad Rural Del Norte.'),
+                        label: 'Continuar por WhatsApp'
+                    }]
+                };
+                setMessages(prev => [...prev, botMsg]);
+            } catch (err: any) {
+                const errorMsg: Message = {
+                    id: (Date.now() + 1).toString(),
+                    text: `No pudimos registrar tu consulta: ${err.message}. Escribinos directamente por WhatsApp al +54 9 3794 80-6651.`,
+                    sender: 'bot',
+                    timestamp: new Date(),
+                };
+                setMessages(prev => [...prev, errorMsg]);
+            } finally {
+                setIsLoading(false);
+            }
             return;
         }
         
@@ -227,6 +286,22 @@ export const Chatbot: React.FC = () => {
                                                 </div>
                                             )}
                                             <p className="leading-relaxed font-semibold whitespace-pre-wrap">{msg.text}</p>
+                                            {msg.actions && msg.actions.length > 0 && (
+                                                <div className="mt-3 flex flex-col gap-2">
+                                                    {msg.actions.map((act, i) => (
+                                                        <a 
+                                                            key={i} 
+                                                            href={act.url} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#25D366]/10 text-[#25D366] border border-[#25D366]/20 rounded-xl font-bold text-xs hover:bg-[#25D366] hover:text-white transition-all shadow-sm"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[16px]">send_to_mobile</span>
+                                                            {act.label}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            )}
                                             <div className={`text-[8px] mt-2.5 font-black uppercase tracking-widest flex items-center gap-1 ${msg.sender === 'bot' ? 'text-stone-400' : 'text-emerald-100/60'}`}>
                                                 {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 {msg.sender === 'user' && <span className="material-symbols-outlined text-[10px] leading-none">done_all</span>}

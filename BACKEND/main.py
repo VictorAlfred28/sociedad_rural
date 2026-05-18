@@ -373,6 +373,7 @@ scheduler.add_job(trigger_local_cron, CronTrigger(hour=9, minute=15, timezone=TZ
 # Los del día 11 (Mora)
 scheduler.add_job(trigger_local_cron, CronTrigger(day=11, hour=8, minute=15, timezone=TZ_ARGENTINA), args=["/api/cron/detectar-mora", "POST"], id="backup_detectar_mora")
 scheduler.add_job(trigger_local_cron, CronTrigger(day=11, hour=9, minute=15, timezone=TZ_ARGENTINA), args=["/api/v1/cron/notificar-mora"], id="backup_notificar_mora")
+scheduler.add_job(trigger_local_cron, CronTrigger(hour=0, minute=0, timezone=TZ_ARGENTINA), args=["/api/cron/limpiar-notificaciones", "POST"], id="cleanup_notificaciones")
 
 app = FastAPI(title="Sociedad Rural Del Norte De Corrientes API")
 app.state.limiter = limiter
@@ -2217,6 +2218,36 @@ async def chat_with_assistant(
         raise HTTPException(
             status_code=500, detail="Error interno procesando la solicitud de chat."
         )
+
+
+class ChatbotSoporteRequest(BaseModel):
+    dispositivo: Optional[str] = None
+    version_app: Optional[str] = None
+
+@app.post("/api/chatbot/soporte")
+@limiter.limit("2/minute")
+async def create_chatbot_soporte_ticket(
+    request: Request,
+    data: ChatbotSoporteRequest,
+    current_user=Depends(get_current_user)
+):
+    """Crea un ticket de soporte iniciado desde el Chatbot"""
+    try:
+        supabase.table("notificaciones").insert({
+            "usuario_id": current_user.id,
+            "tipo": "SOPORTE_TECNICO",
+            "descripcion": "Solicitud de soporte técnico iniciada desde SapucAI",
+            "estado": "PENDIENTE",
+            "origen_soporte": "chatbot",
+            "dispositivo": data.dispositivo,
+            "version_app": data.version_app,
+            "whatsapp_redirected": False
+        }).execute()
+        
+        return {"success": True, "message": "Ticket creado exitosamente."}
+    except Exception as e:
+        logger.error(f"Error creando ticket chatbot soporte para {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail="Error interno al crear el ticket.")
 
 
 # ── ENDPOINT PARA VALIDAR CARNET DE SOCIO DESDE QR ────────────────────────────
@@ -4115,18 +4146,18 @@ def notificar_olvido_password(
 
 
 @app.get("/api/admin/notificaciones-soporte")
-def get_support_notifications(admin_user=Depends(get_current_admin)):
-    """Retorna las notificaciones de soporte pendientes para el administrador"""
+def get_support_notifications(tab: Optional[str] = "pendientes", admin_user=Depends(get_current_admin)):
+    """Retorna las notificaciones de soporte para el administrador, filtradas por estado"""
     try:
+        estado_filter = "PENDIENTE"
+        if tab == "resueltos":
+            estado_filter = "RESUELTO"
+        elif tab == "archivados":
+            estado_filter = "ARCHIVADO"
+
         # 1. Query principal sin join (siempre funciona, independiente de FK config en PostgREST)
-        res = (
-            supabase.table("notificaciones")
-            .select("*")
-            .in_("tipo", ["admin", "OLVIDO_PASSWORD"])
-            .eq("estado", "PENDIENTE")
-            .order("fecha", desc=True)
-            .execute()
-        )
+        query = supabase.table("notificaciones").select("*").in_("tipo", ["admin", "OLVIDO_PASSWORD"]).eq("estado", estado_filter).is_("deleted_at", "null")
+        res = query.order("fecha", desc=True).execute()
         notificaciones = res.data or []
 
         if not notificaciones:
@@ -4169,11 +4200,85 @@ def resolve_support_notification(notif_id: str, admin_user=Depends(get_current_a
     """Marca una notificación de soporte como resuelta"""
     try:
         supabase.table("notificaciones").update(
-            {"estado": "RESUELTO", "resolved_at": datetime.now().isoformat()}
+            {
+                "estado": "RESUELTO", 
+                "resolved_at": datetime.now().isoformat(),
+                "admin_resolvio_id": admin_user.id
+            }
         ).eq("id", notif_id).execute()
         return {"message": "Solicitud marcada como resuelta"}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.put("/api/admin/notificaciones-soporte/{notif_id}/archivar")
+def archivar_support_notification(notif_id: str, admin_user=Depends(get_current_admin)):
+    """Marca una notificación de soporte como archivada"""
+    try:
+        supabase.table("notificaciones").update(
+            {
+                "estado": "ARCHIVADO", 
+                "archivado_at": datetime.now().isoformat()
+            }
+        ).eq("id", notif_id).execute()
+        return {"message": "Solicitud archivada"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.delete("/api/admin/notificaciones-soporte/{notif_id}")
+def delete_support_notification(notif_id: str, admin_user=Depends(get_current_admin)):
+    """Realiza un borrado lógico de una notificación de soporte"""
+    try:
+        supabase.table("notificaciones").update(
+            {
+                "deleted_at": datetime.now().isoformat(),
+                "deleted_by": admin_user.id
+            }
+        ).eq("id", notif_id).execute()
+        return {"message": "Solicitud eliminada correctamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@app.post("/api/cron/limpiar-notificaciones")
+def cron_limpiar_notificaciones(request: Request):
+    """
+    Cron:
+    - Archiva solicitudes resueltas > 30 días
+    - Borrado lógico (oculta) solicitudes archivadas > 90 días
+    """
+    header_secret = request.headers.get("X-API-Secret")
+    if header_secret != os.getenv("API_SECRET_TOKEN"):
+        if request.headers.get("X-Cron-Secret") != os.getenv("CRON_SECRET"):
+            raise HTTPException(status_code=401, detail="No autorizado")
+
+    try:
+        now = datetime.now()
+        thirty_days_ago = (now - timedelta(days=30)).isoformat()
+        ninety_days_ago = (now - timedelta(days=90)).isoformat()
+        
+        # 1. Archivar RESUELTOS > 30 días
+        resueltos = supabase.table("notificaciones").select("id").eq("estado", "RESUELTO").lt("resolved_at", thirty_days_ago).execute()
+        if resueltos.data:
+            ids_to_archive = [n["id"] for n in resueltos.data]
+            for id_notif in ids_to_archive:
+                supabase.table("notificaciones").update({
+                    "estado": "ARCHIVADO",
+                    "archivado_at": now.isoformat()
+                }).eq("id", id_notif).execute()
+        
+        # 2. Borrado lógico ARCHIVADOS > 90 días
+        archivados = supabase.table("notificaciones").select("id").eq("estado", "ARCHIVADO").lt("archivado_at", ninety_days_ago).execute()
+        if archivados.data:
+            ids_to_delete = [n["id"] for n in archivados.data]
+            for id_notif in ids_to_delete:
+                supabase.table("notificaciones").update({
+                    "deleted_at": now.isoformat(),
+                    "deleted_by": None # Sistema
+                }).eq("id", id_notif).execute()
+
+        return {"message": "Limpieza de notificaciones ejecutada correctamente", "archivados": len(resueltos.data or []), "borrados": len(archivados.data or [])}
+    except Exception as e:
+        logger.error(f"Error en cron_limpiar_notificaciones: {e}")
+        raise HTTPException(status_code=500, detail="Error ejecutando limpieza")
 
 
 @app.post("/api/admin/notificaciones-soporte/{notif_id}/reset-password")

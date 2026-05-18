@@ -7,8 +7,10 @@ interface NotificacionSoporte {
     tipo: string;
     descripcion: string;
     estado: string;
+    origen_soporte?: string;
     metadata: any;
     created_at: string;
+    fecha?: string;
     profiles?: {
         nombre_apellido: string;
         dni: string;
@@ -25,11 +27,12 @@ export default function GestionSoporte() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [editingNotes, setEditingNotes] = useState<{ [key: string]: string }>({});
+    const [activeTab, setActiveTab] = useState<'pendientes' | 'resueltos' | 'archivados'>('pendientes');
 
     const fetchNotificaciones = async () => {
         try {
             setLoading(true);
-            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/notificaciones-soporte`, {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/notificaciones-soporte?tab=${activeTab}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await resp.json();
@@ -50,8 +53,8 @@ export default function GestionSoporte() {
     };
 
     useEffect(() => {
-        fetchNotificaciones();
-    }, [token]);
+        if (token) fetchNotificaciones();
+    }, [token, activeTab]);
 
     const handleSaveNote = async (id: string) => {
         setProcessingId(id);
@@ -94,6 +97,52 @@ export default function GestionSoporte() {
             } else {
                 const d = await resp.json();
                 throw new Error(d.detail || 'Error al resolver');
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleArchivar = async (id: string) => {
+        if (!confirm('¿Archivar esta solicitud?')) return;
+        setProcessingId(id);
+        setError(null);
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/notificaciones-soporte/${id}/archivar`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resp.ok) {
+                setSuccess('Solicitud archivada.');
+                fetchNotificaciones();
+            } else {
+                const d = await resp.json();
+                throw new Error(d.detail || 'Error al archivar');
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleEliminar = async (id: string) => {
+        if (!confirm('¿Eliminar esta solicitud definitivamente del panel? Esta acción es irreversible en la UI.')) return;
+        setProcessingId(id);
+        setError(null);
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/notificaciones-soporte/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resp.ok) {
+                setSuccess('Solicitud eliminada.');
+                fetchNotificaciones();
+            } else {
+                const d = await resp.json();
+                throw new Error(d.detail || 'Error al eliminar');
             }
         } catch (err: any) {
             setError(err.message);
@@ -156,6 +205,22 @@ export default function GestionSoporte() {
                 <p className="text-slate-400 text-sm">Gestiona solicitudes de recuperación de acceso y soporte técnico.</p>
             </div>
 
+            <div className="flex bg-admin-card border border-admin-border rounded-xl p-1 gap-1 w-full max-w-md">
+                {(['pendientes', 'resueltos', 'archivados'] as const).map(tab => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
+                            activeTab === tab 
+                            ? 'bg-admin-accent/20 text-admin-accent shadow-sm' 
+                            : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                        }`}
+                    >
+                        {tab}
+                    </button>
+                ))}
+            </div>
+
             {error && (
                 <div className="p-4 bg-admin-rejected/10 border border-admin-rejected/20 rounded-xl text-admin-rejected text-sm font-medium animate-in fade-in slide-in-from-top-2">
                     {error}
@@ -190,8 +255,29 @@ export default function GestionSoporte() {
                                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 tracking-widest uppercase">
                                                 {notif.tipo === 'OLVIDO_PASSWORD' ? '🔐 Recuperación Clave' : notif.tipo}
                                             </span>
+                                            {notif.origen_soporte === 'chatbot' && (
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 tracking-widest uppercase flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[12px]">smart_toy</span>
+                                                    Chatbot
+                                                </span>
+                                            )}
+                                            {notif.estado === 'PENDIENTE' && (
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-500 border border-red-500/20 tracking-widest uppercase">
+                                                    Pendiente
+                                                </span>
+                                            )}
+                                            {notif.estado === 'RESUELTO' && (
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/10 text-green-500 border border-green-500/20 tracking-widest uppercase">
+                                                    Resuelto
+                                                </span>
+                                            )}
+                                            {notif.estado === 'ARCHIVADO' && (
+                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20 tracking-widest uppercase">
+                                                    Archivado
+                                                </span>
+                                            )}
                                             <span className="text-slate-500 text-xs font-mono">
-                                                {new Date(notif.created_at).toLocaleString()}
+                                                {notif.created_at || notif.fecha ? new Date(notif.created_at || notif.fecha!).toLocaleString() : 'Fecha no disponible'}
                                             </span>
                                         </div>
                                         <h4 className="text-lg font-bold text-admin-text group-hover:text-admin-accent transition-colors">
@@ -220,7 +306,7 @@ export default function GestionSoporte() {
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto shrink-0">
-                                        {notif.tipo === 'OLVIDO_PASSWORD' && (
+                                        {activeTab === 'pendientes' && notif.tipo === 'OLVIDO_PASSWORD' && (
                                             <button
                                                 onClick={() => handleResetPassword(notif.id)}
                                                 disabled={processingId === notif.id}
@@ -230,20 +316,42 @@ export default function GestionSoporte() {
                                                 Asignar Clave
                                             </button>
                                         )}
+                                        {(activeTab === 'pendientes' || activeTab === 'resueltos') && (
+                                            <button
+                                                onClick={() => openWhatsApp(notif.metadata?.telefono || '', notif.profiles?.nombre_apellido || '')}
+                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500/10 text-green-500 border border-green-500/20 rounded-xl font-bold text-xs hover:bg-green-500 hover:text-white transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">send_to_mobile</span>
+                                                WhatsApp
+                                            </button>
+                                        )}
+                                        {activeTab === 'pendientes' && (
+                                            <button
+                                                onClick={() => handleResolverManual(notif.id)}
+                                                disabled={processingId === notif.id}
+                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 text-slate-400 border border-white/10 rounded-xl font-bold text-xs hover:bg-white/10 transition-all disabled:opacity-50"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                                Resolver
+                                            </button>
+                                        )}
+                                        {activeTab === 'resueltos' && (
+                                            <button
+                                                onClick={() => handleArchivar(notif.id)}
+                                                disabled={processingId === notif.id}
+                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-500/10 text-slate-400 border border-slate-500/20 rounded-xl font-bold text-xs hover:bg-slate-500 hover:text-white transition-all disabled:opacity-50"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">inventory_2</span>
+                                                Archivar
+                                            </button>
+                                        )}
                                         <button
-                                            onClick={() => openWhatsApp(notif.metadata?.telefono || '', notif.profiles?.nombre_apellido || '')}
-                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500/10 text-green-500 border border-green-500/20 rounded-xl font-bold text-xs hover:bg-green-500 hover:text-white transition-all"
-                                        >
-                                            <span className="material-symbols-outlined text-[16px]">send_to_mobile</span>
-                                            WhatsApp
-                                        </button>
-                                        <button
-                                            onClick={() => handleResolverManual(notif.id)}
+                                            onClick={() => handleEliminar(notif.id)}
                                             disabled={processingId === notif.id}
-                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 text-slate-400 border border-white/10 rounded-xl font-bold text-xs hover:bg-white/10 transition-all disabled:opacity-50"
+                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-red-500/5 text-red-500/50 border border-red-500/10 rounded-xl font-bold text-xs hover:bg-red-500 hover:text-white hover:border-red-500 transition-all disabled:opacity-50"
+                                            title="Eliminar del sistema"
                                         >
-                                            <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                                            Resolver
+                                            <span className="material-symbols-outlined text-[16px]">delete</span>
                                         </button>
                                     </div>
                                 </div>
