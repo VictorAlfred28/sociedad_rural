@@ -38,7 +38,8 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) return this.props.fallback;
+      // Soporta null como fallback silencioso (ej: Chatbot que falla sin mostrar error)
+      if (this.props.fallback !== undefined) return this.props.fallback;
 
       return (
         <div className="min-h-[300px] flex flex-col items-center justify-center p-8 text-center bg-stone-50 dark:bg-stone-900 rounded-3xl border border-stone-200 dark:border-stone-800">

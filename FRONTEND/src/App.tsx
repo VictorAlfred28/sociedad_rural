@@ -92,7 +92,9 @@ export default function App() {
   return (
     <Router>
       <Toaster position="top-center" toastOptions={{ className: 'font-display text-sm font-bold', duration: 4000 }} />
-      <CapacitorUI />
+      <ErrorBoundary context="CapacitorUI" fallback={null}>
+        <CapacitorUI />
+      </ErrorBoundary>
       <ErrorBoundary context="App">
         <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -132,7 +134,10 @@ export default function App() {
         </Routes>
         </Suspense>
       </ErrorBoundary>
-      <ConditionalChatbot />
+      {/* Chatbot envuelto en su propio boundary silencioso — si crashea, no tira toda la app */}
+      <ErrorBoundary context="Chatbot" fallback={null}>
+        <ConditionalChatbot />
+      </ErrorBoundary>
     </Router>
   );
 }

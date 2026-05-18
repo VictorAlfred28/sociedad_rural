@@ -83,15 +83,17 @@ export const requestForToken = async (): Promise<string | null> => {
 export const onMessageListener = (callback: (payload: any) => void): (() => void) => {
     if (!messaging) return () => {};
 
-    return onMessage(messaging, async (payload) => {
+    return onMessage(messaging, (payload) => {
         if (import.meta.env.DEV) {
             console.log('[Firebase] Notificación en foreground:', payload);
         }
 
-        // Reproducir sonido si el payload lo indica
+        // Reproducir sonido si el payload lo indica (fire-and-forget, no async para evitar el error
+        // "A listener indicated an asynchronous response by returning true, but the message channel
+        // closed before a response was received" de Chrome)
         const soundEnabled = payload.data?.['sound_enabled'] !== 'false';
         if (soundEnabled) {
-            await playNotificationSound(true, 'notification');
+            playNotificationSound(true, 'notification').catch(() => {});
         }
 
         callback(payload);
