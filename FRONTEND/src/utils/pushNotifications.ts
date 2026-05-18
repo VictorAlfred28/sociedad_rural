@@ -4,7 +4,7 @@ import { playNotificationSound } from './soundNotification';
 
 export const initPushNotifications = async () => {
     if (!Capacitor.isNativePlatform()) {
-        console.log('Push notifications not available on web platform');
+        console.debug('Push notifications not available on web platform');
         return;
     }
 
@@ -32,7 +32,7 @@ export const initPushNotifications = async () => {
                 sound: 'notification', // Referencia a notification.mp3 (sin extensión)
                 vibration: true,
             });
-            console.log('Notification channel created');
+            console.debug('Notification channel created');
         }
 
         // ── Token registrado: enviar al backend ──────────────────────
@@ -43,7 +43,7 @@ export const initPushNotifications = async () => {
                 // Deduplicación: si el token no cambió, no re-enviamos
                 const storedToken = localStorage.getItem('fcm_token');
                 if (storedToken === token.value) {
-                    console.log('[FCM] Token sin cambios, ya registrado en backend.');
+                    console.debug('[FCM] Token sin cambios, ya registrado en backend.');
                     return;
                 }
 
@@ -70,7 +70,7 @@ export const initPushNotifications = async () => {
                 if (res.ok) {
                     // Guardar token localmente para evitar re-envíos innecesarios
                     localStorage.setItem('fcm_token', token.value);
-                    console.log('[FCM] ✅ Token enviado y registrado en backend.');
+                    console.debug('[FCM] ✅ Token enviado y registrado en backend.');
                 } else {
                     console.error('[FCM] ❌ Backend rechazó el token. Status:', res.status);
                 }
@@ -85,7 +85,7 @@ export const initPushNotifications = async () => {
         });
 
         PushNotifications.addListener('pushNotificationReceived', async (notification) => {
-            console.log('Push received: ' + JSON.stringify(notification));
+            console.debug('Push received: ' + JSON.stringify(notification));
             
             // Reproducir sonido si está habilitado en foreground
             const soundEnabled = notification.data?.sound_enabled !== 'false';
@@ -97,7 +97,7 @@ export const initPushNotifications = async () => {
         });
 
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-            console.log('Push action performed: ' + JSON.stringify(notification));
+            console.debug('Push action performed: ' + JSON.stringify(notification));
             // Handle deep linking based on data payload
         });
     } catch (e) {

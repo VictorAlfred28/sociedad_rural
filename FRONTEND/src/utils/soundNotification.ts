@@ -34,26 +34,26 @@ export const playNotificationSound = async (
 ): Promise<boolean> => {
     // Nunca reproducir si está deshabilitado
     if (!soundEnabled) {
-        console.log('[Sound] Sonido deshabilitado por usuario');
+        console.debug('[Sound] Sonido deshabilitado por usuario');
         return false;
     }
 
     // Nunca reproducir en Service Worker (background)
     if (typeof window === 'undefined') {
-        console.log('[Sound] Contexto SW — sonido gestionado por OS');
+        console.debug('[Sound] Contexto SW — sonido gestionado por OS');
         return false;
     }
 
     // En plataforma nativa (Capacitor), el canal Android/iOS gestiona el sonido
     if (Capacitor.isNativePlatform()) {
-        console.log('[Sound] Plataforma nativa — sonido gestionado por canal FCM');
+        console.debug('[Sound] Plataforma nativa — sonido gestionado por canal FCM');
         return false;
     }
 
     // Prevenir reproducción duplicada (máximo 1 vez por segundo)
     const now = Date.now();
     if (now - lastPlayTime < 1000) {
-        console.log('[Sound] Evitando reproducción duplicada');
+        console.debug('[Sound] Evitando reproducción duplicada');
         return false;
     }
     lastPlayTime = now;
@@ -72,7 +72,7 @@ const playWebSound = async (): Promise<boolean> => {
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             await playPromise;
-            console.log('[Sound] ✅ Sonido reproducido en foreground');
+            console.debug('[Sound] ✅ Sonido reproducido en foreground');
             return true;
         }
         return false;
@@ -94,7 +94,7 @@ export const stopNotificationSound = (): void => {
     if (audioElement) {
         audioElement.pause();
         audioElement.currentTime = 0;
-        console.log('[Sound] Sonido detenido');
+        console.debug('[Sound] Sonido detenido');
     }
 };
 
@@ -114,13 +114,13 @@ export const getNotificationAudio = (): HTMLAudioElement | null => {
 export const setNotificationVolume = (volume: number): void => {
     const audio = getAudioElement();
     audio.volume = Math.max(0, Math.min(1, volume));
-    console.log(`[Sound] Volumen ajustado a ${Math.round(audio.volume * 100)}%`);
+    console.debug(`[Sound] Volumen ajustado a ${Math.round(audio.volume * 100)}%`);
 };
 
 /**
  * Realiza un test reproduciiendo el sonido independientemente de preferencias
  */
 export const testNotificationSound = async (): Promise<boolean> => {
-    console.log('[Sound] Realizando test de sonido...');
+    console.debug('[Sound] Realizando test de sonido...');
     return await playNotificationSound(true, 'test');
 };

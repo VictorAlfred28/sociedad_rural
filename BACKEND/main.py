@@ -231,7 +231,7 @@ def normalize_whatsapp_number(v):
 
 from dotenv import load_dotenv
 from supabase import create_client, Client, ClientOptions
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, date
 from uuid import uuid4
 import firebase_admin
 from firebase_admin import credentials, messaging
@@ -1212,7 +1212,7 @@ async def register(
         raise he
     except Exception as e:
         err_msg = str(e).lower()
-        logger.error(f"EXCEPCIÓN CRÍTICA EN REGISTER")
+        logger.error(f"EXCEPCIÓN CRÍTICA EN REGISTER: {e}", exc_info=True)
 
         if (
             "user already registered" in err_msg
@@ -1476,6 +1476,7 @@ def login(
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
+            logger.error(f"Error fetching email from DNI: {e}", exc_info=True)
             raise HTTPException(status_code=401, detail="Credenciales inválidas")
     else:
         tipo_identificacion = "username"  # Alfanumérico se asume como nombre de usuario
@@ -1495,6 +1496,7 @@ def login(
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
+            logger.error(f"Error fetching email from username: {e}", exc_info=True)
             raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
     if not login_email:
@@ -2887,7 +2889,6 @@ def extender_gracia_usuario(
         except ValueError:
             raise HTTPException(status_code=400, detail="ID inválido")
 
-        from datetime import datetime, timedelta
         nueva_fecha = datetime.now() + timedelta(days=req.dias_gracia)
         
         perfil_ant = supabase.table("profiles").select("gracia_extendida_hasta").eq("id", user_id).execute()
@@ -4491,8 +4492,6 @@ def purge_auditoria(
     Registra el purge como un evento de auditoría especial (autoauditoría).
     """
     try:
-        from datetime import datetime, timezone, timedelta
-
         fecha_corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
 
         # Contar cuántos se van a eliminar
@@ -5592,8 +5591,8 @@ def get_estado_financiero_perfil(current_user=Depends(get_current_user)):
     Retorna el estado financiero paralelo y los días de mora sin alterar la auth.
     """
     from services.financial_engine import calcular_dias_mora, calcular_estado_financiero
-    from datetime import datetime, date
     
+
     socio_id = current_user.get("id")
     if not socio_id:
         raise HTTPException(status_code=401, detail="Usuario no identificado")
@@ -6370,6 +6369,7 @@ def get_mis_pagos(current_user=Depends(require_titular)):
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
+        logger.error(f"[GET /api/mis-pagos] Error inesperado: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
@@ -6430,6 +6430,9 @@ async def subir_comprobante(
 
         return {"status": "success", "url": url_publica}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logger.error(f"[POST /api/pagos/subir-comprobante] Error inesperado: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
@@ -6446,6 +6449,7 @@ def get_pagos_pendientes(current_admin=Depends(get_current_admin)):
         )
         return {"pendientes": res.data}
     except Exception as e:
+        logger.error(f"[GET /api/admin/pagos/pendientes] Error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
@@ -6564,6 +6568,7 @@ def rechazar_pago(req: PagoActionRequest, current_admin=Depends(get_current_admi
         }).eq("id", pago_id).execute()
         return {"status": "success", "motivo": motivo}
     except Exception as e:
+        logger.error(f"[POST /api/admin/pagos/rechazar] Error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
@@ -6604,6 +6609,7 @@ def update_cuotas_valores(req: CuotasUpdateRequest, current_admin=Depends(get_cu
                 }).execute()
         return {"status": "success"}
     except Exception as e:
+        logger.error(f"[PUT /api/admin/cuotas/valores] Error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 def calcular_cuota_dinamica_internal(user_id: str):
@@ -6829,7 +6835,6 @@ def vincular_empleado_comercio(
         # ─────────────────────────────────────────────────────────────────────
 
         # Vincular empleado al comercio
-        from datetime import datetime, timezone
         supabase.table("profiles").update({
             "es_empleado_comercial": True,
             "empleado_comercio_id": current_user.id,
@@ -8260,7 +8265,6 @@ def mis_metricas_comercio(request: Request):
         comercio_id = comercio_res.data[0]["id"]
 
         # Obtener analytics de los últimos 30 días
-        from datetime import datetime, timedelta
         desde = (datetime.utcnow() - timedelta(days=30)).isoformat()
 
         analytics_res = supabase.table("promociones_analytics")\

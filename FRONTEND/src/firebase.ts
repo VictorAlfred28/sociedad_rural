@@ -76,12 +76,12 @@ export const requestForToken = async (): Promise<string | null> => {
         if (currentToken) {
             // Solo loguear en entorno de desarrollo — nunca en producción
             if (import.meta.env.DEV) {
-                console.log('[Firebase] FCM Token:', currentToken);
+                console.debug('[Firebase] FCM Token:', currentToken);
             }
             return currentToken;
         } else {
             if (import.meta.env.DEV) {
-                console.log('[Firebase] No hay token disponible. Solicitá permiso de notificaciones.');
+                console.debug('[Firebase] No hay token disponible. Solicitá permiso de notificaciones.');
             }
             return null;
         }
@@ -101,7 +101,7 @@ export const onMessageListener = async (callback: (payload: any) => void): Promi
 
     return onMessage(messaging, (payload) => {
         if (import.meta.env.DEV) {
-            console.log('[Firebase] Notificación en foreground:', payload);
+            console.debug('[Firebase] Notificación en foreground:', payload);
         }
 
         // Reproducir sonido si el payload lo indica (fire-and-forget, no async para evitar el error

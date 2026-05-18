@@ -184,7 +184,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 console.warn("Recibido 401. Intentando renovar sesión...");
                 const success = await performRefresh(currentRefreshToken);
                 if (success) {
-                    console.log("Sesión recuperada exitosamente tras 401.");
+                    console.debug("Sesión recuperada exitosamente tras 401.");
                     return;
                 }
             }

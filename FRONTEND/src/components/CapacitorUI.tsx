@@ -35,7 +35,7 @@ export const CapacitorUI = () => {
             // Deduplicación local: si ya enviamos este token exacto, no re-enviamos
             const lastSent = localStorage.getItem('fcm_token_sent');
             if (lastSent === tokenValue) {
-                console.log('[Push] Token sin cambios — ya registrado en backend.');
+                console.debug('[Push] Token sin cambios — ya registrado en backend.');
                 return true;
             }
 
@@ -149,7 +149,7 @@ export const CapacitorUI = () => {
                 if (res.ok) {
                     localStorage.setItem('fcm_token_sent', pendingToken);
                     localStorage.removeItem('fcm_token_pending');
-                    console.log('[Push] ✅ Token pendiente enviado post-login.');
+                    console.debug('[Push] ✅ Token pendiente enviado post-login.');
                 } else {
                     console.warn('[Push] Token pendiente rechazado. Se reintentará en la próxima navegación.');
                 }
