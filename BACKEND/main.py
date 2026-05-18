@@ -6539,23 +6539,19 @@ def calcular_cuota_dinamica_internal(user_id: str):
     if profile.get("es_empleado_comercial") and profile.get("activo_empleado", True):
         # EMPLEADO COMERCIAL: arancel fijo configurable desde panel admin.
         # SEGURIDAD: validamos el vínculo comercio en el backend, nunca confiamos en el frontend.
+        # IMPORTANTE: el flag es_empleado_comercial es la fuente de verdad principal.
+        # Si el vínculo comercio no está activo, se mantiene el arancel de EMPLEADO COMERCIAL
+        # (NO se hace fallback a SOCIO, para no castigar al empleado por un problema de configuración).
         comercio_id = profile.get("empleado_comercio_id")
-        comercio_activo = False
         if comercio_id:
             try:
                 comercio_res = supabase.table("profiles").select("estado, nombre_apellido").eq("id", comercio_id).execute()
                 if comercio_res.data and comercio_res.data[0].get("estado") == "APROBADO":
-                    comercio_activo = True
                     comercio_nombre = comercio_res.data[0].get("nombre_apellido")
             except Exception:
                 pass
-        if comercio_activo:
-            rol_efectivo = "EMPLEADO COMERCIAL"
-            tipo_plan = "Empleado Comercial"
-        else:
-            # Comercio inactivo, desvinculado o no encontrado → cuota socio normal
-            rol_efectivo = str(profile.get("rol", "SOCIO")).upper()
-            tipo_plan = "Individual"
+        rol_efectivo = "EMPLEADO COMERCIAL"
+        tipo_plan = "Empleado Comercial"
     elif membership_type == "FAMILIAR":
         rol_efectivo = "GRUPO FAMILIAR"
         tipo_plan = "Grupo Familiar"
@@ -6573,18 +6569,22 @@ def calcular_cuota_dinamica_internal(user_id: str):
     monto_base = cuotas_map.get(rol_efectivo, 0)
     
     # Defaults in case not in DB yet (o rol sin monto configurado)
+    # REGLA: cada rol tiene su default propio. El fallback final es SOCIO SOLO para rol=SOCIO.
+    # COMERCIO y cualquier otro rol sin monto configurado NO heredan la cuota de SOCIO.
     if monto_base == 0:
         if rol_efectivo == "GRUPO FAMILIAR":
             monto_base = 20000
         elif rol_efectivo == "PROFESIONAL":
             monto_base = 7000
         elif rol_efectivo == "EMPLEADO COMERCIAL":
-            monto_base = 7000  # Default $7000 monto fijo (configurable por admin)
+            monto_base = 8000  # Default $8000 monto fijo (configurable por admin en Gestión Aranceles)
         elif rol_efectivo == "ESTUDIANTE":
             monto_base = 5000
-        else:
-            # SOCIO, COMERCIO (sin cuota propia) y cualquier otro rol → cuota base SOCIO
+        elif rol_efectivo == "SOCIO":
             monto_base = cuotas_map.get("SOCIO", 10000)
+        else:
+            # COMERCIO u otro rol sin cuota propia: sin obligación de pago mensual
+            monto_base = 0
 
     # Estado de cuota
     estado_cuota = "Al Día"
@@ -6812,6 +6812,107 @@ def desvincular_empleado(empleado_id: str, current_user=Depends(get_current_user
     except Exception:
         logger.exception("[desvincular_empleado] Error:")
         raise HTTPException(status_code=500, detail="Error al desvincular empleado")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADMIN: VINCULACIÓN MANUAL DE EMPLEADOS COMERCIALES
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AdminVincularEmpleadoRequest(BaseModel):
+    empleado_id: str
+    comercio_id: str  # ID del perfil COMERCIO
+
+
+@app.post("/api/admin/empleados/vincular")
+def admin_vincular_empleado(
+    req: AdminVincularEmpleadoRequest,
+    current_user=Depends(get_current_admin),
+):
+    """
+    [SUPERADMIN/ADMIN] Vincula manualmente un socio como Empleado Comercial a un comercio.
+    Útil cuando el comercio no lo vinculó desde Mi Negocio, o para corregir vínculos erróneos.
+    """
+    try:
+        # Validar que el empleado existe y está APROBADO
+        emp_res = supabase.table("profiles").select(
+            "id, nombre_apellido, estado, empleado_comercio_id, es_empleado_comercial"
+        ).eq("id", req.empleado_id).execute()
+        if not emp_res.data:
+            raise HTTPException(status_code=404, detail="Empleado no encontrado.")
+        empleado = emp_res.data[0]
+        if empleado.get("estado") not in ["APROBADO", "RESTRINGIDO"]:
+            raise HTTPException(status_code=400, detail=f"El socio tiene estado '{empleado.get('estado')}'. Solo APROBADO o RESTRINGIDO.")
+
+        # Validar que el comercio existe y está APROBADO
+        com_res = supabase.table("profiles").select(
+            "id, nombre_apellido, estado, rol"
+        ).eq("id", req.comercio_id).execute()
+        if not com_res.data:
+            raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+        comercio = com_res.data[0]
+        if comercio.get("rol") != "COMERCIO":
+            raise HTTPException(status_code=400, detail="El ID provisto no corresponde a un perfil COMERCIO.")
+        if comercio.get("estado") != "APROBADO":
+            raise HTTPException(status_code=400, detail=f"El comercio tiene estado '{comercio.get('estado')}'. Debe estar APROBADO.")
+
+        # Verificar doble vínculo
+        if empleado.get("empleado_comercio_id") and empleado["empleado_comercio_id"] != req.comercio_id:
+            raise HTTPException(
+                status_code=409,
+                detail="Este socio ya está vinculado a otro comercio. Desvinculalo primero."
+            )
+
+        # Aplicar vínculo
+        supabase.table("profiles").update({
+            "es_empleado_comercial": True,
+            "empleado_comercio_id": req.comercio_id,
+            "activo_empleado": True,
+            "fecha_vinculacion_comercio": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", req.empleado_id).execute()
+
+        logger.info(
+            f"[admin_vincular_empleado] Admin {current_user.id} vinculó "
+            f"empleado {req.empleado_id} a comercio {req.comercio_id}"
+        )
+        return {
+            "status": "success",
+            "mensaje": f"✅ {empleado['nombre_apellido']} vinculado como Empleado Comercial de {comercio['nombre_apellido']}.",
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("[admin_vincular_empleado] Error:")
+        raise HTTPException(status_code=500, detail="Error al vincular empleado")
+
+
+@app.delete("/api/admin/empleados/{empleado_id}/desvincular")
+def admin_desvincular_empleado(
+    empleado_id: str,
+    current_user=Depends(get_current_admin),
+):
+    """[SUPERADMIN/ADMIN] Desvincula manualmente un empleado de su comercio."""
+    try:
+        emp_res = supabase.table("profiles").select(
+            "id, nombre_apellido, empleado_comercio_id"
+        ).eq("id", empleado_id).execute()
+        if not emp_res.data:
+            raise HTTPException(status_code=404, detail="Empleado no encontrado.")
+        empleado = emp_res.data[0]
+
+        supabase.table("profiles").update({
+            "es_empleado_comercial": False,
+            "empleado_comercio_id": None,
+            "activo_empleado": True,
+            "fecha_vinculacion_comercio": None,
+        }).eq("id", empleado_id).execute()
+
+        logger.info(f"[admin_desvincular_empleado] Admin {current_user.id} desvinculó empleado {empleado_id}")
+        return {"status": "success", "mensaje": f"{empleado['nombre_apellido']} desvinculado correctamente."}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("[admin_desvincular_empleado] Error:")
+        raise HTTPException(status_code=500, detail="Error al desvincular empleado")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MÓDULO CRON: CONTROL DE MORA Y WHATSAPP AUTOMÁTICO
