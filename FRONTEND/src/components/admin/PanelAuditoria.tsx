@@ -17,25 +17,41 @@ export interface AuditLog {
     datos_nuevos: any;
 }
 
+interface AuditStats {
+    total: number;
+    mas_antigua: string | null;
+    mas_nueva: string | null;
+}
+
 export default function PanelAuditoria() {
     const { token } = useAuth();
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+    const [stats, setStats] = useState<AuditStats | null>(null);
 
     // Filtros
     const [filterModulo, setFilterModulo] = useState('TODOS');
     const [filterAccion, setFilterAccion] = useState('TODOS');
     const [filterTabla, setFilterTabla] = useState('TODOS');
 
-    // Modal
+    // Modal detalle
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+    // Modal purge
+    const [showPurge, setShowPurge] = useState(false);
+    const [purgeDias, setPurgeDias] = useState(90);
+    const [purgeConfirm, setPurgeConfirm] = useState('');
+    const [purging, setPurging] = useState(false);
+    const [purgeMsg, setPurgeMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
     const fetchLogs = async () => {
         setLoading(true);
         setErrorMsg('');
         try {
-            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/admin/auditoria`, {
+            const resp = await fetch(`${API}/api/admin/auditoria`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await resp.json();
@@ -48,9 +64,45 @@ export default function PanelAuditoria() {
         }
     };
 
+    const fetchStats = async () => {
+        try {
+            const resp = await fetch(`${API}/api/admin/auditoria/stats`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                setStats(data);
+            }
+        } catch { /* silencioso */ }
+    };
+
     useEffect(() => {
         fetchLogs();
+        fetchStats();
     }, [token]);
+
+    const handlePurge = async () => {
+        if (purgeConfirm !== 'PURGAR') return;
+        setPurging(true);
+        setPurgeMsg(null);
+        try {
+            const resp = await fetch(`${API}/api/admin/auditoria/purge?dias=${purgeDias}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.detail || 'Error al purgar');
+            setPurgeMsg({ type: 'success', text: data.mensaje });
+            setPurgeConfirm('');
+            // Refrescar lista y stats
+            await fetchLogs();
+            await fetchStats();
+        } catch (err: any) {
+            setPurgeMsg({ type: 'error', text: err.message });
+        } finally {
+            setPurging(false);
+        }
+    };
 
     const filteredLogs = logs.filter(log => {
         const matchesModulo = filterModulo === 'TODOS' || log.modulo === filterModulo;
@@ -59,7 +111,6 @@ export default function PanelAuditoria() {
         return matchesModulo && matchesAccion && matchesTabla;
     });
 
-    // Extract unique filter options
     const uniqueModulos = Array.from(new Set(logs.map(l => l.modulo).filter(Boolean)));
     const uniqueAcciones = Array.from(new Set(logs.map(l => l.accion).filter(Boolean)));
     const uniqueTablas = Array.from(new Set(logs.map(l => l.tabla_afectada).filter(Boolean)));
@@ -71,14 +122,65 @@ export default function PanelAuditoria() {
         });
     };
 
+    const accionColor = (accion: string) => {
+        switch (accion) {
+            case 'CREATE':   return 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/20';
+            case 'UPDATE':   return 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]/20';
+            case 'DELETE':   return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/20';
+            case 'APPROVE':  return 'bg-[#14b8a6]/10 text-[#14b8a6] border-[#14b8a6]/20';
+            case 'REJECT':   return 'bg-[#f97316]/10 text-[#f97316] border-[#f97316]/20';
+            case 'PURGE':    return 'bg-[#a855f7]/10 text-[#a855f7] border-[#a855f7]/20';
+            default:         return 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20';
+        }
+    };
+
     return (
         <div className="flex flex-col gap-4">
+
+            {/* Header */}
             <div className="px-4 flex justify-between items-center mt-2">
                 <h2 className="text-xl font-bold tracking-tight text-admin-text">Registro de Auditoría</h2>
-                <button onClick={fetchLogs} className="p-2 bg-admin-card border border-admin-border text-slate-300 hover:text-admin-text hover:border-admin-accent/50 rounded-full active:scale-95 admin-transition flex items-center justify-center">
-                    <span className="material-symbols-outlined text-sm outline-none">refresh</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => { setShowPurge(true); setPurgeMsg(null); setPurgeConfirm(''); }}
+                        className="px-3 h-9 bg-red-900/20 border border-red-700/40 text-red-400 hover:bg-red-900/40 hover:border-red-500/60 rounded-lg text-xs font-bold uppercase tracking-wider admin-transition flex items-center gap-1.5"
+                        title="Purgar registros antiguos"
+                    >
+                        <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                        Purgar
+                    </button>
+                    <button
+                        onClick={() => { fetchLogs(); fetchStats(); }}
+                        className="p-2 bg-admin-card border border-admin-border text-slate-300 hover:text-admin-text hover:border-admin-accent/50 rounded-full active:scale-95 admin-transition flex items-center justify-center"
+                    >
+                        <span className="material-symbols-outlined text-sm outline-none">refresh</span>
+                    </button>
+                </div>
             </div>
+
+            {/* Stats bar */}
+            {stats && (
+                <div className="px-4">
+                    <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-admin-card border border-admin-border rounded-xl p-3 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Total Registros</p>
+                            <p className="text-xl font-black text-admin-text font-mono">{stats.total.toLocaleString('es-AR')}</p>
+                        </div>
+                        <div className="bg-admin-card border border-admin-border rounded-xl p-3 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Más Antiguo</p>
+                            <p className="text-[10px] font-bold text-slate-400 font-mono leading-tight">
+                                {stats.mas_antigua ? new Date(stats.mas_antigua).toLocaleDateString('es-AR') : '—'}
+                            </p>
+                        </div>
+                        <div className="bg-admin-card border border-admin-border rounded-xl p-3 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Más Reciente</p>
+                            <p className="text-[10px] font-bold text-slate-400 font-mono leading-tight">
+                                {stats.mas_nueva ? new Date(stats.mas_nueva).toLocaleDateString('es-AR') : '—'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Filtros */}
             <div className="px-4 flex gap-2 overflow-x-auto pb-2 admin-scroll items-center">
@@ -129,13 +231,7 @@ export default function PanelAuditoria() {
                                     <div className="size-2 rounded-full bg-admin-active animate-pulse"></div>
                                     <span className="text-xs font-bold font-mono text-slate-400 uppercase tracking-widest">{formatDate(log.fecha)}</span>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded text-[10px] items-center justify-center font-bold uppercase tracking-wider border ${log.accion === 'CREATE' ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/20' :
-                                    log.accion === 'UPDATE' ? 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]/20' :
-                                        log.accion === 'DELETE' ? 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/20' :
-                                            log.accion === 'APPROVE' ? 'bg-[#14b8a6]/10 text-[#14b8a6] border-[#14b8a6]/20' :
-                                                log.accion === 'REJECT' ? 'bg-[#f97316]/10 text-[#f97316] border-[#f97316]/20' :
-                                                    'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20'
-                                    }`}>
+                                <span className={`px-2 py-0.5 rounded text-[10px] items-center justify-center font-bold uppercase tracking-wider border ${accionColor(log.accion)}`}>
                                     {log.accion}
                                 </span>
                             </div>
@@ -164,11 +260,10 @@ export default function PanelAuditoria() {
                 )}
             </div>
 
-            {/* Modal Detalle (Estilo Consola Ciberseguridad) */}
+            {/* ── Modal Detalle ─────────────────────────────────────────────── */}
             {selectedLog && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md admin-transition">
                     <div className="bg-admin-card rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-admin-accent/30 shadow-[0_0_40px_-15px_rgba(59,130,246,0.3)]">
-                        {/* Cabecera del Modal */}
                         <div className="p-4 border-b border-admin-accent/20 flex justify-between items-center bg-admin-bg/50">
                             <div className="flex items-center gap-2 text-admin-accent">
                                 <span className="material-symbols-outlined text-lg">terminal</span>
@@ -179,10 +274,7 @@ export default function PanelAuditoria() {
                             </button>
                         </div>
 
-                        {/* Cuerpo del Modal */}
                         <div className="p-5 overflow-y-auto admin-scroll flex-1 flex flex-col gap-6 text-sm">
-
-                            {/* Info Bloques */}
                             <div className="grid grid-cols-2 gap-3 text-xs font-mono">
                                 <div className="bg-admin-bg p-3 rounded-lg border border-admin-border/50">
                                     <span className="block text-slate-500 mb-1 text-[10px] uppercase tracking-widest">ID Log</span>
@@ -202,7 +294,6 @@ export default function PanelAuditoria() {
                                 </div>
                             </div>
 
-                            {/* Consolas Interactivas de estado */}
                             <div className="flex flex-col gap-4">
                                 {selectedLog.datos_anteriores && (
                                     <div>
@@ -229,7 +320,111 @@ export default function PanelAuditoria() {
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
 
+            {/* ── Modal Purge ───────────────────────────────────────────────── */}
+            {showPurge && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                    <div className="bg-admin-card rounded-2xl w-full max-w-md border border-red-700/40 shadow-[0_0_40px_-15px_rgba(239,68,68,0.4)] overflow-hidden">
+
+                        {/* Header */}
+                        <div className="p-4 border-b border-red-700/30 flex justify-between items-center bg-red-900/10">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-red-400 text-lg">delete_sweep</span>
+                                <h3 className="font-bold text-sm uppercase tracking-widest text-red-300">Purgar Auditoría</h3>
+                            </div>
+                            <button onClick={() => setShowPurge(false)} className="text-slate-500 hover:text-admin-text admin-transition">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        <div className="p-5 flex flex-col gap-4">
+                            {/* Stats actuales */}
+                            {stats && (
+                                <div className="bg-admin-bg border border-admin-border rounded-xl p-3 flex justify-between items-center">
+                                    <span className="text-xs text-slate-400 font-mono uppercase tracking-widest">Registros actuales</span>
+                                    <span className="text-lg font-black text-admin-text font-mono">{stats.total.toLocaleString('es-AR')}</span>
+                                </div>
+                            )}
+
+                            {/* Selector de días */}
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                                    Eliminar registros anteriores a:
+                                </label>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {[30, 60, 90, 180].map(d => (
+                                        <button
+                                            key={d}
+                                            onClick={() => setPurgeDias(d)}
+                                            className={`h-10 rounded-lg text-xs font-black uppercase tracking-wider border admin-transition ${
+                                                purgeDias === d
+                                                    ? 'bg-red-700/30 border-red-500/60 text-red-300'
+                                                    : 'bg-admin-bg border-admin-border text-slate-400 hover:border-admin-accent/40'
+                                            }`}
+                                        >
+                                            {d} días
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Advertencia */}
+                            <div className="bg-red-900/10 border border-red-700/30 rounded-xl p-3 flex gap-2">
+                                <span className="material-symbols-outlined text-red-400 text-base shrink-0 mt-0.5">warning</span>
+                                <p className="text-xs text-red-300 leading-relaxed">
+                                    Esta acción es <strong>irreversible</strong>. Se eliminarán permanentemente todos los registros de auditoría anteriores a <strong>{purgeDias} días</strong>. El purge quedará registrado con tu usuario.
+                                </p>
+                            </div>
+
+                            {/* Confirmación */}
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                                    Escribí <span className="text-red-400 font-mono">PURGAR</span> para confirmar:
+                                </label>
+                                <input
+                                    type="text"
+                                    value={purgeConfirm}
+                                    onChange={e => setPurgeConfirm(e.target.value.toUpperCase())}
+                                    placeholder="PURGAR"
+                                    className="w-full h-10 px-4 bg-admin-bg border border-admin-border rounded-lg text-sm font-mono font-bold text-red-300 placeholder-slate-600 outline-none focus:border-red-500/60 tracking-widest"
+                                />
+                            </div>
+
+                            {/* Feedback */}
+                            {purgeMsg && (
+                                <div className={`p-3 rounded-xl text-xs font-bold text-center border ${
+                                    purgeMsg.type === 'success'
+                                        ? 'bg-emerald-900/20 border-emerald-700/40 text-emerald-300'
+                                        : 'bg-red-900/20 border-red-700/40 text-red-300'
+                                }`}>
+                                    {purgeMsg.text}
+                                </div>
+                            )}
+
+                            {/* Botones */}
+                            <div className="flex gap-3 pt-1">
+                                <button
+                                    onClick={() => setShowPurge(false)}
+                                    className="flex-1 h-11 rounded-xl text-sm font-bold text-slate-400 hover:bg-admin-bg border border-admin-border admin-transition"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handlePurge}
+                                    disabled={purgeConfirm !== 'PURGAR' || purging}
+                                    className="flex-[2] h-11 bg-red-700/80 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-sm font-bold shadow-lg shadow-red-900/30 active:scale-[0.98] admin-transition flex items-center justify-center gap-2"
+                                >
+                                    {purging ? (
+                                        <><div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Purgando...</>
+                                    ) : (
+                                        <><span className="material-symbols-outlined text-base">delete_sweep</span> Purgar {purgeDias} días</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

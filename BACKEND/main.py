@@ -4453,6 +4453,107 @@ def get_auditoria(
         )
 
 
+@app.get("/api/admin/auditoria/stats")
+def get_auditoria_stats(
+    request: Request,
+    superadmin_user=Depends(get_current_superadmin),
+):
+    """Retorna estadísticas de la tabla de auditoría: total, más antigua, más nueva."""
+    try:
+        total_res = supabase.table("auditoria_logs").select("id", count="exact").execute()
+        total = total_res.count or 0
+
+        oldest_res = supabase.table("auditoria_logs").select("fecha").order("fecha", desc=False).limit(1).execute()
+        newest_res = supabase.table("auditoria_logs").select("fecha").order("fecha", desc=True).limit(1).execute()
+
+        oldest = oldest_res.data[0]["fecha"] if oldest_res.data else None
+        newest = newest_res.data[0]["fecha"] if newest_res.data else None
+
+        return {
+            "total": total,
+            "mas_antigua": oldest,
+            "mas_nueva": newest,
+        }
+    except Exception as e:
+        logger.error(f"[AUDITORIA STATS] Error: {e}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+
+@app.delete("/api/admin/auditoria/purge")
+def purge_auditoria(
+    request: Request,
+    superadmin_user=Depends(get_current_superadmin),
+    dias: int = Query(default=90, ge=30, description="Eliminar registros anteriores a este número de días. Mínimo 30."),
+):
+    """
+    [SUPERADMIN] Elimina registros de auditoría anteriores a N días.
+    Mínimo permitido: 30 días (seguridad anti-purge accidental).
+    Registra el purge como un evento de auditoría especial (autoauditoría).
+    """
+    try:
+        from datetime import datetime, timezone, timedelta
+
+        fecha_corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+        # Contar cuántos se van a eliminar
+        count_res = (
+            supabase.table("auditoria_logs")
+            .select("id", count="exact")
+            .lt("fecha", fecha_corte)
+            .execute()
+        )
+        a_eliminar = count_res.count or 0
+
+        if a_eliminar == 0:
+            return {
+                "status": "ok",
+                "eliminados": 0,
+                "mensaje": f"No hay registros anteriores a {dias} días para eliminar.",
+            }
+
+        # Ejecutar la eliminación
+        supabase.table("auditoria_logs").delete().lt("fecha", fecha_corte).execute()
+
+        # Total restante
+        total_res = supabase.table("auditoria_logs").select("id", count="exact").execute()
+        restantes = total_res.count or 0
+
+        # Autoauditoría: registrar el purge
+        ip = request.client.host if request.client else "unknown"
+        supabase.table("auditoria_logs").insert({
+            "usuario_id": superadmin_user.id,
+            "email_usuario": superadmin_user.email,
+            "rol_usuario": "SUPERADMIN",
+            "accion": "PURGE",
+            "tabla_afectada": "auditoria_logs",
+            "registro_id": "BULK",
+            "datos_anteriores": None,
+            "datos_nuevos": {"registros_eliminados": a_eliminar, "dias_corte": dias, "fecha_corte": fecha_corte},
+            "modulo": "Especial: Auditoría",
+            "ip_address": ip,
+            "user_agent": request.headers.get("user-agent", "unknown"),
+        }).execute()
+
+        logger.info(
+            f"[AUDITORIA PURGE] Superadmin {superadmin_user.email} eliminó "
+            f"{a_eliminar} registros anteriores a {dias} días. Restantes: {restantes}"
+        )
+
+        return {
+            "status": "success",
+            "eliminados": a_eliminar,
+            "restantes": restantes,
+            "dias_corte": dias,
+            "mensaje": f"✅ Se eliminaron {a_eliminar} registros anteriores a {dias} días. Quedan {restantes} registros.",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[AUDITORIA PURGE] Error: {e}")
+        raise HTTPException(status_code=500, detail="Error al purgar auditoría")
+
+
 # ─────────────────────────────────────────────────────────────────
 # 11. ENDPOINTS GESTIÓN DE EVENTOS INSTITUCIONALES
 # ─────────────────────────────────────────────────────────────────
