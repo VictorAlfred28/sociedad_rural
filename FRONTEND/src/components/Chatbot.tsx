@@ -95,7 +95,7 @@ export const Chatbot: React.FC = () => {
                     timestamp: new Date(),
                     actions: [{
                         type: 'whatsapp',
-                        url: 'https://wa.me/5493794352784?text=' + encodeURIComponent('Hola, necesito soporte técnico en Sociedad Rural Del Norte.'),
+                        url: 'https://wa.me/5493794806651?text=' + encodeURIComponent('Hola, necesito soporte técnico en Sociedad Rural Del Norte.'),
                         label: 'Continuar por WhatsApp'
                     }]
                 };
@@ -103,7 +103,7 @@ export const Chatbot: React.FC = () => {
             } catch (err: any) {
                 const errorMsg: Message = {
                     id: (Date.now() + 1).toString(),
-                    text: `No pudimos registrar tu consulta: ${err.message}. Escribinos directamente por WhatsApp al +54 9 3794 35-2784.`,
+                    text: `No pudimos registrar tu consulta: ${err.message}. Escribinos directamente por WhatsApp al +54 9 3794 80-6651.`,
                     sender: 'bot',
                     timestamp: new Date(),
                 };
