@@ -4510,8 +4510,8 @@ def purge_auditoria(
                 "mensaje": f"No hay registros anteriores a {dias} días para eliminar.",
             }
 
-        # Ejecutar la eliminación
-        supabase.table("auditoria_logs").delete().lt("fecha", fecha_corte).execute()
+        # Ejecutar la eliminación a través del RPC seguro (bypassea el trigger forense temporalmente)
+        supabase.rpc("purge_auditoria_logs", {"dias_corte": dias}).execute()
 
         # Total restante
         total_res = supabase.table("auditoria_logs").select("id", count="exact").execute()
