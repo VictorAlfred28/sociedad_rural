@@ -27,13 +27,45 @@ export default class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, errorMessage: error.message };
   }
 
+  /** Detecta si el error es por un chunk stale/no encontrado (deploy nuevo) */
+  private static isChunkError(error: Error): boolean {
+    return (
+      error.name === 'ChunkLoadError' ||
+      error.message.includes('Failed to fetch') ||
+      error.message.includes('Loading chunk') ||
+      error.message.includes('Importing a module script failed') ||
+      error.message.includes('error loading dynamically imported module')
+    );
+  }
+
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    // Controlled logging — never exposed to user
     console.error(`[ErrorBoundary${this.props.context ? ':' + this.props.context : ''}]`, error.message, info.componentStack);
+
+    // Si es un error de chunk stale (deploy nuevo), recargar la página una sola vez
+    if (ErrorBoundary.isChunkError(error)) {
+      const reloadKey = 'chunk_error_reload';
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, '1');
+        window.location.reload();
+      }
+    }
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, errorMessage: '' });
+    // Si el error fue por chunk stale, un simple reset no alcanza: necesitamos recargar
+    const errorMsg = this.state.errorMessage;
+    const isChunk =
+      errorMsg.includes('Failed to fetch') ||
+      errorMsg.includes('Loading chunk') ||
+      errorMsg.includes('Importing a module script failed') ||
+      errorMsg.includes('error loading dynamically imported module');
+
+    if (isChunk) {
+      sessionStorage.removeItem('chunk_error_reload'); // Limpiar guard para permitir un nuevo intento
+      window.location.reload();
+    } else {
+      this.setState({ hasError: false, errorMessage: '' });
+    }
   };
 
   render() {

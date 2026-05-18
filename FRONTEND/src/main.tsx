@@ -37,3 +37,15 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+
+// ── Stale chunk auto-reload ──────────────────────────────────────────────────
+// Cuando hay un nuevo deploy, los hashes de los chunks cambian.
+// El browser puede tener el index.html viejo que referencia chunks que ya no
+// existen (404). Vite emite este evento cuando falla la precarga de un módulo.
+// La solución es recargar la página una sola vez para obtener el HTML nuevo.
+window.addEventListener('vite:preloadError', () => {
+  if (!sessionStorage.getItem('vite_chunk_reload')) {
+    sessionStorage.setItem('vite_chunk_reload', '1');
+    window.location.reload();
+  }
+});
