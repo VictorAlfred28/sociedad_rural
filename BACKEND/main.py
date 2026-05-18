@@ -5570,18 +5570,27 @@ def detectar_mora(
         anio_actual = hoy.year
         fecha_venci = f"{anio_actual}-{mes_actual:02d}-10"
 
-        # Obtenemos todos los miembros (Socios y Comercios) aprobados y restringidos
+        # Obtenemos todos los miembros aprobados/restringidos:
+        # SOCIOs, COMERCIOs y EMPLEADOS COMERCIALES activos.
         query = (
             supabase.table("profiles")
-            .select("id, nombre_apellido, telefono, rol")
+            .select("id, nombre_apellido, telefono, rol, email, es_empleado_comercial, activo_empleado")
             .in_("estado", list(ESTADOS_ACTIVOS))
         )
 
-        if not admin_user:
-            query = query.in_("rol", ["SOCIO", "COMERCIO"])
-
         socios_res = query.execute()
-        socios = [s for s in (socios_res.data or []) if s.get("email") not in EMAILS_EXCLUIDOS_MORA]
+        todos = socios_res.data or []
+
+        if not admin_user:
+            # Incluir SOCIOs y EMPLEADOS COMERCIALES activos.
+            # Excluir COMERCIOs puros (no pagan cuota mensual propia).
+            todos = [
+                s for s in todos
+                if s.get("rol") == "SOCIO"
+                or (s.get("es_empleado_comercial") and s.get("activo_empleado", True))
+            ]
+
+        socios = [s for s in todos if s.get("email") not in EMAILS_EXCLUIDOS_MORA]
 
         # Definir rango del mes para la consulta de pagos (Ajuste 1)
         fecha_inicio_mes = f"{anio_actual}-{mes_actual:02d}-01"
@@ -7062,28 +7071,33 @@ def _registrar_log_reminder(
 
 def _detectar_socios_sin_pago() -> list[dict]:
     """
-    Retorna lista de socios (APROBADO, rol SOCIO) que:
+    Retorna lista de socios Y empleados comerciales activos que:
     - Tienen 40+ días (MORA_40) o exactamente 29 días (PRE_VENCIMIENTO_30) desde created_at
     - NO tienen ningún pago en estado APROBADO
     - NO tienen comprobante pendiente de revisión (REVISION)
     - NO están SUSPENDIDOS ni RECHAZADOS
+    Incluye: rol=SOCIO + es_empleado_comercial=True y activo_empleado=True.
     """
     try:
-        # Detectamos socios desde el día 29 en adelante para evaluar a todos en memoria.
+        # Detectamos perfiles desde el día 29 en adelante para evaluar en memoria.
         fecha_limite = (
             datetime.now(TZ_ARGENTINA) - timedelta(days=29)
         ).isoformat()
 
-        # Socios activos registrados hace al menos 29 días
+        # Socios Y empleados comerciales activos registrados hace al menos 29 días
         perfiles_res = (
             supabase.table("profiles")
-            .select("id, nombre_apellido, telefono, email, estado, created_at")
-            .eq("rol", "SOCIO")
+            .select("id, nombre_apellido, telefono, email, estado, created_at, rol, es_empleado_comercial, activo_empleado")
             .in_("estado", ["APROBADO", "PENDIENTE"])
             .lt("created_at", fecha_limite)
             .execute()
         )
-        perfiles = perfiles_res.data or []
+        # Filtrar: SOCIOs normales + EMPLEADOS COMERCIALES activos
+        perfiles = [
+            p for p in (perfiles_res.data or [])
+            if p.get("rol") == "SOCIO"
+            or (p.get("es_empleado_comercial") and p.get("activo_empleado", True))
+        ]
 
         socios_sin_pago = []
         now_utc = datetime.now(timezone.utc)
@@ -7479,7 +7493,7 @@ def admin_reenviar_recordatorio(
     try:
         perfil_res = (
             supabase.table("profiles")
-            .select("id, nombre_apellido, telefono, email, estado, rol")
+            .select("id, nombre_apellido, telefono, email, estado, rol, es_empleado_comercial, activo_empleado")
             .eq("id", user_id)
             .single()
             .execute()
@@ -7489,8 +7503,11 @@ def admin_reenviar_recordatorio(
 
         perfil = perfil_res.data
 
-        if perfil.get("rol") != "SOCIO":
-            raise HTTPException(status_code=400, detail="Solo aplicable a socios")
+        # Permitir SOCIO y EMPLEADO COMERCIAL activo. Rechazar otros roles.
+        es_socio = perfil.get("rol") == "SOCIO"
+        es_empleado = perfil.get("es_empleado_comercial") and perfil.get("activo_empleado", True)
+        if not es_socio and not es_empleado:
+            raise HTTPException(status_code=400, detail="Solo aplicable a socios y empleados comerciales activos")
 
         if perfil.get("estado") in REMINDER_EXCLUIR_ESTADOS:
             raise HTTPException(
