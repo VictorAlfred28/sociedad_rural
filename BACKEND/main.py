@@ -6525,16 +6525,10 @@ def calcular_cuota_dinamica_internal(user_id: str):
     comercio_nombre = None
     descuento_pct_aplicado = 0
     
-    # Priority logic
-    if membership_type == "FAMILIAR":
-        rol_efectivo = "GRUPO FAMILIAR"
-        tipo_plan = "Grupo Familiar"
-    elif profile.get("es_profesional") and descuento_profesional_habilitado:
-        # Solo aplica precio profesional si fue dado de alta desde el panel admin
-        rol_efectivo = "PROFESIONAL"
-        tipo_plan = "Socio Profesional"
-    elif profile.get("es_empleado_comercial") and profile.get("activo_empleado", True):
-        # EMPLEADO COMERCIAL: arancel directo configurable desde panel admin.
+    # Priority logic — EMPLEADO COMERCIAL tiene máxima prioridad para evitar
+    # que sea clasificado como GRUPO FAMILIAR si tiene dependientes a su cargo.
+    if profile.get("es_empleado_comercial") and profile.get("activo_empleado", True):
+        # EMPLEADO COMERCIAL: arancel fijo configurable desde panel admin.
         # SEGURIDAD: validamos el vínculo comercio en el backend, nunca confiamos en el frontend.
         comercio_id = profile.get("empleado_comercio_id")
         comercio_activo = False
@@ -6553,6 +6547,13 @@ def calcular_cuota_dinamica_internal(user_id: str):
             # Comercio inactivo, desvinculado o no encontrado → cuota socio normal
             rol_efectivo = str(profile.get("rol", "SOCIO")).upper()
             tipo_plan = "Individual"
+    elif membership_type == "FAMILIAR":
+        rol_efectivo = "GRUPO FAMILIAR"
+        tipo_plan = "Grupo Familiar"
+    elif profile.get("es_profesional") and descuento_profesional_habilitado:
+        # Solo aplica precio profesional si fue dado de alta desde el panel admin
+        rol_efectivo = "PROFESIONAL"
+        tipo_plan = "Socio Profesional"
     elif profile.get("es_estudiante"):
         rol_efectivo = "ESTUDIANTE"
         tipo_plan = "Estudiante"
@@ -6562,7 +6563,7 @@ def calcular_cuota_dinamica_internal(user_id: str):
         
     monto_base = cuotas_map.get(rol_efectivo, 0)
     
-    # Defaults in case not in DB yet
+    # Defaults in case not in DB yet (o rol sin monto configurado)
     if monto_base == 0:
         if rol_efectivo == "GRUPO FAMILIAR":
             monto_base = 20000
@@ -6572,8 +6573,9 @@ def calcular_cuota_dinamica_internal(user_id: str):
             monto_base = 7000  # Default $7000 monto fijo (configurable por admin)
         elif rol_efectivo == "ESTUDIANTE":
             monto_base = 5000
-        elif rol_efectivo == "SOCIO":
-            monto_base = 10000
+        else:
+            # SOCIO, COMERCIO (sin cuota propia) y cualquier otro rol → cuota base SOCIO
+            monto_base = cuotas_map.get("SOCIO", 10000)
 
     # Estado de cuota
     estado_cuota = "Al Día"
