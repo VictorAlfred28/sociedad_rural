@@ -158,8 +158,96 @@ export default function MiNegocio() {
     const [isScanning, setIsScanning] = useState(false);
     const scannerRef = useRef<Html5Qrcode | null>(null);
 
-    // ── Panel tab: 'publicaciones' | 'estadisticas' ─────────────
-    const [activeTab, setActiveTab] = useState<'publicaciones' | 'estadisticas'>('publicaciones');
+    // ── Panel tab: 'publicaciones' | 'estadisticas' | 'empleados' ─
+    const [activeTab, setActiveTab] = useState<'publicaciones' | 'estadisticas' | 'empleados'>('publicaciones');
+
+    // ── Estado para gestión de empleados ───────────────────────────
+    interface Empleado {
+        id: string;
+        nombre_apellido: string;
+        dni?: string;
+        email?: string;
+        telefono?: string;
+        estado?: string;
+        activo_empleado: boolean;
+        fecha_vinculacion_comercio?: string;
+    }
+    const [empleados, setEmpleados] = useState<Empleado[]>([]);
+    const [loadingEmpleados, setLoadingEmpleados] = useState(false);
+    const [showVincularModal, setShowVincularModal] = useState(false);
+    const [vincularQuery, setVincularQuery] = useState({ dni: '', email: '' });
+    const [vincularLoading, setVincularLoading] = useState(false);
+    const [vincularMsg, setVincularMsg] = useState({ type: '', text: '' });
+
+    const fetchEmpleados = async () => {
+        setLoadingEmpleados(true);
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/mi-negocio/empleados`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                setEmpleados(data.empleados || []);
+            }
+        } catch { /* silencioso */ }
+        finally { setLoadingEmpleados(false); }
+    };
+
+    const handleVincularEmpleado = async () => {
+        if (!vincularQuery.dni && !vincularQuery.email) {
+            setVincularMsg({ type: 'error', text: 'Ingresá DNI o email del empleado.' });
+            return;
+        }
+        setVincularLoading(true);
+        setVincularMsg({ type: '', text: '' });
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/mi-negocio/empleados`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    dni: vincularQuery.dni || undefined,
+                    email: vincularQuery.email || undefined,
+                }),
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                setVincularMsg({ type: 'success', text: data.mensaje || 'Empleado vinculado.' });
+                setTimeout(() => {
+                    setShowVincularModal(false);
+                    setVincularQuery({ dni: '', email: '' });
+                    setVincularMsg({ type: '', text: '' });
+                    fetchEmpleados();
+                }, 1800);
+            } else {
+                setVincularMsg({ type: 'error', text: data.detail || 'Error al vincular.' });
+            }
+        } catch {
+            setVincularMsg({ type: 'error', text: 'Error de conexión.' });
+        } finally {
+            setVincularLoading(false);
+        }
+    };
+
+    const handleToggleEmpleado = async (empId: string) => {
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/mi-negocio/empleados/${empId}/estado`, {
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (resp.ok) fetchEmpleados();
+        } catch { /* silencioso */ }
+    };
+
+    const handleDesvincularEmpleado = async (empId: string, nombre: string) => {
+        if (!confirm(`¿Desvincular a ${nombre} de tu comercio?`)) return;
+        try {
+            const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/mi-negocio/empleados/${empId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (resp.ok) fetchEmpleados();
+        } catch { /* silencioso */ }
+    };
 
 
     const fetchOfertas = async () => {
@@ -189,6 +277,10 @@ export default function MiNegocio() {
             }
         };
     }, []);
+
+    useEffect(() => {
+        if (activeTab === 'empleados') fetchEmpleados();
+    }, [activeTab]);
 
     const handleSubmitOferta = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -605,9 +697,9 @@ export default function MiNegocio() {
                         VALIDAR PASAPORTE SOCIO
                     </button>
 
-                    {/* ── TABS: Publicaciones | Estadísticas ──────────────── */}
+                    {/* ── TABS: Publicaciones | Estadísticas | Empleados ─────── */}
                     <div className="flex gap-2 mb-5 p-1 bg-stone-100 dark:bg-stone-800 rounded-2xl">
-                        {(['publicaciones', 'estadisticas'] as const).map((tab) => (
+                        {(['publicaciones', 'estadisticas', 'empleados'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -618,9 +710,9 @@ export default function MiNegocio() {
                                 }`}
                             >
                                 <span className="material-symbols-outlined text-[16px]">
-                                    {tab === 'publicaciones' ? 'storefront' : 'bar_chart'}
+                                    {tab === 'publicaciones' ? 'storefront' : tab === 'estadisticas' ? 'bar_chart' : 'badge'}
                                 </span>
-                                {tab === 'publicaciones' ? 'Publicaciones' : 'Estadísticas'}
+                                {tab === 'publicaciones' ? 'Publicaciones' : tab === 'estadisticas' ? 'Estadísticas' : 'Empleados'}
                             </button>
                         ))}
                     </div>
@@ -628,6 +720,195 @@ export default function MiNegocio() {
                     {/* ── PANEL ESTADÍSTICAS ────────────────────────────────── */}
                     {activeTab === 'estadisticas' && token && (
                         <ComercioAnalytics token={token} />
+                    )}
+
+                    {/* ── PANEL EMPLEADOS ───────────────────────────────────── */}
+                    {activeTab === 'empleados' && (
+                        <div className="space-y-4">
+                            {/* Header con botón de vincular */}
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="font-bold text-stone-800 dark:text-stone-100 text-base">Empleados Vinculados</h2>
+                                    <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">Gestioná los empleados de tu comercio. Obtienen cuota especial automáticamente.</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowVincularModal(true)}
+                                    className="flex items-center gap-1.5 bg-primary text-slate-900 font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm active:scale-95 transition-all shrink-0"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                                    Vincular
+                                </button>
+                            </div>
+
+                            {/* Banner informativo de beneficio */}
+                            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl p-4">
+                                <div className="flex items-start gap-3">
+                                    <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-xl shrink-0">info</span>
+                                    <div>
+                                        <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mb-1">Beneficio Automático</p>
+                                        <p className="text-[11px] text-emerald-700 dark:text-emerald-400 leading-relaxed">
+                                            Los empleados vinculados obtienen un <strong>30% de descuento</strong> sobre la cuota SOCIO mientras tu comercio esté activo.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Lista de empleados */}
+                            {loadingEmpleados ? (
+                                <div className="flex flex-col items-center py-10 text-stone-400 gap-3">
+                                    <span className="material-symbols-outlined text-3xl animate-spin text-emerald-600">autorenew</span>
+                                    <p className="text-[10px] font-black uppercase tracking-widest">Cargando empleados...</p>
+                                </div>
+                            ) : empleados.length === 0 ? (
+                                <div className="text-center py-12 bg-stone-100/50 dark:bg-stone-800/50 rounded-2xl border border-dashed border-stone-300 dark:border-stone-700">
+                                    <span className="material-symbols-outlined text-4xl text-stone-300 mb-2 block">group_add</span>
+                                    <p className="text-stone-500 text-[10px] font-black uppercase tracking-widest">Sin empleados vinculados</p>
+                                    <p className="text-stone-400 text-xs mt-1">Vinculá a tus empleados por DNI o email</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {empleados.map((emp) => (
+                                        <div
+                                            key={emp.id}
+                                            className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${
+                                                emp.activo_empleado
+                                                    ? 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700'
+                                                    : 'bg-stone-100 dark:bg-stone-800/50 border-stone-200/50 dark:border-stone-700/50 opacity-60'
+                                            }`}
+                                        >
+                                            {/* Avatar */}
+                                            <div className={`size-10 rounded-full flex items-center justify-center shrink-0 ${
+                                                emp.activo_empleado ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-stone-200 dark:bg-stone-700'
+                                            }`}>
+                                                <span className={`material-symbols-outlined text-xl ${
+                                                    emp.activo_empleado ? 'text-emerald-600' : 'text-stone-400'
+                                                }`}>person</span>
+                                            </div>
+
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-stone-800 dark:text-stone-100 text-sm truncate">{emp.nombre_apellido}</p>
+                                                <p className="text-[10px] text-stone-500 dark:text-stone-400">
+                                                    {emp.dni && `DNI ${emp.dni}`}{emp.dni && emp.email && ' · '}{emp.email}
+                                                </p>
+                                                {emp.fecha_vinculacion_comercio && (
+                                                    <p className="text-[10px] text-stone-400 dark:text-stone-500">
+                                                        Vinculado: {new Date(emp.fecha_vinculacion_comercio).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Badge estado */}
+                                            <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-full ${
+                                                emp.activo_empleado
+                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                                    : 'bg-stone-200 text-stone-500 dark:bg-stone-700 dark:text-stone-400'
+                                            }`}>
+                                                {emp.activo_empleado ? 'Activo' : 'Inactivo'}
+                                            </span>
+
+                                            {/* Acciones */}
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    onClick={() => handleToggleEmpleado(emp.id)}
+                                                    title={emp.activo_empleado ? 'Desactivar' : 'Activar'}
+                                                    className="size-8 rounded-xl flex items-center justify-center text-stone-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all active:scale-95"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">
+                                                        {emp.activo_empleado ? 'pause_circle' : 'play_circle'}
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDesvincularEmpleado(emp.id, emp.nombre_apellido)}
+                                                    title="Desvincular"
+                                                    className="size-8 rounded-xl flex items-center justify-center text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">link_off</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Modal de vinculación */}
+                            {showVincularModal && (
+                                <div className="fixed inset-0 bg-black/60 z-[100] flex items-end">
+                                    <div className="w-full bg-white dark:bg-slate-900 rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-200">
+                                        <div className="flex items-center justify-between mb-5">
+                                            <div>
+                                                <h2 className="text-lg font-bold text-stone-800 dark:text-stone-100">Vincular Empleado</h2>
+                                                <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Ingresá el DNI o email del socio</p>
+                                            </div>
+                                            <button
+                                                onClick={() => { setShowVincularModal(false); setVincularQuery({ dni: '', email: '' }); setVincularMsg({ type: '', text: '' }); }}
+                                                className="text-slate-400 hover:text-slate-600"
+                                            >
+                                                <span className="material-symbols-outlined">close</span>
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">DNI del empleado</label>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    maxLength={8}
+                                                    placeholder="8 dígitos"
+                                                    value={vincularQuery.dni}
+                                                    onChange={e => setVincularQuery(q => ({ ...q, dni: e.target.value.replace(/\D/g, '') }))}
+                                                    className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                                                <span className="text-xs text-slate-400 font-semibold">O</span>
+                                                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Email del empleado</label>
+                                                <input
+                                                    type="email"
+                                                    placeholder="nombre@ejemplo.com"
+                                                    value={vincularQuery.email}
+                                                    onChange={e => setVincularQuery(q => ({ ...q, email: e.target.value }))}
+                                                    className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                                />
+                                            </div>
+
+                                            {vincularMsg.text && (
+                                                <div className={`p-3 rounded-xl text-xs font-bold text-center ${
+                                                    vincularMsg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                }`}>
+                                                    {vincularMsg.text}
+                                                </div>
+                                            )}
+
+                                            <div className="flex gap-3 pt-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setShowVincularModal(false); setVincularQuery({ dni: '', email: '' }); setVincularMsg({ type: '', text: '' }); }}
+                                                    className="flex-1 h-12 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleVincularEmpleado}
+                                                    disabled={vincularLoading || (!vincularQuery.dni && !vincularQuery.email)}
+                                                    className="flex-[2] h-12 bg-primary text-slate-900 rounded-xl text-sm font-bold shadow-sm active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    {vincularLoading ? (
+                                                        <><div className="h-4 w-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" /> Vinculando...</>
+                                                    ) : 'Vincular Empleado'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {/* ── PANEL PUBLICACIONES ───────────────────────────────── */}

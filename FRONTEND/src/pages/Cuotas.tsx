@@ -212,6 +212,29 @@ export default function Cuotas() {
           </div>
         </section>
 
+        {/* Banner Beneficio Comercial — solo visible para Empleados Comerciales */}
+        {calculoCuota?.detalle?.tipo_plan === 'Empleado Comercial' && (
+          <section className="relative overflow-hidden rounded-[2rem] bg-emerald-700 p-5 border border-emerald-600 shadow-md">
+            <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none translate-x-1/4 -translate-y-1/4">
+              <span className="material-symbols-outlined text-8xl text-white">badge</span>
+            </div>
+            <div className="relative z-10 text-white">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="material-symbols-outlined text-emerald-300 text-lg">verified</span>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Beneficio Comercial Aplicado</p>
+              </div>
+              <p className="text-base font-bold">
+                {calculoCuota.detalle.descuento_pct ?? 30}% menos sobre cuota socio común
+              </p>
+              {calculoCuota.detalle.comercio_nombre && (
+                <p className="text-[11px] text-emerald-200 mt-1 font-medium">
+                  Comercio: <span className="font-bold text-white">{calculoCuota.detalle.comercio_nombre}</span>
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Acciones Rápidas */}
         <section className="flex gap-3">
           <button
@@ -320,10 +343,11 @@ export default function Cuotas() {
                         <div className="pt-2 border-t border-green-200/50 dark:border-green-800/30">
                           <span className="font-bold text-[#245b31] dark:text-green-400 block text-[10px] uppercase tracking-widest mb-1">Referencia de Pago</span>
                           <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                            {calculoCuota?.detalle?.tipo_plan === 'Grupo Familiar' ? 'Cuota Grupo Familiar' :
-                             calculoCuota?.detalle?.tipo_plan === 'Socio Profesional' ? 'Cuota Socio Profesional' :
-                             calculoCuota?.detalle?.tipo_plan === 'Estudiante' ? 'Cuota Estudiante' :
-                             'Cuota Socio'}
+                          {calculoCuota?.detalle?.tipo_plan === 'Grupo Familiar' ? 'Cuota Grupo Familiar' :
+                           calculoCuota?.detalle?.tipo_plan === 'Socio Profesional' ? 'Cuota Socio Profesional' :
+                           calculoCuota?.detalle?.tipo_plan === 'Empleado Comercial' ? 'Cuota Empleado Comercial' :
+                           calculoCuota?.detalle?.tipo_plan === 'Estudiante' ? 'Cuota Estudiante' :
+                           'Cuota Socio'}
                           </span>
                         </div>
                       </div>

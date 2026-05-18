@@ -6458,7 +6458,190 @@ def calcular_cuota_dinamica(current_user=Depends(require_titular)):
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+
+# =============================================================================
+# GESTIÓN DE EMPLEADOS COMERCIALES — Mi Negocio
+# =============================================================================
+# Endpoints para que comercios adheridos vinculen/gestionen sus empleados.
+# Todos requieren JWT de un perfil con rol=COMERCIO y estado=APROBADO.
+# El backend valida SIEMPRE la identidad y el vínculo real.
+# =============================================================================
+
+class VincularEmpleadoRequest(BaseModel):
+    """Busca al empleado por DNI o email. Uno de los dos es obligatorio."""
+    dni: Optional[str] = None
+    email: Optional[str] = None
+
+
+def _get_comercio_aprobado(current_user) -> dict:
+    """Helper: verifica que el usuario actual sea un COMERCIO APROBADO.
+    Retorna el perfil completo o lanza 403."""
+    if str(current_user.rol).upper() != "COMERCIO":
+        raise HTTPException(
+            status_code=403,
+            detail="Solo los comercios adheridos pueden gestionar empleados."
+        )
+    perfil_res = supabase.table("profiles").select("id, estado, nombre_apellido").eq("id", current_user.id).execute()
+    if not perfil_res.data or perfil_res.data[0].get("estado") != "APROBADO":
+        raise HTTPException(
+            status_code=403,
+            detail="El comercio debe estar aprobado para gestionar empleados."
+        )
+    return perfil_res.data[0]
+
+
+@app.get("/api/mi-negocio/empleados")
+def listar_empleados_comercio(current_user=Depends(get_current_user)):
+    """Lista todos los empleados vinculados al comercio actual."""
+    _get_comercio_aprobado(current_user)
+    try:
+        res = supabase.table("profiles").select(
+            "id, nombre_apellido, dni, email, telefono, estado, "
+            "es_empleado_comercial, activo_empleado, fecha_vinculacion_comercio"
+        ).eq("empleado_comercio_id", current_user.id).execute()
+        return {"empleados": res.data or []}
+    except Exception as e:
+        logger.exception("[listar_empleados_comercio] Error:")
+        raise HTTPException(status_code=500, detail="Error al obtener empleados")
+
+
+@app.post("/api/mi-negocio/empleados")
+def vincular_empleado_comercio(
+    req: VincularEmpleadoRequest,
+    current_user=Depends(get_current_user)
+):
+    """Vincula un empleado existente al comercio.
+    Busca por DNI o email. Aplica todas las reglas de seguridad.
+    """
+    comercio = _get_comercio_aprobado(current_user)
+
+    if not req.dni and not req.email:
+        raise HTTPException(status_code=422, detail="Debe proveer DNI o email del empleado.")
+
+    try:
+        # Buscar empleado por DNI o email
+        query = supabase.table("profiles").select(
+            "id, nombre_apellido, dni, email, estado, empleado_comercio_id, es_empleado_comercial"
+        )
+        if req.dni:
+            query = query.eq("dni", req.dni.strip())
+        else:
+            query = query.eq("email", req.email.strip().lower())
+
+        empleado_res = query.execute()
+
+        if not empleado_res.data:
+            raise HTTPException(status_code=404, detail="No se encontró un socio con esos datos.")
+
+        empleado = empleado_res.data[0]
+        empleado_id = empleado["id"]
+
+        # ── REGLAS DE SEGURIDAD ──────────────────────────────────────────────
+        # 1. No autoasignación
+        if empleado_id == current_user.id:
+            raise HTTPException(status_code=400, detail="Un comercio no puede vincularse a sí mismo.")
+
+        # 2. No doble vinculación (ya tiene otro comercio)
+        if empleado.get("empleado_comercio_id") and empleado["empleado_comercio_id"] != current_user.id:
+            raise HTTPException(
+                status_code=409,
+                detail="Este socio ya está vinculado a otro comercio. Debe ser desvinculado primero."
+            )
+
+        # 3. El empleado debe estar APROBADO
+        if empleado.get("estado") not in ["APROBADO"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"El socio tiene estado '{empleado.get('estado')}'. Solo socios APROBADOS pueden ser empleados comerciales."
+            )
+        # ─────────────────────────────────────────────────────────────────────
+
+        # Vincular empleado al comercio
+        from datetime import datetime, timezone
+        supabase.table("profiles").update({
+            "es_empleado_comercial": True,
+            "empleado_comercio_id": current_user.id,
+            "activo_empleado": True,
+            "fecha_vinculacion_comercio": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", empleado_id).execute()
+
+        logger.info(f"[vincular_empleado] Comercio {current_user.id} vinculó a empleado {empleado_id}")
+
+        return {
+            "status": "success",
+            "mensaje": f"✅ {empleado['nombre_apellido']} vinculado como Empleado Comercial.",
+            "empleado": {
+                "id": empleado_id,
+                "nombre_apellido": empleado["nombre_apellido"],
+                "dni": empleado.get("dni"),
+                "email": empleado.get("email"),
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("[vincular_empleado_comercio] Error:")
+        raise HTTPException(status_code=500, detail="Error al vincular empleado")
+
+
+@app.patch("/api/mi-negocio/empleados/{empleado_id}/estado")
+def cambiar_estado_empleado(empleado_id: str, current_user=Depends(get_current_user)):
+    """Activa o desactiva un empleado (soft toggle). Mantiene el vínculo para auditoría."""
+    _get_comercio_aprobado(current_user)
+    try:
+        # Verificar que el empleado pertenece a este comercio
+        emp_res = supabase.table("profiles").select("id, activo_empleado, nombre_apellido, empleado_comercio_id").eq("id", empleado_id).execute()
+        if not emp_res.data:
+            raise HTTPException(status_code=404, detail="Empleado no encontrado.")
+        emp = emp_res.data[0]
+        if emp.get("empleado_comercio_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Este empleado no pertenece a tu comercio.")
+
+        nuevo_estado = not emp.get("activo_empleado", True)
+        supabase.table("profiles").update({
+            "activo_empleado": nuevo_estado
+        }).eq("id", empleado_id).execute()
+
+        accion = "activado" if nuevo_estado else "desactivado"
+        logger.info(f"[cambiar_estado_empleado] Empleado {empleado_id} {accion} por comercio {current_user.id}")
+        return {"status": "success", "activo_empleado": nuevo_estado, "mensaje": f"Empleado {accion} correctamente."}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("[cambiar_estado_empleado] Error:")
+        raise HTTPException(status_code=500, detail="Error al cambiar estado del empleado")
+
+
+@app.delete("/api/mi-negocio/empleados/{empleado_id}")
+def desvincular_empleado(empleado_id: str, current_user=Depends(get_current_user)):
+    """Desvincula completamente a un empleado del comercio. Limpia todos los flags."""
+    _get_comercio_aprobado(current_user)
+    try:
+        # Verificar propiedad del vínculo
+        emp_res = supabase.table("profiles").select("id, nombre_apellido, empleado_comercio_id").eq("id", empleado_id).execute()
+        if not emp_res.data:
+            raise HTTPException(status_code=404, detail="Empleado no encontrado.")
+        emp = emp_res.data[0]
+        if emp.get("empleado_comercio_id") != current_user.id:
+            raise HTTPException(status_code=403, detail="Este empleado no pertenece a tu comercio.")
+
+        # Limpiar todos los flags de vínculo comercial
+        supabase.table("profiles").update({
+            "es_empleado_comercial": False,
+            "empleado_comercio_id": None,
+            "activo_empleado": True,
+            "fecha_vinculacion_comercio": None,
+        }).eq("id", empleado_id).execute()
+
+        nombre = emp.get("nombre_apellido", empleado_id)
+        logger.info(f"[desvincular_empleado] Empleado {empleado_id} desvinculado de comercio {current_user.id}")
+        return {"status": "success", "mensaje": f"{nombre} desvinculado del comercio correctamente."}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("[desvincular_empleado] Error:")
+        raise HTTPException(status_code=500, detail="Error al desvincular empleado")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MÓDULO CRON: CONTROL DE MORA Y WHATSAPP AUTOMÁTICO
