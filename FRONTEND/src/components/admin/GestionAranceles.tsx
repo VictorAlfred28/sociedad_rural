@@ -35,7 +35,7 @@ export default function GestionAranceles() {
 
         // Asegurar que EMPLEADO COMERCIAL exista en la vista aunque no esté en DB aún
         if (!filtered.some((c: CuotaConfig) => c.rol.toUpperCase() === 'EMPLEADO COMERCIAL')) {
-            filtered.push({ rol: 'EMPLEADO COMERCIAL', monto: 30 }); // 30% de descuento por defecto
+            filtered.push({ rol: 'EMPLEADO COMERCIAL', monto: 7000 }); // $7000 monto fijo por defecto
         }
 
         setCuotas(filtered);
@@ -109,8 +109,6 @@ export default function GestionAranceles() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">
         {cuotas.map((cuota) => {
-          const isEmpleadoComercial = cuota.rol.toUpperCase() === 'EMPLEADO COMERCIAL';
-
           return (
           <div key={cuota.rol} className="bg-admin-card border border-admin-border rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-admin-accent/50 transition-all">
             <div className="absolute top-0 right-0 w-32 h-32 bg-admin-accent/5 rounded-full blur-[40px] pointer-events-none -translate-y-1/2 translate-x-1/3 group-hover:bg-admin-accent/10 transition-colors" />
@@ -128,9 +126,9 @@ export default function GestionAranceles() {
             </div>
 
             <div className="relative z-10">
-              <label className="text-xs font-semibold text-slate-400 mb-2 block">{isEmpleadoComercial ? '% Descuento (sobre cuota SOCIO)' : 'Monto Vigente ($)'}</label>
+              <label className="text-xs font-semibold text-slate-400 mb-2 block">Monto Vigente ($)</label>
               <div className="relative flex items-center">
-                <span className="absolute left-4 text-admin-text font-bold">{isEmpleadoComercial ? '%' : '$'}</span>
+                <span className="absolute left-4 text-admin-text font-bold">$</span>
                 <input
                   type="number"
                   value={cuota.monto}

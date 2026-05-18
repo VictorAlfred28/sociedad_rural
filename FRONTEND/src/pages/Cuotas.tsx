@@ -214,7 +214,7 @@ export default function Cuotas() {
           </div>
         </section>
 
-        {/* Banner Beneficio Comercial — solo visible para Empleados Comerciales */}
+        {/* Banner Empleado Comercial — solo visible para Empleados Comerciales */}
         {calculoCuota?.detalle?.tipo_plan === 'Empleado Comercial' && (
           <section className="relative overflow-hidden rounded-[2rem] bg-emerald-700 p-5 border border-emerald-600 shadow-md">
             <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none translate-x-1/4 -translate-y-1/4">
@@ -223,10 +223,10 @@ export default function Cuotas() {
             <div className="relative z-10 text-white">
               <div className="flex items-center gap-2 mb-1">
                 <span className="material-symbols-outlined text-emerald-300 text-lg">verified</span>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Beneficio Comercial Aplicado</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Arancel Empleado Comercial</p>
               </div>
               <p className="text-base font-bold">
-                {calculoCuota.detalle.descuento_aplicado}% menos sobre cuota socio
+                Cuota mensual fija asignada por administración
               </p>
               {calculoCuota.detalle.comercio_nombre && (
                 <p className="text-[11px] text-emerald-200 mt-1 font-medium">

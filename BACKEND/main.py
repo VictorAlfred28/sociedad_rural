@@ -6569,17 +6569,11 @@ def calcular_cuota_dinamica_internal(user_id: str):
         elif rol_efectivo == "PROFESIONAL":
             monto_base = 7000
         elif rol_efectivo == "EMPLEADO COMERCIAL":
-            monto_base = 30 # Default 30% discount
+            monto_base = 7000  # Default $7000 monto fijo (configurable por admin)
         elif rol_efectivo == "ESTUDIANTE":
             monto_base = 5000
         elif rol_efectivo == "SOCIO":
             monto_base = 10000
-
-    # Calculate actual price
-    if rol_efectivo == "EMPLEADO COMERCIAL":
-        cuota_socio = cuotas_map.get("SOCIO", 10000)
-        descuento_pct_aplicado = min(100, max(0, monto_base))
-        monto_base = round(cuota_socio * (1 - (descuento_pct_aplicado / 100)))
 
     # Estado de cuota
     estado_cuota = "Al Día"
@@ -6605,7 +6599,6 @@ def calcular_cuota_dinamica_internal(user_id: str):
     
     if rol_efectivo == "EMPLEADO COMERCIAL":
         detalle_res["comercio_nombre"] = comercio_nombre
-        detalle_res["descuento_aplicado"] = descuento_pct_aplicado
         detalle_res["origen"] = "EMPLEADO_COMERCIAL"
 
     return {
