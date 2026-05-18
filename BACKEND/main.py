@@ -2236,7 +2236,7 @@ async def create_chatbot_soporte_ticket(
         supabase.table("notificaciones").insert({
             "usuario_id": current_user.id,
             "tipo": "SOPORTE_TECNICO",
-            "descripcion": "Solicitud de soporte técnico iniciada desde SapucAI",
+            "mensaje": "Solicitud de soporte técnico iniciada desde SapucAI",
             "estado": "PENDIENTE",
             "origen_soporte": "chatbot",
             "dispositivo": data.dispositivo,

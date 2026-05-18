@@ -5,7 +5,8 @@ interface NotificacionSoporte {
     id: string;
     usuario_id: string;
     tipo: string;
-    descripcion: string;
+    mensaje: string;
+    descripcion?: string; // Por retrocompatibilidad si alguna vieja usa esto
     estado: string;
     origen_soporte?: string;
     metadata: any;
@@ -284,7 +285,7 @@ export default function GestionSoporte() {
                                             {notif.profiles?.nombre_apellido || 'Usuario Desconocido'}
                                         </h4>
                                         <p className="text-slate-400 text-sm leading-relaxed max-w-2xl">
-                                            {notif.descripcion}
+                                            {notif.mensaje || notif.descripcion}
                                         </p>
                                         <div className="flex flex-wrap gap-4 pt-2">
                                             <div className="flex items-center gap-1.5 text-xs text-slate-500">
