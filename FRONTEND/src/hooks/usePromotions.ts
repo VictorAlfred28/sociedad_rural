@@ -35,6 +35,17 @@ export interface Municipio {
   nombre: string;
 }
 
+export interface Profesional {
+  id: string;
+  nombre_apellido: string;
+  rubro: string;
+  municipio: string;
+  provincia?: string;
+  telefono: string;
+  matricula?: string | null;
+  direccion?: string | null;
+}
+
 async function fetchPublicOfertas(): Promise<Oferta[]> {
   const res = await fetch(`${API}/api/ofertas/publicas`);
   if (!res.ok) throw new Error('Error cargando promociones');
@@ -57,7 +68,7 @@ async function fetchMunicipios(): Promise<Municipio[]> {
   return [...list].sort((a: Municipio, b: Municipio) => a.nombre.localeCompare(b.nombre));
 }
 
-async function fetchProfesionales() {
+async function fetchProfesionales(): Promise<Profesional[]> {
   const res = await fetch(`${API}/api/profesionales`);
   if (!res.ok) throw new Error('Error cargando profesionales');
   const data = await res.json();

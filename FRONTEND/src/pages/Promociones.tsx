@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import paisaje from '../assets/paisaje.png';
 import { RUBROS_COMERCIO, RUBRO_ICON, RUBRO_COLOR, RUBRO_LABEL } from '../types/comercio';
 import { useOfertas, useComercios, useMunicipios, useProfesionales } from '../hooks/usePromotions';
+import ProfesionalDetalleModal from '../components/profesionales/ProfesionalDetalleModal';
+import type { ProfesionalCardData } from '../components/profesionales/ProfesionalCard';
 
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -31,14 +33,6 @@ interface Comercio {
   nombre_apellido: string;
   rubro: string;
   municipio: string;
-  telefono: string;
-}
-interface Profesional {
-  id: string;
-  nombre_apellido: string;
-  rubro: string;       // profesion almacenada en campo rubro
-  municipio: string;
-  provincia: string;
   telefono: string;
 }
 interface Municipio {
@@ -111,6 +105,7 @@ export default function Promociones() {
   const [busqueda, setBusqueda] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showMunDropdown, setShowMunDropdown] = useState(false);
+  const [profesionalDetalle, setProfesionalDetalle] = useState<ProfesionalCardData | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -525,22 +520,25 @@ export default function Promociones() {
                             )}
                           </div>
 
-                          {prof.telefono && (
-                            <a
-                              href={`tel:${prof.telefono}`}
-                              onClick={e => e.stopPropagation()}
-                              className="inline-flex items-center gap-1.5 text-[9px] text-emerald-700 dark:text-emerald-400 font-black mt-3 uppercase tracking-wider bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 shadow-sm"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">call</span>
-                              {prof.telefono}
-                            </a>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => setProfesionalDetalle(prof as ProfesionalCardData)}
+                            className="inline-flex items-center gap-1.5 text-[9px] text-[#4b5e4a] dark:text-[#a8b89a] font-black mt-3 uppercase tracking-wider bg-[#4b5e4a]/10 px-3 py-1.5 rounded-xl border border-[#4b5e4a]/20 shadow-sm hover:bg-[#4b5e4a]/15 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">info</span>
+                            Más detalle
+                          </button>
                         </div>
                       </motion.div>
                     ))
                   }
                 </div>
               )}
+
+              <ProfesionalDetalleModal
+                profesional={profesionalDetalle}
+                onClose={() => setProfesionalDetalle(null)}
+              />
             </motion.div>
 
           ) : tab === 'ofertas' ? (

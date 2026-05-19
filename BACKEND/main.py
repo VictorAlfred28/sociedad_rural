@@ -3409,7 +3409,7 @@ def get_profesionales_publicos(municipio: Optional[str] = None):
     try:
         query = (
             supabase.table("profiles")
-            .select("id, nombre_apellido, rubro, municipio, provincia, telefono")
+            .select("id, nombre_apellido, rubro, municipio, provincia, telefono, direccion")
             .eq("rol", "SOCIO")
             .eq("es_profesional", True)
             .eq("estado", "APROBADO")
@@ -3418,7 +3418,25 @@ def get_profesionales_publicos(municipio: Optional[str] = None):
         if municipio:
             query = query.eq("municipio", municipio)
         res = query.execute()
-        return {"profesionales": res.data or []}
+        profesionales_list = res.data or []
+
+        if profesionales_list:
+            ids = [p["id"] for p in profesionales_list if p.get("id")]
+            if ids:
+                prof_extra = (
+                    supabase.table("profesionales")
+                    .select("id, matricula")
+                    .in_("id", ids)
+                    .execute()
+                )
+                matricula_map = {
+                    row["id"]: row.get("matricula")
+                    for row in (prof_extra.data or [])
+                }
+                for p in profesionales_list:
+                    p["matricula"] = matricula_map.get(p["id"])
+
+        return {"profesionales": profesionales_list}
     except Exception as e:
         raise HTTPException(
             status_code=500,
