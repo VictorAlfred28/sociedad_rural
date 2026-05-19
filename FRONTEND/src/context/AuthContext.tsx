@@ -24,6 +24,7 @@ export interface Socio {
     sonido_notificaciones_habilitado?: boolean;     // Preferencia de sonido en notificaciones
     es_estudiante?: boolean;
     es_profesional?: boolean;
+    es_empleado_comercial?: boolean;
     rubro?: string;
     constancia_estudiante_url?: string | null;
     must_change_password?: boolean;

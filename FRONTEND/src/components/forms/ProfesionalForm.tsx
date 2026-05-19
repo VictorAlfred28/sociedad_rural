@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ProfesionalDTO } from '../../types/profesional';
+import { validatePhone, type FieldState } from '../../utils/validations';
+
+interface FieldMeta { state: FieldState; message: string; }
+const idle: FieldMeta = { state: 'idle', message: '' };
 
 interface ProfesionalFormProps {
     formData: ProfesionalDTO;
@@ -21,6 +25,7 @@ export function ProfesionalForm({
     showPasswordHint = false
 }: ProfesionalFormProps) {
     const [municipios, setMunicipios] = useState<{ id: string; nombre: string }[]>([]);
+    const [telefonoMeta, setTelefonoMeta] = useState<FieldMeta>(idle);
 
     useEffect(() => {
         fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/municipios`)
@@ -32,6 +37,14 @@ export function ProfesionalForm({
             })
             .catch(err => console.error("Error cargando municipios:", err));
     }, []);
+
+    const onTelefonoChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        onChange(e);
+        const val = (e.target as HTMLInputElement).value;
+        if (val.length === 0) { setTelefonoMeta(idle); return; }
+        const r = validatePhone(val);
+        setTelefonoMeta(r.valid ? { state: 'valid', message: '' } : { state: 'error', message: r.message! });
+    }, [onChange]);
 
     const isAdmin = mode === 'ADMIN';
 
@@ -76,7 +89,9 @@ export function ProfesionalForm({
                 <div className="relative">
                     <Icon name="badge" />
                     <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         name="dni"
                         value={formData.dni}
                         onChange={onChange}
@@ -147,15 +162,22 @@ export function ProfesionalForm({
                         <Icon name="call" />
                         <input
                             type="tel"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             name="telefono"
                             value={formData.telefono}
-                            onChange={onChange}
-                            className={inputClass}
+                            onChange={onTelefonoChange}
+                            className={`${inputClass} ${telefonoMeta.state === 'error' ? '!border-red-500 !shadow-[0_0_0_3px_rgba(239,68,68,0.12)]' : ''}`}
                             placeholder="Cód. de área + número"
                             required
                         />
                     </div>
                 </div>
+                {telefonoMeta.state === 'error' && telefonoMeta.message && (
+                    <p className="text-red-500 text-xs px-1 pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                        {telefonoMeta.message}
+                    </p>
+                )}
             </div>
 
             {/* Domicilio */}

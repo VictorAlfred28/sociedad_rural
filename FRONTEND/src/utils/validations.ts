@@ -94,7 +94,24 @@ export function validatePhone(value: string): ValidationResult {
   if (!value || value.trim().length === 0) {
     return { valid: false, message: 'Debe ingresar un teléfono de contacto.' };
   }
+
+  // Si contiene algún caracter que no sea dígito, espacio o guión
+  if (/[^\d\s-]/.test(value)) {
+    return { valid: false, message: 'El teléfono solo puede contener números' };
+  }
+
+  const limpio = value.replace(/\D/g, '');
+
+  if (limpio.length < 8 || limpio.length > 15) {
+    return { valid: false, message: 'Ingresá un número válido' };
+  }
+
   return { valid: true };
+}
+
+export function sanitizePhone(value: string): string {
+  // Elimina todo lo que no sea dígito (letras, guiones, espacios)
+  return value.replace(/\D/g, '');
 }
 
 // ── Normalizar errores del backend ──────────────────────────

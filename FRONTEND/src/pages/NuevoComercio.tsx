@@ -5,6 +5,7 @@ import { ComercioDTO } from '../types/comercio';
 import { ProfesionalDTO } from '../types/profesional';
 import { ComercioForm } from '../components/forms/ComercioForm';
 import { ProfesionalForm } from '../components/forms/ProfesionalForm';
+import { sanitizePhone } from '../utils/validations';
 
 export default function NuevoComercio({ inlineMode = false, onSuccess }: { inlineMode?: boolean, onSuccess?: () => void }) {
     const { token } = useAuth();
@@ -40,16 +41,30 @@ export default function NuevoComercio({ inlineMode = false, onSuccess }: { inlin
     const [successMsg, setSuccessMsg] = useState('');
 
     const handleChangeComercio = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        let finalValue = value;
+        if (name === 'telefono') {
+            finalValue = sanitizePhone(value).slice(0, 15);
+        } else if (name === 'cuit') {
+            finalValue = value.replace(/\D/g, '').slice(0, 11);
+        }
         setFormDataComercio({
             ...formDataComercio,
-            [e.target.name]: e.target.value
+            [name]: finalValue
         });
     };
 
     const handleChangeProfesional = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        let finalValue = value;
+        if (name === 'telefono') {
+            finalValue = sanitizePhone(value).slice(0, 15);
+        } else if (name === 'dni') {
+            finalValue = value.replace(/\D/g, '').slice(0, 8);
+        }
         setFormDataProfesional({
             ...formDataProfesional,
-            [e.target.name]: e.target.value
+            [name]: finalValue
         });
     };
 

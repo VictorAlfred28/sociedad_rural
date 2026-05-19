@@ -5,6 +5,7 @@ import {
     validateEmailFormat,
     validateRequired,
     checkEmailExists,
+    validatePhone,
     type FieldState,
 } from '../../utils/validations';
 
@@ -33,6 +34,7 @@ export function ComercioForm({
     const [municipios, setMunicipios] = useState<{ id: string; nombre: string }[]>([]);
     const [emailMeta, setEmailMeta] = useState<FieldMeta>(idle);
     const [nombreMeta, setNombreMeta] = useState<FieldMeta>(idle);
+    const [telefonoMeta, setTelefonoMeta] = useState<FieldMeta>(idle);
 
     useEffect(() => {
         fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/municipios`)
@@ -68,6 +70,14 @@ export function ComercioForm({
         if (val.length === 0) { setNombreMeta(idle); return; }
         const r = validateRequired(val, 'el nombre del comercio');
         setNombreMeta(r.valid ? { state: 'valid', message: '' } : { state: 'error', message: r.message! });
+    }, [onChange]);
+
+    const onTelefonoChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        onChange(e);
+        const val = (e.target as HTMLInputElement).value;
+        if (val.length === 0) { setTelefonoMeta(idle); return; }
+        const r = validatePhone(val);
+        setTelefonoMeta(r.valid ? { state: 'valid', message: '' } : { state: 'error', message: r.message! });
     }, [onChange]);
 
     // Determinamos el estilo de input basado en el modo
@@ -121,7 +131,9 @@ export function ComercioForm({
                 <div className="relative">
                     <Icon name="fingerprint" />
                     <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         name="cuit"
                         value={formData.cuit}
                         onChange={onChange}
@@ -192,15 +204,22 @@ export function ComercioForm({
                         <Icon name="call" />
                         <input
                             type="tel"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             name="telefono"
                             value={formData.telefono}
-                            onChange={onChange}
-                            className={inputClass}
+                            onChange={onTelefonoChange}
+                            className={`${inputClass} ${telefonoMeta.state === 'error' ? '!border-red-500 !shadow-[0_0_0_3px_rgba(239,68,68,0.12)]' : ''}`}
                             placeholder="Cód. de área + número"
                             required
                         />
                     </div>
                 </div>
+                {telefonoMeta.state === 'error' && telefonoMeta.message && (
+                    <p className="text-red-500 text-xs px-1 pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                        {telefonoMeta.message}
+                    </p>
+                )}
             </div>
 
             {/* Rubro */}

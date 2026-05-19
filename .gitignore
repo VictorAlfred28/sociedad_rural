@@ -50,3 +50,7 @@ keystore.properties
 FRONTEND/android/app/release/
 FRONTEND/android/app/build/
 
+
+# Archivos de debug local
+diff.txt
+BACKEND/test_db.py

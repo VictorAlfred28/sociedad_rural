@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, Socio } from '../context/AuthContext';
+import { validatePhone, sanitizePhone, type FieldState } from '../utils/validations';
 
 export default function GestionDependientes() {
     const { user, token } = useAuth();
@@ -17,6 +18,7 @@ export default function GestionDependientes() {
         email: '',
     });
     const [formLoading, setFormLoading] = useState(false);
+    const [telefonoMeta, setTelefonoMeta] = useState<{ state: FieldState; message: string }>({ state: 'idle', message: '' });
 
     // Un dependiente no puede tener dependientes, pero un COMERCIO sí
     const isTitular = !user?.titular_id || user?.rol === 'COMERCIO';
@@ -216,9 +218,29 @@ export default function GestionDependientes() {
                         {vinculosPermitidos.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                     <input
-                        placeholder="Email" type="email" className={inputClass}
+                        placeholder="Email (opcional)" type="email" className={inputClass}
                         value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
                     />
+                    <div>
+                        <input
+                            placeholder="Teléfono (opcional)" type="tel" inputMode="numeric" pattern="[0-9]*"
+                            className={`${inputClass} ${telefonoMeta.state === 'error' ? 'border-red-500' : ''}`}
+                            value={formData.telefono} 
+                            onChange={e => {
+                                const val = e.target.value;
+                                if (val.length > 0) {
+                                    const r = validatePhone(val);
+                                    setTelefonoMeta(r.valid ? { state: 'valid', message: '' } : { state: 'error', message: r.message! });
+                                } else {
+                                    setTelefonoMeta({ state: 'idle', message: '' });
+                                }
+                                setFormData({ ...formData, telefono: sanitizePhone(val).slice(0, 15) });
+                            }}
+                        />
+                        {telefonoMeta.state === 'error' && (
+                            <p className="text-red-500 text-xs px-1 pt-1">{telefonoMeta.message}</p>
+                        )}
+                    </div>
 
                     {!editingId && (
                         <div className="mt-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">

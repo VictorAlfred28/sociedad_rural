@@ -918,7 +918,30 @@ export default function MiNegocio() {
                     <button
                         onClick={() => {
                             setEditingOfertaId(null);
-                            setForm({ titulo: '', descripcion: '', tipo: 'promocion', valor_descuento: '', tipo_descuento: 'porcentaje', fecha_fin: '', imagen_url: '', instagram_url: '', facebook_url: '' });
+                            setForm({
+                                titulo: '',
+                                subtitulo: '',
+                                descripcion_corta: '',
+                                descripcion: '',
+                                tipo: 'promocion',
+                                precio_lista: '',
+                                precio_final: '',
+                                porcentaje_descuento: '',
+                                monto_descuento: '',
+                                valor_descuento: '',
+                                tipo_descuento: 'porcentaje',
+                                whatsapp: '',
+                                direccion: '',
+                                localidad: '',
+                                ubicacion: '',
+                                categoria: '',
+                                destacada: false,
+                                imagenes_secundarias: [],
+                                fecha_fin: '',
+                                imagen_url: '',
+                                instagram_url: '',
+                                facebook_url: '',
+                            });
                             setSelectedFile(null);
                             setShowForm(true);
                         }}

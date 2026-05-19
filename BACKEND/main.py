@@ -542,6 +542,24 @@ app.add_middleware(
 )
 
 
+import re
+
+def sanitizar_y_validar_telefono(telefono: str) -> str:
+    if not telefono:
+        return telefono
+    # Permitir guiones y espacios autocorrigiéndolos (borrándolos)
+    t_limpio = re.sub(r'[\s\-]', '', str(telefono))
+    
+    if not t_limpio:
+        raise ValueError("El teléfono solo puede contener números")
+        
+    if not t_limpio.isdigit():
+        raise ValueError("El teléfono solo puede contener números")
+        
+    if len(t_limpio) < 8 or len(t_limpio) > 15:
+        raise ValueError("Ingresá un número de teléfono válido (entre 8 y 15 dígitos)")
+    return t_limpio
+
 # 2. MODELOS PYDANTIC BASADOS EN FORMULARIOS DEL FRONTEND
 class RegisterRequest(BaseModel):
     nombre_apellido: str
@@ -558,6 +576,8 @@ class RegisterRequest(BaseModel):
     password: Optional[str] = None
     isStudent: Optional[bool] = False
     studentCertificate: Optional[str] = None
+
+    _validar_telefono = validator("telefono", pre=True, always=True, allow_reuse=True)(sanitizar_y_validar_telefono)
 
 
 class LoginRequest(BaseModel):
@@ -578,6 +598,8 @@ class UpdateProfileRequest(BaseModel):
     email: Optional[str] = None
     direccion: Optional[str] = None
     barrio: Optional[str] = None  # Barrio editable
+
+    _validar_telefono = validator("telefono", pre=True, always=True, allow_reuse=True)(sanitizar_y_validar_telefono)
 
 
 class ChatRequest(BaseModel):
@@ -631,6 +653,8 @@ class AddDependienteRequest(BaseModel):
         if len(v) < 7 or len(v) > 11:
             raise ValueError("El DNI/CUIT debe tener entre 7 y 11 dígitos")
         return v
+
+    _validar_telefono = validator("telefono", pre=True, always=True, allow_reuse=True)(sanitizar_y_validar_telefono)
 
 
 class EventCreate(BaseModel):
@@ -2940,6 +2964,8 @@ def update_user_details(
     admin_user=Depends(get_current_admin),
 ):
     """Edita información básica del perfil desde el dashboard admin"""
+    if req.telefono:
+        req.telefono = sanitizar_y_validar_telefono(req.telefono)
     try:
         # Validar UUID para prevenir errores de base de datos
         try:
@@ -3186,6 +3212,7 @@ def create_commerce(
     background_tasks: BackgroundTasks,
     auth_user=Depends(get_current_admin),
 ):
+    comercio.telefono = sanitizar_y_validar_telefono(comercio.telefono)
     try:
         # Extraer rol y perfil del usuario autenticado
         profile_res = (
@@ -3278,6 +3305,7 @@ def create_profesional(
     background_tasks: BackgroundTasks,
     auth_user=Depends(get_current_admin),
 ):
+    prof.telefono = sanitizar_y_validar_telefono(prof.telefono)
     try:
         # Extraer rol y perfil del usuario autenticado
         profile_res = (
@@ -3580,6 +3608,7 @@ def update_profile(
     Actualiza los datos del perfil del usuario autenticado.
     Vulnerabilidad de Mass Assignment parcheada mediante Dict Exclude.
     """
+    req.telefono = sanitizar_y_validar_telefono(req.telefono)
     try:
         update_data = req.dict(exclude_unset=True)
         if not update_data:
@@ -3711,6 +3740,7 @@ def agregar_dependiente(
     current_user=Depends(get_current_user),
 ):
     """Crea un perfil que depende del usuario en sesión."""
+    req.telefono = sanitizar_y_validar_telefono(req.telefono)
     try:
         log_secure("Inicio agregar_dependiente", {"titular_id": current_user.id, "dni": req.dni_cuit})
         
@@ -3791,13 +3821,21 @@ def agregar_dependiente(
                 raise HTTPException(status_code=400, detail="No se pudo crear la cuenta de usuario.")
 
         # 4. Insertar en Profiles
+        rol_dependiente = rol_titular
+        es_empleado_comercial = False
+        
+        if rol_titular == "COMERCIO":
+            rol_dependiente = "SOCIO"
+            if req.tipo_vinculo in ["Empleado", "Encargado"]:
+                es_empleado_comercial = True
+
         profile_data = {
             "id": user_id,
             "nombre_apellido": req.nombre_apellido,
             "dni": req.dni_cuit,
             "email": user_email,
             "telefono": req.telefono,
-            "rol": rol_titular,
+            "rol": rol_dependiente,
             "estado": "PENDIENTE", 
             "municipio": titular.get("municipio"),
             "rubro": titular.get("rubro"),
@@ -3807,6 +3845,13 @@ def agregar_dependiente(
             "user_type": "FAMILIAR",
             "must_change_password": True
         }
+        
+        if es_empleado_comercial:
+            profile_data["es_empleado_comercial"] = True
+            profile_data["empleado_comercio_id"] = current_user.id
+            profile_data["activo_empleado"] = True
+            from datetime import datetime, timezone
+            profile_data["fecha_vinculacion_comercio"] = datetime.now(timezone.utc).isoformat()
 
         try:
             supabase.table("profiles").insert(profile_data).execute()
@@ -5925,7 +5970,7 @@ def exportar_contabilidad_csv(admin_user=Depends(get_current_admin)):
         res = (
             supabase.table("profiles")
             .select(
-                "nombre_apellido, dni, email, telefono, estado, municipio, rol, es_profesional, titular_id, created_at"
+                "nombre_apellido, dni, email, telefono, estado, municipio, rol, es_profesional, titular_id, created_at, es_empleado_comercial, activo_empleado"
             )
             .execute()
         )
@@ -5950,9 +5995,12 @@ def exportar_contabilidad_csv(admin_user=Depends(get_current_admin)):
             titular_id = p.get("titular_id")
             es_profesional = p.get("es_profesional", False)
             estado = p.get("estado", "PENDIENTE")
+            es_empleado = p.get("es_empleado_comercial", False) and p.get("activo_empleado", True)
 
             # Clasificación
-            if rol == "COMERCIO":
+            if es_empleado:
+                conteos["Empleados"] += 1
+            elif rol == "COMERCIO":
                 if titular_id:
                     conteos["Empleados"] += 1
                 else:
@@ -6006,10 +6054,13 @@ def exportar_contabilidad_csv(admin_user=Depends(get_current_admin)):
             rol = p.get("rol", "SOCIO")
             titular_id = p.get("titular_id")
             es_profesional = p.get("es_profesional", False)
+            es_empleado = p.get("es_empleado_comercial", False) and p.get("activo_empleado", True)
 
             cat_label = "Socio Común"
-            if rol == "COMERCIO":
-                cat_label = "Empleado" if titular_id else "Comercio"
+            if es_empleado:
+                cat_label = "Empleado Comercial"
+            elif rol == "COMERCIO":
+                cat_label = "Empleado Comercial" if titular_id else "Comercio"
             else:
                 if titular_id:
                     cat_label = "Familiar (Adherente)"
@@ -6616,7 +6667,7 @@ def calcular_cuota_dinamica_internal(user_id: str):
     # fetch user profile — incluye registration_source para validar arancel profesional
     profile_res = supabase.table("profiles").select(
         "rol, es_estudiante, es_profesional, registration_source, "
-        "es_empleado_comercial, activo_empleado, empleado_comercio_id"
+        "es_empleado_comercial, activo_empleado, empleado_comercio_id, tipo_vinculo"
     ).eq("id", user_id).execute()
     if not profile_res.data:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
@@ -6643,7 +6694,12 @@ def calcular_cuota_dinamica_internal(user_id: str):
     
     # Priority logic — EMPLEADO COMERCIAL tiene máxima prioridad para evitar
     # que sea clasificado como GRUPO FAMILIAR si tiene dependientes a su cargo.
-    if profile.get("es_empleado_comercial") and profile.get("activo_empleado", True):
+    is_legacy_empleado = (
+        profile.get("rol") == "COMERCIO"
+        and profile.get("tipo_vinculo") in ["Empleado", "Encargado"]
+    )
+    
+    if (profile.get("es_empleado_comercial") and profile.get("activo_empleado", True)) or is_legacy_empleado:
         # EMPLEADO COMERCIAL: arancel fijo configurable desde panel admin.
         # SEGURIDAD: validamos el vínculo comercio en el backend, nunca confiamos en el frontend.
         # IMPORTANTE: el flag es_empleado_comercial es la fuente de verdad principal.

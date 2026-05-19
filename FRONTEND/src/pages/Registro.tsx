@@ -12,6 +12,8 @@ import {
   validatePassword,
   validatePasswordMatch,
   checkEmailExists,
+  validatePhone,
+  sanitizePhone,
 } from '../utils/validations';
 
 type Rol = 'SOCIO' | 'COMERCIO';
@@ -102,11 +104,28 @@ export default function Registro() {
       setSocioData(prev => ({ ...prev, [name]: cleaned }));
       return;
     }
+    // Para Teléfono: sanitizar dejando solo números
+    if (name === 'telefono') {
+      const sanitized = sanitizePhone(value).slice(0, 15);
+      setSocioData(prev => ({ ...prev, [name]: sanitized }));
+      return;
+    }
     setSocioData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleComercioChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setComercioData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    if (name === 'telefono') {
+      const sanitized = sanitizePhone(value).slice(0, 15);
+      setComercioData(prev => ({ ...prev, [name]: sanitized }));
+      return;
+    }
+    if (name === 'cuit') {
+      const sanitized = sanitizePhone(value).slice(0, 11);
+      setComercioData(prev => ({ ...prev, [name]: sanitized }));
+      return;
+    }
+    setComercioData(prev => ({ ...prev, [name]: value }));
   };
 
   // ── Real-time validations ─────────────────────────────────────
@@ -150,7 +169,7 @@ export default function Registro() {
 
   const onTelefonoValidate = useCallback((value: string) => {
     if (value.length === 0) { setTelefonoMeta(idle); return; }
-    const r = validateRequired(value, 'un teléfono');
+    const r = validatePhone(value);
     setTelefonoMeta(r.valid ? { state: 'valid', message: '' } : { state: 'error', message: r.message! });
   }, []);
 
@@ -202,7 +221,7 @@ export default function Registro() {
         hasErrors = true;
       }
 
-      const telR = validateRequired(socioData.telefono, 'un teléfono');
+      const telR = validatePhone(socioData.telefono);
       if (!telR.valid) {
         setTelefonoMeta({ state: 'error', message: telR.message! });
         hasErrors = true;
@@ -421,6 +440,8 @@ export default function Registro() {
                     }`}
                     placeholder="Cód. de área + número"
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     required
                   />
                 </div>

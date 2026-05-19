@@ -6,6 +6,7 @@ import BottomNav from '../components/BottomNav';
 import GestionDependientes from '../components/GestionDependientes';
 import { motion } from 'framer-motion';
 import paisaje from '../assets/paisaje.png';
+import { sanitizePhone } from '../utils/validations';
 
 export default function Perfil() {
   const { user, token, logout, updateUser } = useAuth();
@@ -252,9 +253,15 @@ export default function Perfil() {
                       <div className="relative">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 text-lg">{field.icon}</span>
                         <input
-                          type={field.type || 'text'}
+                          type={field.type || (field.key === 'telefono' ? 'tel' : 'text')}
+                          inputMode={field.key === 'telefono' ? 'numeric' : undefined}
+                          pattern={field.key === 'telefono' ? '[0-9]*' : undefined}
                           value={field.value}
-                          onChange={e => setEditData({ ...editData, [field.key]: e.target.value })}
+                          onChange={e => {
+                              let val = e.target.value;
+                              if (field.key === 'telefono') val = sanitizePhone(val).slice(0, 15);
+                              setEditData({ ...editData, [field.key]: val });
+                          }}
                           className="w-full bg-stone-50 dark:bg-stone-900/50 border border-stone-200 dark:border-stone-700 rounded-2xl h-14 pl-12 pr-4 text-stone-800 dark:text-stone-200 outline-none focus:border-[#245b31] transition-all font-bold"
                         />
                       </div>
