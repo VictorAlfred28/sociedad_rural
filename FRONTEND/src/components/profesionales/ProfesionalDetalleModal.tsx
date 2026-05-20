@@ -66,7 +66,7 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
             className="relative w-full max-w-md bg-[#f4eedd] dark:bg-stone-800 rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl border border-[#e5dfce] dark:border-stone-700 overflow-hidden max-h-[92vh] flex flex-col"
           >
             <motion.div
-              className="bg-[#4b5e4a] px-6 pt-6 pb-8 relative overflow-hidden shrink-0"
+              className="bg-[#4b5e4a] px-6 pt-4 pb-6 md:pt-6 md:pb-8 relative overflow-hidden shrink-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
@@ -98,7 +98,7 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
 
               <motion.h2
                 id="profesional-detalle-titulo"
-                className="mt-4 font-black text-xl uppercase italic tracking-tight text-white font-display relative z-10"
+                className="mt-3 md:mt-4 font-black text-xl uppercase italic tracking-tight text-white font-display relative z-10"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 }}
@@ -110,7 +110,7 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
               </p>
             </motion.div>
 
-            <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto">
+            <div className="px-6 py-4 flex flex-col gap-3 md:py-5 md:gap-4 overflow-y-auto flex-1 min-h-0">
               <DetalleFila
                 icon="work"
                 label="Profesión"
@@ -135,7 +135,7 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
                 />
               )}
 
-              <div className="pt-2 border-t border-[#e5dfce] dark:border-stone-700">
+              <div className="pt-1 md:pt-2 border-t border-[#e5dfce] dark:border-stone-700">
                 {whatsappDisponible ? (
                   <button
                     type="button"

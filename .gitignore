@@ -8,6 +8,7 @@ build/
 *.log
 
 # Capacitor / Android
+FRONTEND/android/local.properties
 FRONTEND/android/app/build/
 FRONTEND/android/build/
 FRONTEND/android/app/google-services.json
@@ -43,7 +44,7 @@ proyecto-produccion.zip
 Thumbs.db
 
 
-# Configuración de firma Android
+# Configuraciï¿½n de firma Android
 keystore.properties
 *.jks
 

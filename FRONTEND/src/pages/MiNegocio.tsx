@@ -697,9 +697,9 @@ export default function MiNegocio() {
                         VALIDAR PASAPORTE SOCIO
                     </button>
 
-                    {/* ── TABS: Publicaciones | Estadísticas | Empleados ─────── */}
+                    {/* ── TABS: Publicaciones | Estadísticas (empleados oculto; ver Mis Empleados) ─ */}
                     <div className="flex gap-2 mb-5 p-1 bg-stone-100 dark:bg-stone-800 rounded-2xl">
-                        {(['publicaciones', 'estadisticas', 'empleados'] as const).map((tab) => (
+                        {(['publicaciones', 'estadisticas'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
