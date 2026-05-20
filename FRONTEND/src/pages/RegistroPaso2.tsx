@@ -87,7 +87,9 @@ export default function RegistroPaso2() {
       payload.provincia = formData.provincia;
       payload.direccion = paso1Data.direccion; // Viene del Paso 1 ahora
       payload.barrio = paso1Data.barrio;       // Barrio del socio (nuevo)
-      payload.es_profesional = esProfesional;
+      // NOTA: es_profesional NO se envía al backend desde el registro público.
+      // El toggle es solo informativo. Los profesionales son dados de alta exclusivamente
+      // desde el panel de administración (Gestión Integral).
       payload.isStudent = esEstudiante;
       // We no longer convert to base64, we will use FormData if esEstudiante && studentCertificate
     }

@@ -920,7 +920,7 @@ async def register(
                 "provincia": form.get("provincia"),
                 "direccion": form.get("direccion"),
                 "barrio": form.get("barrio"),
-                "es_profesional": str(form.get("es_profesional", "")).lower() == "true",
+                "es_profesional": False,  # SIEMPRE False en registro público. Solo Gestión Integral puede marcar profesionales.
                 "password": form.get("password"),
                 "isStudent": str(form.get("isStudent", "")).lower() == "true",
             }
@@ -1144,7 +1144,7 @@ async def register(
             "direccion": socio.direccion,
             "rubro": socio.rubro,
             "barrio": socio.barrio,
-            "es_profesional": socio.es_profesional,
+            "es_profesional": False,  # SIEMPRE False en registro público. Solo admins pueden asignar este flag.
             "password_changed": user_password_was_set,
             "es_estudiante": socio.isStudent,
             "constancia_estudiante_url": constancia_url,
@@ -1153,9 +1153,8 @@ async def register(
             "email_verificacion_expira": (
                 datetime.now() + timedelta(hours=48)
             ).isoformat(),
-            # SEGURIDAD: El registro público NUNCA aplica descuento profesional.
-            # El campo es_profesional se guarda para uso futuro, pero el arancel
-            # se calcula siempre como socio común hasta activación oficial.
+            # SEGURIDAD: El registro público NUNCA puede crear usuarios profesionales.
+            # Los profesionales SOLO son dados de alta desde el panel de Gestión Integral.
             "registration_source": "public",
         }
 
