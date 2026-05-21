@@ -65,13 +65,30 @@ const getMessagingLazy = async () => {
     return null;
 };
 
+async function getWebPushServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | undefined> {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+        return undefined;
+    }
+    const existing = await navigator.serviceWorker.getRegistration();
+    if (existing) return existing;
+    try {
+        return await navigator.serviceWorker.register('/sw.js');
+    } catch {
+        return undefined;
+    }
+}
+
 // ─── requestForToken ────────────────────────────────────────────────────────
 export const requestForToken = async (): Promise<string | null> => {
     try {
         const messaging = await getMessagingLazy();
         if (!messaging || !VAPID_KEY) return null;
 
-        const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY });
+        const serviceWorkerRegistration = await getWebPushServiceWorkerRegistration();
+        const currentToken = await getToken(messaging, {
+            vapidKey: VAPID_KEY,
+            ...(serviceWorkerRegistration ? { serviceWorkerRegistration } : {}),
+        });
 
         if (currentToken) {
             // Solo loguear en entorno de desarrollo — nunca en producción

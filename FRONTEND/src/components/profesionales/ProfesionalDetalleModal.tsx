@@ -43,7 +43,7 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
       {profesional && (
         <motion.div
           key="profesional-detalle-modal"
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="profesional-detalle-titulo"
@@ -63,10 +63,10 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.98 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className="relative w-full max-w-md bg-[#f4eedd] dark:bg-stone-800 rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl border border-[#e5dfce] dark:border-stone-700 overflow-hidden max-h-[92vh] flex flex-col"
+            className="relative w-full max-w-md bg-[#f4eedd] dark:bg-stone-800 rounded-[2rem] shadow-2xl border border-[#e5dfce] dark:border-stone-700 overflow-hidden max-h-[85vh] flex flex-col"
           >
             <motion.div
-              className="bg-[#4b5e4a] px-6 pt-4 pb-6 md:pt-6 md:pb-8 relative overflow-hidden shrink-0"
+              className="bg-[#4b5e4a] px-6 pt-3 pb-5 md:pt-6 md:pb-8 relative overflow-hidden shrink-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
@@ -98,7 +98,7 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
 
               <motion.h2
                 id="profesional-detalle-titulo"
-                className="mt-3 md:mt-4 font-black text-xl uppercase italic tracking-tight text-white font-display relative z-10"
+                className="mt-2 md:mt-4 font-black text-xl uppercase italic tracking-tight text-white font-display relative z-10"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 }}
@@ -110,7 +110,7 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
               </p>
             </motion.div>
 
-            <div className="px-6 py-4 flex flex-col gap-3 md:py-5 md:gap-4 overflow-y-auto flex-1 min-h-0">
+            <div className="px-6 pt-4 pb-6 flex flex-col gap-3 md:pt-5 md:pb-6 md:gap-4 overflow-y-auto flex-1 min-h-0">
               <DetalleFila
                 icon="work"
                 label="Profesión"
@@ -135,12 +135,12 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
                 />
               )}
 
-              <div className="pt-1 md:pt-2 border-t border-[#e5dfce] dark:border-stone-700">
+              <div className="pt-3 md:pt-4 border-t border-[#e5dfce] dark:border-stone-700 mt-2">
                 {whatsappDisponible ? (
                   <button
                     type="button"
                     onClick={handleWhatsApp}
-                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#25D366] hover:bg-[#20b958] text-white font-black uppercase text-xs tracking-widest shadow-sm transition-all active:scale-[0.98]"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 md:py-4 rounded-2xl bg-[#25D366] hover:bg-[#20b958] text-white font-black uppercase text-xs tracking-widest shadow-sm transition-all active:scale-[0.98]"
                   >
                     <span className="material-symbols-outlined text-lg">chat</span>
                     Contactar por WhatsApp
@@ -149,7 +149,7 @@ export default function ProfesionalDetalleModal({ profesional, onClose }: Props)
                   <button
                     type="button"
                     disabled
-                    className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-stone-200 dark:bg-stone-700 text-stone-400 dark:text-stone-500 font-black uppercase text-xs tracking-widest cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 md:py-4 rounded-2xl bg-stone-200 dark:bg-stone-700 text-stone-400 dark:text-stone-500 font-black uppercase text-xs tracking-widest cursor-not-allowed"
                   >
                     <span className="material-symbols-outlined text-lg">chat_bubble_outline</span>
                     WhatsApp no disponible

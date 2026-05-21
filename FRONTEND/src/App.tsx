@@ -73,6 +73,7 @@ const AdminRoute = ({ children, roles = ['ADMIN'] }: { children: React.ReactElem
 
 import { Chatbot } from './components/Chatbot';
 import { CapacitorUI } from './components/CapacitorUI';
+import IosPwaInstallBanner from './components/IosPwaInstallBanner';
 import { Toaster } from 'react-hot-toast';
 
 const ConditionalChatbot = () => {
@@ -95,6 +96,7 @@ export default function App() {
       <ErrorBoundary context="CapacitorUI" fallback={null}>
         <CapacitorUI />
       </ErrorBoundary>
+      <IosPwaInstallBanner />
       <ErrorBoundary context="App">
         <Suspense fallback={<PageLoader />}>
           <Routes>

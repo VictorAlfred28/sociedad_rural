@@ -63,3 +63,21 @@ setTimeout(() => {
   sessionStorage.removeItem('chunk_error_reload');
 }, 3000);
 
+// ── PWA Service Worker (solo web; Capacitor usa binario nativo) ─────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    import('@capacitor/core')
+      .then(({ Capacitor }) => {
+        if (Capacitor.isNativePlatform()) return;
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          if (import.meta.env.DEV) {
+            console.warn('[PWA] No se pudo registrar el service worker:', err);
+          }
+        });
+      })
+      .catch(() => {
+        navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+      });
+  });
+}
+
