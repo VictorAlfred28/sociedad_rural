@@ -2139,11 +2139,13 @@ async def validar_qr_dinamico(request: Request):
         # Roles válidos para presentar pasaporte QR.
         # Se aceptan todos los tipos de socio registrados en el sistema.
         ROLES_VALIDOS_QR = {"SOCIO", "COMERCIO", "PROFESIONAL", "FAMILIAR", "ESTUDIANTE"}
-        rol_perfil = str(perfil.get("rol") or "").upper()
+        rol_perfil = str(perfil.get("rol") or "").strip().upper()
+        
         if rol_perfil not in ROLES_VALIDOS_QR:
+            logger.error(f"[QR AUDIT] Rol rechazado: '{rol_perfil}' no está en {ROLES_VALIDOS_QR}")
             raise HTTPException(
                 status_code=400,
-                detail="El código QR no pertenece a un Socio válido.",
+                detail=f"El código QR no pertenece a un Socio válido (Rol detectado: '{rol_perfil}').",
             )
 
         es_activo = perfil["estado"] == "APROBADO"
