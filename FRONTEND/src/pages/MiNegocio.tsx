@@ -157,6 +157,7 @@ export default function MiNegocio() {
     const [scanResult, setScanResult] = useState<SocioValidado | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const scannerRef = useRef<Html5Qrcode | null>(null);
+    const isProcessingScannerRef = useRef(false);
 
     // ── Panel tab: 'publicaciones' | 'estadisticas' | 'empleados' ─
     const [activeTab, setActiveTab] = useState<'publicaciones' | 'estadisticas' | 'empleados'>('publicaciones');
@@ -503,6 +504,7 @@ export default function MiNegocio() {
     const startScanner = async () => {
         setScanResult(null);
         setError('');
+        isProcessingScannerRef.current = false;
 
         // --- ANDROID NATIVO: usar MLKit Barcode Scanner ---
         if (Capacitor.isNativePlatform()) {
@@ -529,9 +531,20 @@ export default function MiNegocio() {
                 });
 
                 if (barcodes.length > 0) {
-                    const decodedText = barcodes[0].rawValue || '';
-                    const urlMatch = decodedText.match(/\/(qr-valida|valida-socio)\/([a-f0-9-]+)$/i);
-                    const tokenToValidate = urlMatch ? urlMatch[2] : decodedText;
+                    if (isProcessingScannerRef.current) return;
+                    isProcessingScannerRef.current = true;
+                    
+                    let decodedText = barcodes[0].rawValue || '';
+                    decodedText = decodedText.trim();
+                    const urlMatch = decodedText.match(/\/(?:qr-valida|valida-socio)\/([a-fA-F0-9-]+)/i);
+                    const tokenToValidate = urlMatch ? urlMatch[1] : decodedText;
+                    
+                    if (!tokenToValidate) {
+                        setError('No se detectó un token válido. Intentá de nuevo.');
+                        isProcessingScannerRef.current = false;
+                        return;
+                    }
+                    
                     validarSocio(tokenToValidate);
                 } else {
                     setError('No se detectó ningún QR. Intentá de nuevo.');
@@ -559,10 +572,27 @@ export default function MiNegocio() {
                     { facingMode: 'environment' },
                     { fps: 10 },
                     async (decodedText) => {
-                        await scanner.stop();
+                        if (isProcessingScannerRef.current) return;
+                        isProcessingScannerRef.current = true;
+                        
+                        try {
+                            await scanner.stop();
+                        } catch (e) {
+                            console.error("Error stopping scanner", e);
+                        }
                         setIsScanning(false);
-                        const urlMatch = decodedText.match(/\/(qr-valida|valida-socio)\/([a-f0-9-]+)$/i);
-                        const tokenToValidate = urlMatch ? urlMatch[2] : decodedText;
+                        
+                        let text = decodedText || '';
+                        text = text.trim();
+                        const urlMatch = text.match(/\/(?:qr-valida|valida-socio)\/([a-fA-F0-9-]+)/i);
+                        const tokenToValidate = urlMatch ? urlMatch[1] : text;
+                        
+                        if (!tokenToValidate) {
+                            setError('No se detectó un token válido. Intentá de nuevo.');
+                            isProcessingScannerRef.current = false;
+                            return;
+                        }
+                        
                         validarSocio(tokenToValidate);
                     },
                     () => { }
