@@ -6826,19 +6826,51 @@ class VincularEmpleadoRequest(BaseModel):
 
 def _get_comercio_aprobado(current_user) -> dict:
     """Helper: verifica que el usuario actual sea un COMERCIO APROBADO.
+    Lee el rol desde la tabla profiles (fuente de verdad) de forma defensiva,
+    ya que el objeto current_user (Supabase Auth) no expone el atributo rol.
     Retorna el perfil completo o lanza 403."""
-    if str(current_user.rol).upper() != "COMERCIO":
+    try:
+        perfil_res = supabase.table("profiles").select(
+            "id, estado, nombre_apellido, rol, user_type"
+        ).eq("id", current_user.id).execute()
+    except Exception as e:
+        logger.warning(f"[_get_comercio_aprobado] Error consultando perfil de {current_user.id}: {e}")
+        raise HTTPException(
+            status_code=403,
+            detail="No se pudo verificar los permisos del comercio."
+        )
+
+    if not perfil_res.data:
+        raise HTTPException(
+            status_code=403,
+            detail="Perfil de comercio no encontrado."
+        )
+
+    perfil = perfil_res.data[0]
+
+    # Lectura defensiva del rol: soporta distintas variantes del modelo User
+    rol_valor = (
+        perfil.get("rol")
+        or perfil.get("user_type")
+        or ""
+    )
+    if str(rol_valor).upper() != "COMERCIO":
+        logger.warning(
+            f"[_get_comercio_aprobado] Usuario {current_user.id} intentó acceder "
+            f"con rol='{rol_valor}' (no es COMERCIO)."
+        )
         raise HTTPException(
             status_code=403,
             detail="Solo los comercios adheridos pueden gestionar empleados."
         )
-    perfil_res = supabase.table("profiles").select("id, estado, nombre_apellido").eq("id", current_user.id).execute()
-    if not perfil_res.data or perfil_res.data[0].get("estado") != "APROBADO":
+
+    if perfil.get("estado") != "APROBADO":
         raise HTTPException(
             status_code=403,
             detail="El comercio debe estar aprobado para gestionar empleados."
         )
-    return perfil_res.data[0]
+
+    return perfil
 
 
 @app.get("/api/mi-negocio/empleados")
