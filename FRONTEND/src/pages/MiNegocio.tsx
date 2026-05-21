@@ -507,7 +507,14 @@ export default function MiNegocio() {
         // --- ANDROID NATIVO: usar MLKit Barcode Scanner ---
         if (Capacitor.isNativePlatform()) {
             try {
-                const { BarcodeScanner } = await import('@capacitor-mlkit/barcode-scanning');
+                const { BarcodeScanner, BarcodeFormat } = await import('@capacitor-mlkit/barcode-scanning');
+
+                // Asegurar que el módulo de Google Play Services para escanear códigos esté instalado (Android)
+                try {
+                    await BarcodeScanner.installGoogleBarcodeScannerModule();
+                } catch (installErr) {
+                    console.log('Error o módulo ya instalado:', installErr);
+                }
 
                 // Solicitar permiso de cámara
                 const { camera } = await BarcodeScanner.requestPermissions();
@@ -516,8 +523,10 @@ export default function MiNegocio() {
                     return;
                 }
 
-                // Iniciar escaneo nativo (fullscreen)
-                const { barcodes } = await BarcodeScanner.scan();
+                // Iniciar escaneo nativo (fullscreen) limitando a QR para mejor precisión
+                const { barcodes } = await BarcodeScanner.scan({
+                    formats: [BarcodeFormat.QrCode],
+                });
 
                 if (barcodes.length > 0) {
                     const decodedText = barcodes[0].rawValue || '';
@@ -548,7 +557,7 @@ export default function MiNegocio() {
 
                 await scanner.start(
                     { facingMode: 'environment' },
-                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    { fps: 10 },
                     async (decodedText) => {
                         await scanner.stop();
                         setIsScanning(false);
