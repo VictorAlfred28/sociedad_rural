@@ -2073,6 +2073,16 @@ async def validar_qr_dinamico(request: Request):
         json_data = await request.json()
         logger.info(f"[QR AUDIT] JSON parseado: {json_data}")
         token = json_data.get("token")
+        
+        # --- LOGS DEFENSIVOS INICIO ---
+        print(f"[QR BACKEND] PAYLOAD RECIBIDO JSON: {json_data}")
+        print(f"[QR BACKEND] TOKEN EXTRACTED: {token}")
+        print(f"[QR BACKEND] LENGTH: {len(str(token)) if token else 0}")
+        print(f"[QR BACKEND] REPR: {repr(token)}")
+        if isinstance(token, str):
+            print(f"[QR BACKEND] BYTES: {list(token.encode('utf-8'))}")
+        # --- LOGS DEFENSIVOS FIN ---
+
         if not token:
             logger.error("[QR AUDIT] Falta el campo 'token' en el JSON")
             raise HTTPException(status_code=400, detail="Falta el token")

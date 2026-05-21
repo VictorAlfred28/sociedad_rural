@@ -158,6 +158,7 @@ export default function MiNegocio() {
     const [isScanning, setIsScanning] = useState(false);
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const isProcessingScannerRef = useRef(false);
+    const isValidatingRef = useRef(false);
 
     // ── Panel tab: 'publicaciones' | 'estadisticas' | 'empleados' ─
     const [activeTab, setActiveTab] = useState<'publicaciones' | 'estadisticas' | 'empleados'>('publicaciones');
@@ -500,11 +501,11 @@ export default function MiNegocio() {
         }
     };
 
-
-    const startScanner = async () => {
+const startScanner = async () => {
         setScanResult(null);
         setError('');
         isProcessingScannerRef.current = false;
+        isValidatingRef.current = false;
 
         const launchWebScanner = () => {
             setShowScanner(true);
@@ -594,6 +595,7 @@ export default function MiNegocio() {
                         return;
                     }
                     
+                    setShowScanner(false);
                     validarSocio(tokenToValidate);
                 } else {
                     setError('No se detectó ningún QR. Intentá de nuevo.');
@@ -628,11 +630,18 @@ export default function MiNegocio() {
     };
 
     const validarSocio = async (token: string) => {
+        if (isValidatingRef.current) {
+            console.log("[QR APK FETCH] BLOQUEADO: Ya existe una validación en curso para este escaneo.");
+            return;
+        }
+        isValidatingRef.current = true;
+        
         try {
+            const payload = { token };
             const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/qr/validar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token })
+                body: JSON.stringify(payload)
             });
             if (!resp.ok && resp.status !== 400 && resp.status !== 404) {
                 throw new Error('Error de conexión al validar.');
