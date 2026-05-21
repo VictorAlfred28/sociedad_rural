@@ -2050,19 +2050,48 @@ def generar_qr(request: Request):
 
 
 @app.post("/api/qr/validar")
-def validar_qr_dinamico(data: QRTokenValidarRequest):
+async def validar_qr_dinamico(request: Request):
     """
     Verifica un token QR dinámico escaneado por el Comercio.
+    [LOGGING TEMPORAL DE AUDITORÍA AÑADIDO]
     """
+    logger.info("--- INICIO AUDITORIA QR ---")
+    
+    # 1. Log headers y raw body
+    headers = dict(request.headers)
+    logger.info(f"[QR AUDIT] Headers recibidos: {headers}")
+    
+    try:
+        raw_body = await request.body()
+        logger.info(f"[QR AUDIT] Raw body recibido: {raw_body.decode('utf-8')}")
+    except Exception as e:
+        logger.error(f"[QR AUDIT] Error leyendo raw body: {e}")
+        raise HTTPException(status_code=400, detail="No se pudo leer el body")
+        
+    # 2. Parse manual para auditar fallos
+    try:
+        json_data = await request.json()
+        logger.info(f"[QR AUDIT] JSON parseado: {json_data}")
+        token = json_data.get("token")
+        if not token:
+            logger.error("[QR AUDIT] Falta el campo 'token' en el JSON")
+            raise HTTPException(status_code=400, detail="Falta el token")
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        logger.error(f"[QR AUDIT] Error parseando JSON: {e}")
+        raise HTTPException(status_code=400, detail="JSON inválido")
+
     if not ENABLE_DYNAMIC_QR:
         raise HTTPException(status_code=403, detail="Dynamic QR is disabled.")
 
     try:
-        # 1. Buscamos el token
+        # 3. Buscamos el token
+        logger.info(f"[QR AUDIT] Buscando token en BD: {token}")
         result = (
-            supabase.table("qr_tokens").select("*").eq("token", data.token).execute()
+            supabase.table("qr_tokens").select("*").eq("token", token).execute()
         )
         if not result.data:
+            logger.warning("[QR AUDIT] Token NO encontrado en BD (retorna 404)")
             raise HTTPException(
                 status_code=404, detail="El código QR es inválido o no existe."
             )
