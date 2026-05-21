@@ -19,6 +19,8 @@ export default function ValidaQRDinamico() {
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<SocioValidado | null>(null);
 
+  const fetchedRef = React.useRef(false);
+
   useEffect(() => {
     const validar = async () => {
       try {
@@ -50,7 +52,10 @@ export default function ValidaQRDinamico() {
     };
 
     if (token) {
-      validar();
+      if (!fetchedRef.current) {
+        fetchedRef.current = true;
+        validar();
+      }
     } else {
       setResult({ valido: false, mensaje: 'Token de validación no proporcionado.' });
       setLoading(false);

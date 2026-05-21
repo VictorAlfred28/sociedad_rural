@@ -508,6 +508,7 @@ const startScanner = async () => {
         isValidatingRef.current = false;
 
         const launchWebScanner = () => {
+            console.log("[AUDIT] setShowScanner(true) - launchWebScanner");
             setShowScanner(true);
             setTimeout(async () => {
                 try {
@@ -595,6 +596,7 @@ const startScanner = async () => {
                         return;
                     }
                     
+                    console.log("[AUDIT] Native Scanner OK - setShowScanner(false)");
                     setShowScanner(false);
                     validarSocio(tokenToValidate);
                 } else {
@@ -626,6 +628,7 @@ const startScanner = async () => {
             }
         }
         setIsScanning(false);
+        console.log("[AUDIT] stopScanner - setShowScanner(false)");
         setShowScanner(false);
     };
 
@@ -648,11 +651,14 @@ const startScanner = async () => {
             }
             const data = await resp.json();
             if (!resp.ok) {
+                console.log("[AUDIT] setScanResult (Error/400/404):", data.detail);
                 setScanResult({ valido: false, mensaje: data.detail || 'Código QR inválido.' });
                 return;
             }
+            console.log("[AUDIT] setScanResult (Success/200):", data);
             setScanResult(data as SocioValidado);
         } catch (err: any) {
+            console.log("[AUDIT] setScanResult (Catch Exception):", err.message);
             setScanResult({ valido: false, mensaje: err.message || 'Ocurrió un error inesperado al leer el QR.' });
         }
     };
@@ -1471,6 +1477,7 @@ const startScanner = async () => {
 
                         {/* Camera Viewport or Error */}
                         {error ? (
+                            console.log("[AUDIT] RENDER: Error Viewport", error) ||
                             <div className="text-white text-center p-8">
                                 <span className="material-symbols-outlined text-6xl text-red-500 mb-4 block">no_photography</span>
                                 <p className="font-bold">{error}</p>
@@ -1492,84 +1499,87 @@ const startScanner = async () => {
                             </div>
                         )}
 
-                        {/* Result Overlay */}
-                        {scanResult && (
-                            <div className={`absolute inset-0 flex flex-col justify-end p-4 pb-12 z-20 ${scanResult.valido ? 'bg-emerald-600/90' : 'bg-red-600/95'} backdrop-blur-md animate-in fade-in slide-in-from-bottom-10`}>
-
-                                <div className="bg-white rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden">
-                                    <div className={`absolute top-0 left-0 right-0 h-4 ${scanResult.valido ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-
-                                    <span className={`material-symbols-outlined text-7xl mb-4 mt-2 ${scanResult.valido ? 'text-emerald-500' : 'text-red-500'}`}>
-                                        {scanResult.valido ? 'verified' : 'cancel'}
-                                    </span>
-
-                                    <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase">
-                                        {scanResult.valido ? 'SOCIO VALIDADO' : 'CARNET INVÁLIDO'}
-                                    </h2>
-
-                                    <p className={`text-sm font-bold m-4 p-3 rounded-xl border ${scanResult.valido ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                        {scanResult.mensaje}
-                                    </p>
-
-                                    {scanResult.socio && (
-                                        <div className="bg-slate-50 p-4 rounded-2xl mt-4 mb-8 text-left border border-slate-100">
-                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Datos del Socio</p>
-                                            <p className="font-bold text-slate-900 text-lg uppercase leading-tight">{scanResult.socio.nombre_apellido}</p>
-                                            <p className="text-slate-600 font-mono mt-1">DNI/CUIT: {scanResult.socio.dni || 'No provisto'}</p>
-
-                                            <div className="mt-3 p-2 bg-slate-100/50 rounded-xl border border-slate-200">
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Tipo de Miembro</p>
-                                                <p className="text-sm font-bold text-primary dark:text-primary-light uppercase">
-                                                    {scanResult.socio.rol === 'SOCIO'
-                                                        ? scanResult.socio.titular_id
-                                                            ? `Grupo Familiar - ${scanResult.socio.tipo_vinculo || 'Adherente'}`
-                                                            : 'Socio Común'
-                                                        : scanResult.socio.titular_id
-                                                            ? 'Empleado de Comercio'
-                                                            : 'Comercio Titular'
-                                                    }
-                                                </p>
-                                            </div>
-
-                                            <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
-                                                <span className="text-[10px] font-bold px-2 py-1 bg-slate-200 text-slate-700 rounded uppercase">
-                                                    {scanResult.socio.municipio || 'Sin Municipio'}
-                                                </span>
-                                                <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${scanResult.socio.estado === 'APROBADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                    ESTADO: {scanResult.socio.estado}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="flex gap-3">
-                                        {scanResult.valido && (
-                                            <button
-                                                onClick={() => stopScanner()}
-                                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95"
-                                            >
-                                                Aplicar Beneficio
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={() => setScanResult(null)} // Resetear para escanear de nuevo
-                                            className={`flex-1 font-bold py-4 rounded-xl transition-transform active:scale-95 ${scanResult.valido ? 'bg-slate-100 text-slate-700' : 'bg-slate-900 text-white shadow-xl'}`}
-                                        >
-                                            Escanear otro
-                                        </button>
-                                    </div>
-                                    {!scanResult.valido && (
-                                        <button onClick={stopScanner} className="w-full text-slate-500 text-sm font-bold mt-4 py-2 uppercase tracking-widest">
-                                            Cerrar Lector
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
 
-                {!(showForm || showScanner) && <BottomNav />}
+                {/* Result Overlay EXTRAÍDO FUERA DEL MODAL DE ESCÁNER */}
+                {scanResult && (
+                    <div className="fixed inset-0 z-[110]">
+                        <div className={`absolute inset-0 flex flex-col justify-end p-4 pb-12 z-20 ${scanResult.valido ? 'bg-emerald-600/90' : 'bg-red-600/95'} backdrop-blur-md animate-in fade-in slide-in-from-bottom-10`}>
+
+                            <div className="bg-white rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden">
+                                <div className={`absolute top-0 left-0 right-0 h-4 ${scanResult.valido ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+
+                                <span className={`material-symbols-outlined text-7xl mb-4 mt-2 ${scanResult.valido ? 'text-emerald-500' : 'text-red-500'}`}>
+                                    {scanResult.valido ? 'verified' : 'cancel'}
+                                </span>
+
+                                <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase">
+                                    {scanResult.valido ? 'SOCIO VALIDADO' : 'CARNET INVÁLIDO'}
+                                </h2>
+
+                                <p className={`text-sm font-bold m-4 p-3 rounded-xl border ${scanResult.valido ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    {scanResult.mensaje}
+                                </p>
+
+                                {scanResult.socio && (
+                                    <div className="bg-slate-50 p-4 rounded-2xl mt-4 mb-8 text-left border border-slate-100">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Datos del Socio</p>
+                                        <p className="font-bold text-slate-900 text-lg uppercase leading-tight">{scanResult.socio.nombre_apellido}</p>
+                                        <p className="text-slate-600 font-mono mt-1">DNI/CUIT: {scanResult.socio.dni || 'No provisto'}</p>
+
+                                        <div className="mt-3 p-2 bg-slate-100/50 rounded-xl border border-slate-200">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Tipo de Miembro</p>
+                                            <p className="text-sm font-bold text-primary dark:text-primary-light uppercase">
+                                                {scanResult.socio.rol === 'SOCIO'
+                                                    ? scanResult.socio.titular_id
+                                                        ? `Grupo Familiar - ${scanResult.socio.tipo_vinculo || 'Adherente'}`
+                                                        : 'Socio Común'
+                                                    : scanResult.socio.titular_id
+                                                        ? 'Empleado de Comercio'
+                                                        : 'Comercio Titular'
+                                                }
+                                            </p>
+                                        </div>
+
+                                        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
+                                            <span className="text-[10px] font-bold px-2 py-1 bg-slate-200 text-slate-700 rounded uppercase">
+                                                {scanResult.socio.municipio || 'Sin Municipio'}
+                                            </span>
+                                            <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${scanResult.socio.estado === 'APROBADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                ESTADO: {scanResult.socio.estado}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3">
+                                    {scanResult.valido && (
+                                        <button
+                                            onClick={() => { setScanResult(null); stopScanner(); }}
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95"
+                                        >
+                                            Aplicar Beneficio
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => { setScanResult(null); startScanner(); }}
+                                        className={`flex-1 font-bold py-4 rounded-xl transition-transform active:scale-95 ${scanResult.valido ? 'bg-slate-100 text-slate-700' : 'bg-slate-900 text-white shadow-xl'}`}
+                                    >
+                                        Escanear otro
+                                    </button>
+                                </div>
+                                {!scanResult.valido && (
+                                    <button onClick={() => { setScanResult(null); stopScanner(); }} className="w-full text-slate-500 text-sm font-bold mt-4 py-2 uppercase tracking-widest">
+                                        Cerrar Lector
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {!(showForm || showScanner || scanResult) && <BottomNav />}
             </div>
         </div>
     );
