@@ -506,6 +506,51 @@ export default function MiNegocio() {
         setError('');
         isProcessingScannerRef.current = false;
 
+        const launchWebScanner = () => {
+            setShowScanner(true);
+            setTimeout(async () => {
+                try {
+                    const scanner = new Html5Qrcode('qr-reader');
+                    scannerRef.current = scanner;
+                    setIsScanning(true);
+
+                    await scanner.start(
+                        { facingMode: 'environment' },
+                        { fps: 10 },
+                        async (decodedText) => {
+                            if (isProcessingScannerRef.current) return;
+                            isProcessingScannerRef.current = true;
+                            
+                            try {
+                                await scanner.stop();
+                            } catch (e) {
+                                console.error("Error stopping scanner", e);
+                            }
+                            setIsScanning(false);
+                            
+                            let text = decodedText || '';
+                            text = text.trim();
+                            const urlMatch = text.match(/\/(?:qr-valida|valida-socio)\/([a-fA-F0-9-]+)/i);
+                            const tokenToValidate = urlMatch ? urlMatch[1] : text;
+                            
+                            if (!tokenToValidate) {
+                                setError('No se detectó un token válido. Intentá de nuevo.');
+                                isProcessingScannerRef.current = false;
+                                return;
+                            }
+                            
+                            validarSocio(tokenToValidate);
+                        },
+                        () => { }
+                    );
+                } catch (err) {
+                    console.error('Camera access error:', err);
+                    setError('No se pudo acceder a la cámara. Revisa los permisos.');
+                    setIsScanning(false);
+                }
+            }, 100);
+        };
+
         // --- ANDROID NATIVO: usar MLKit Barcode Scanner ---
         if (Capacitor.isNativePlatform()) {
             try {
@@ -513,7 +558,11 @@ export default function MiNegocio() {
 
                 // Asegurar que el módulo de Google Play Services para escanear códigos esté instalado (Android)
                 try {
-                    await BarcodeScanner.installGoogleBarcodeScannerModule();
+                    // Timeout de 3 segundos para evitar bloqueos infinitos
+                    await Promise.race([
+                        BarcodeScanner.installGoogleBarcodeScannerModule(),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout instalando módulo')), 3000))
+                    ]);
                 } catch (installErr) {
                     console.log('Error o módulo ya instalado:', installErr);
                 }
@@ -549,60 +598,21 @@ export default function MiNegocio() {
                 } else {
                     setError('No se detectó ningún QR. Intentá de nuevo.');
                 }
+                return; // Éxito, salir de la función
             } catch (err: any) {
                 console.error('MLKit scan error:', err);
                 if (err?.message?.includes('canceled') || err?.message?.includes('cancel')) {
-                    // El usuario canceló, no es un error
-                } else {
-                    setError('Error al escanear. Intentá de nuevo.');
+                    // El usuario canceló la cámara nativa, no es un error
+                    return;
                 }
+                // Si ocurre CUALQUIER otro fallo (ej. crash de librería), no abortamos.
+                // Continuamos hacia abajo para activar la cámara web.
+                console.warn('Fallo el escáner nativo, forzando modo web...');
             }
-            return;
         }
 
-        // --- WEB: usar html5-qrcode (comportamiento original) ---
-        setShowScanner(true);
-        setTimeout(async () => {
-            try {
-                const scanner = new Html5Qrcode('qr-reader');
-                scannerRef.current = scanner;
-                setIsScanning(true);
-
-                await scanner.start(
-                    { facingMode: 'environment' },
-                    { fps: 10 },
-                    async (decodedText) => {
-                        if (isProcessingScannerRef.current) return;
-                        isProcessingScannerRef.current = true;
-                        
-                        try {
-                            await scanner.stop();
-                        } catch (e) {
-                            console.error("Error stopping scanner", e);
-                        }
-                        setIsScanning(false);
-                        
-                        let text = decodedText || '';
-                        text = text.trim();
-                        const urlMatch = text.match(/\/(?:qr-valida|valida-socio)\/([a-fA-F0-9-]+)/i);
-                        const tokenToValidate = urlMatch ? urlMatch[1] : text;
-                        
-                        if (!tokenToValidate) {
-                            setError('No se detectó un token válido. Intentá de nuevo.');
-                            isProcessingScannerRef.current = false;
-                            return;
-                        }
-                        
-                        validarSocio(tokenToValidate);
-                    },
-                    () => { }
-                );
-            } catch (err) {
-                console.error('Camera access error:', err);
-                setError('No se pudo acceder a la cámara. Revisa los permisos.');
-                setIsScanning(false);
-            }
-        }, 100);
+        // --- FALLBACK A MODO WEB SI NATIVO FALLA O NO ES NATIVO ---
+        launchWebScanner();
     };
 
     const stopScanner = async () => {
