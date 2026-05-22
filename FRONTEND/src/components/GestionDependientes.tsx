@@ -27,7 +27,7 @@ export default function GestionDependientes() {
     const title = isComercio ? 'Mis Empleados' : 'Grupo Familiar';
     const addTitle = isComercio ? 'Agregar Empleado' : 'Agregar Familiar';
     const vinculosPermitidos = isComercio
-        ? ['Empleado', 'Encargado', 'Otro']
+        ? ['Empleado', 'Encargado']
         : ['Cónyuge', 'Hijo/a', 'Padre/Madre', 'Otro'];
 
     const fetchDependientes = async () => {
