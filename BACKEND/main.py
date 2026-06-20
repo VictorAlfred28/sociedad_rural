@@ -797,6 +797,8 @@ def _enviar_via_smtp(destinatario: str, asunto: str, html_body: str) -> bool:
         msg["To"]      = destinatario
         msg.attach(MIMEText(html_body, "html", "utf-8"))
 
+        envelope_from = smtp_from.split("<")[-1].strip(">").strip() if "<" in smtp_from else smtp_from
+        
         with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
             server.ehlo()
             server.starttls()
