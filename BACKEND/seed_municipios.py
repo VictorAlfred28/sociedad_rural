@@ -22,7 +22,8 @@ municipios_seed = [
     {"nombre": "Ramada Paso", "provincia": "Corrientes"},
     {"nombre": "Riachuelo", "provincia": "Corrientes"},
     {"nombre": "El Sombrero", "provincia": "Corrientes"},
-    {"nombre": "Paso de la Patria", "provincia": "Corrientes"}
+    {"nombre": "Paso de la Patria", "provincia": "Corrientes"},
+    {"nombre": "Otros", "provincia": "Corrientes"}
 ]
 
 for m in municipios_seed:
