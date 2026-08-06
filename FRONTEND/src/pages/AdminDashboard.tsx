@@ -13,13 +13,14 @@ import GestionSoporte from '../components/admin/GestionSoporte';
 import ChangePasswordModal from '../components/admin/ChangePasswordModal';
 import GestionPagos from '../components/admin/GestionPagos';
 import { useNavigate } from 'react-router-dom';
+import QRAcceso from '../components/admin/QRAcceso';
 
 export default function AdminDashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'gestion-pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'
-  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'gestion-pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte'>('panel');
+  // Tabs: 'panel' | 'usuarios' | 'nuevo-comercio' | 'gestion-pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'qr-acceso'
+  const [activeTab, setActiveTab] = useState<'panel' | 'usuarios' | 'nuevo-comercio' | 'gestion-pagos' | 'auditoria' | 'eventos' | 'reportes' | 'administradores' | 'soporte' | 'qr-acceso'>('panel');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
@@ -67,6 +68,7 @@ export default function AdminDashboard() {
     { id: 'gestion-pagos', icon: 'account_balance', label: 'Gestión de Pagos' },
     { id: 'soporte', icon: 'support_agent', label: 'Centro de Soporte', badge: supportCount > 0 ? supportCount : null },
     { id: 'reportes', icon: 'analytics', label: 'Reportes y Cierres' },
+    { id: 'qr-acceso', icon: 'qr_code_2', label: 'QR de Acceso' },
   ];
 
   const adminNavItems = isSuperadmin ? [
@@ -265,6 +267,7 @@ export default function AdminDashboard() {
           {activeTab === 'soporte' && <GestionSoporte />}
           {activeTab === 'gestion-pagos' && <GestionPagos isSuperadmin={isSuperadmin} />}
           {activeTab === 'reportes' && <ReportesPanel />}
+          {activeTab === 'qr-acceso' && <QRAcceso />}
         </div>
       </main>
 
