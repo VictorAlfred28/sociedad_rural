@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
@@ -1477,7 +1478,6 @@ const startScanner = async () => {
 
                         {/* Camera Viewport or Error */}
                         {error ? (
-                            console.log("[AUDIT] RENDER: Error Viewport", error) ||
                             <div className="text-white text-center p-8">
                                 <span className="material-symbols-outlined text-6xl text-red-500 mb-4 block">no_photography</span>
                                 <p className="font-bold">{error}</p>
@@ -1584,3 +1584,4 @@ const startScanner = async () => {
         </div>
     );
 }
+
