@@ -1477,11 +1477,11 @@ def login(
 
     # 4.A IDENTIFICAR TIPO DE INGRESO
     tipo_identificacion = "unknown"
-    login_email = None
+    login_emails = []
 
     if "@" in identificador_limpio:
         tipo_identificacion = "email"
-        login_email = identificador_limpio
+        login_emails.append(identificador_limpio)
     elif identificador_limpio.isdigit():
         tipo_identificacion = "dni"  # Numerico es DNI o CUIT
 
@@ -1497,7 +1497,7 @@ def login(
                 raise HTTPException(
                     status_code=401, detail="Credenciales inválidas"
                 )
-            login_email = response.data[0]["email"]
+            login_emails = [row["email"].strip() for row in response.data if row.get("email")]
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
@@ -1517,17 +1517,17 @@ def login(
                     status_code=401,
                     detail="Credenciales inválidas",
                 )
-            login_email = response.data[0]["email"]
+            login_emails = [row["email"].strip() for row in response.data if row.get("email")]
         except Exception as e:
             if isinstance(e, HTTPException):
                 raise e
             logger.error(f"Error fetching email from username: {e}", exc_info=True)
             raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
-    if not login_email:
+    if not login_emails:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
-    logger.info(f"Login email resolved: {login_email}")
+    logger.info(f"Login emails resolved: {login_emails}")
     # 4.B: AUTENTICAR CON SUPABASE AUTH
     try:
         logger.info("Authenticating with Supabase Auth...")
@@ -1537,6 +1537,8 @@ def login(
 
         auth_session = None
         auth_user = None
+        last_auth_err = None
+        login_email = None
 
         default_passwords = [
             "comercio1234",
@@ -1546,27 +1548,35 @@ def login(
             "Familia1234"
         ]
 
-        try:
-            auth_response = auth_client.auth.sign_in_with_password(
-                {"email": login_email, "password": password}
-            )
-            auth_session = auth_response.session
-            auth_user = auth_response.user
-        except Exception as auth_err:
-            # Reintento si la contraseña tiene espacios por error de tipeo/copiado en contraseñas por defecto
-            if "Invalid login credentials" in str(auth_err) and password.strip() in default_passwords and password != password.strip():
-                try:
-                    logger.info("Reintentando login con contraseña sanitizada (posible espacio extra)")
-                    auth_response = auth_client.auth.sign_in_with_password(
-                        {"email": login_email, "password": password.strip()}
-                    )
-                    auth_session = auth_response.session
-                    auth_user = auth_response.user
-                    password = password.strip()  # Actualizamos para la validación posterior
-                except Exception as retry_err:
-                    raise retry_err
-            else:
-                raise auth_err
+        for email_candidate in login_emails:
+            try:
+                auth_response = auth_client.auth.sign_in_with_password(
+                    {"email": email_candidate, "password": password}
+                )
+                auth_session = auth_response.session
+                auth_user = auth_response.user
+                login_email = email_candidate
+                break
+            except Exception as auth_err:
+                # Reintento si la contraseña tiene espacios por error de tipeo/copiado en contraseñas por defecto
+                if "invalid login credentials" in str(auth_err).lower() and password.strip() in default_passwords and password != password.strip():
+                    try:
+                        logger.info("Reintentando login con contraseña sanitizada (posible espacio extra)")
+                        auth_response = auth_client.auth.sign_in_with_password(
+                            {"email": email_candidate, "password": password.strip()}
+                        )
+                        auth_session = auth_response.session
+                        auth_user = auth_response.user
+                        password = password.strip()  # Actualizamos para la validación posterior
+                        login_email = email_candidate
+                        break
+                    except Exception as retry_err:
+                        last_auth_err = retry_err
+                else:
+                    last_auth_err = auth_err
+        
+        if not auth_session:
+            raise last_auth_err
 
         session = auth_session
         user = auth_user
