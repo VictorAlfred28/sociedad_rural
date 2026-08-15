@@ -1538,6 +1538,14 @@ def login(
         auth_session = None
         auth_user = None
 
+        default_passwords = [
+            "comercio1234",
+            "socio1234",
+            "socio123",
+            "SRNC2026!",
+            "Familia1234"
+        ]
+
         try:
             auth_response = auth_client.auth.sign_in_with_password(
                 {"email": login_email, "password": password}
@@ -1545,7 +1553,20 @@ def login(
             auth_session = auth_response.session
             auth_user = auth_response.user
         except Exception as auth_err:
-            raise auth_err
+            # Reintento si la contraseña tiene espacios por error de tipeo/copiado en contraseñas por defecto
+            if "Invalid login credentials" in str(auth_err) and password.strip() in default_passwords and password != password.strip():
+                try:
+                    logger.info("Reintentando login con contraseña sanitizada (posible espacio extra)")
+                    auth_response = auth_client.auth.sign_in_with_password(
+                        {"email": login_email, "password": password.strip()}
+                    )
+                    auth_session = auth_response.session
+                    auth_user = auth_response.user
+                    password = password.strip()  # Actualizamos para la validación posterior
+                except Exception as retry_err:
+                    raise retry_err
+            else:
+                raise auth_err
 
         session = auth_session
         user = auth_user
@@ -1592,14 +1613,7 @@ def login(
 
         # Validación: PRIMER LOGIN OBLIGATORIO SI USA PASS POR DEFECTO O FUE RESTABLECIDA POR ADMIN
         necesita_cambio_password = False
-        default_passwords = [
-            "comercio1234",
-            "socio1234",
-            "socio123",
-            "SRNC2026!",
-            "Familia1234"
-        ]
-        if password in default_passwords or profile.get("must_change_password") is True:
+        if password in default_passwords or profile.get("password_changed") is False:
             necesita_cambio_password = True
 
         # Auditoría de Login para Administradores
@@ -1655,11 +1669,24 @@ def login(
 
     except Exception as e:
         logger.error(f"Error en login [{tipo_identificacion}]: {type(e).__name__}")
+        error_msg = str(e).lower()
 
-        if "Invalid login credentials" in str(e):
+        if "invalid login credentials" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Los datos ingresados no coinciden con nuestros registros. Verificá la información e intentá nuevamente.",
+            )
+            
+        if "too many requests" in error_msg or "rate limit" in error_msg or "banned" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="CUENTA_BLOQUEADA_TEMPORALMENTE",
+            )
+            
+        if "email not confirmed" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="EMAIL_NO_VERIFICADO",
             )
 
         if isinstance(e, HTTPException):

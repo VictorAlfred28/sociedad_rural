@@ -94,6 +94,8 @@ export default function Login() {
             'Tu cuenta está limitada porque el socio titular tiene restricciones en su cuenta. ' +
             'Comunicate con la administración para más información.'
           );
+        } else if (detail === 'CUENTA_BLOQUEADA_TEMPORALMENTE') {
+          setErrorMsg('Tu cuenta está bloqueada temporalmente por demasiados intentos fallidos. Por favor, intentá nuevamente más tarde.');
         } else if (detail.startsWith('CUENTA_')) {
           const estado = detail.replace('CUENTA_', '');
           const msgs: Record<string, string> = {
